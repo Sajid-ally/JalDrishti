@@ -1,0 +1,700 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  /* 🌊 Ocean palette */
+  --color-deep-ocean: #07545c;
+  --color-dark-teal: #356267;
+  --color-medium-teal: #41737c;
+  --color-ocean: #278b91;
+  --color-aqua: #35bfc0;
+  --color-light-aqua: #8de4dc;
+
+  /* 🌱 Very light ocean tones */
+  --color-pale-aqua: #c2f2f2;
+  --color-mint: #d9f8f3;
+  --color-soft-mint: #effefb;
+
+  /* Neutral */
+  --color-white: #ffffff;
+  --color-border: rgba(53, 98, 103, 0.18);
+
+  color: var(--color-dark-teal);
+  background-color: var(--color-soft-mint);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+
+  /*
+    🌊 Soft coastal gradient
+    Instead of one harsh neon gradient, use several
+    subtle ocean tones.
+  */
+  background:
+    radial-gradient(
+      circle at 10% 10%,
+      rgba(141, 228, 220, 0.55) 0%,
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at 90% 20%,
+      rgba(194, 242, 242, 0.7) 0%,
+      transparent 40%
+    ),
+    linear-gradient(
+      135deg,
+      #effefb 0%,
+      #d9f8f3 35%,
+      #c2f2f2 70%,
+      #b4e9e5 100%
+    );
+
+  color: var(--color-dark-teal);
+}
+
+/* Correct universal selector */
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+/* --------------------------------
+   Tailwind colour overrides
+-------------------------------- */
+
+.bg-slate-50 {
+  background-color: var(--color-soft-mint) !important;
+}
+
+.bg-slate-100 {
+  background-color: var(--color-pale-aqua) !important;
+}
+
+.text-slate-900 {
+  color: var(--color-deep-ocean) !important;
+}
+
+.text-slate-700 {
+  color: var(--color-dark-teal) !important;
+}
+
+.text-slate-600,
+.text-slate-500 {
+  color: var(--color-medium-teal) !important;
+}
+
+.border-slate-200 {
+  border-color: var(--color-border) !important;
+}
+
+.border-slate-300 {
+  border-color: rgba(53, 98, 103, 0.24) !important;
+}
+
+.ring-slate-200 {
+  --tw-ring-color: rgba(53, 98, 103, 0.2) !important;
+}
+
+/* --------------------------------
+   Ocean utility colours
+-------------------------------- */
+
+.text-ocean {
+  color: var(--color-ocean) !important;
+}
+
+.text-deep-ocean {
+  color: var(--color-deep-ocean) !important;
+}
+
+.bg-ocean {
+  background-color: var(--color-ocean) !important;
+}
+
+.bg-aqua {
+  background-color: var(--color-aqua) !important;
+}
+
+.bg-pale-aqua {
+  background-color: var(--color-pale-aqua) !important;
+}
+
+.bg-soft-mint {
+  background-color: var(--color-soft-mint) !important;
+}
+
+.border-ocean {
+  border-color: rgba(39, 139, 145, 0.25) !important;
+}
+
+/* --------------------------------
+   Buttons
+-------------------------------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button-full {
+  width: 100%;
+}
+
+.button-primary {
+  background: var(--color-ocean);
+  color: white;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--color-deep-ocean);
+}
+
+.button-secondary {
+  background: var(--color-pale-aqua);
+  color: var(--color-dark-teal);
+}
+
+.button-outline {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-dark-teal);
+}
+
+.button-outline:hover:not(:disabled) {
+  background: var(--color-pale-aqua);
+}
+
+.button-danger {
+  background: #b04a4a;
+  color: white;
+}
+
+.button-ghost {
+  background: transparent;
+  color: var(--color-dark-teal);
+}
+
+.button-ghost:hover:not(:disabled) {
+  background: rgba(53, 98, 103, 0.08);
+}
+
+/* --------------------------------
+   Form inputs
+-------------------------------- */
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-dark-teal);
+}
+
+.input-wrapper {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-medium-teal);
+  pointer-events: none;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: white;
+  color: var(--color-dark-teal);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.input-with-icon {
+  padding-left: 2.75rem;
+}
+
+.input-field:focus {
+  border-color: var(--color-ocean);
+}
+
+.input-error {
+  border-color: #b04a4a;
+}
+
+.input-error-message {
+  font-size: 0.75rem;
+  color: #b04a4a;
+}
+
+/* --------------------------------
+   Auth layout
+-------------------------------- */
+
+.auth-layout {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .auth-layout {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.auth-brand-panel {
+  display: none;
+  background: linear-gradient(135deg, #356267 0%, #07545c 100%);
+  color: white;
+  padding: 3rem;
+}
+
+@media (min-width: 1024px) {
+  .auth-brand-panel {
+    display: flex;
+    align-items: center;
+  }
+}
+
+.auth-brand-content {
+  max-width: 28rem;
+}
+
+.auth-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 3rem;
+}
+
+.auth-logo-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.auth-logo-text {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.auth-brand-message h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0 0 1rem;
+}
+
+.auth-brand-message p {
+  opacity: 0.85;
+  line-height: 1.6;
+}
+
+.auth-tagline {
+  margin-top: 2rem;
+  font-size: 0.875rem;
+  opacity: 0.7;
+}
+
+.auth-form-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--color-soft-mint);
+}
+
+.auth-form-container {
+  width: 100%;
+  max-width: 26rem;
+}
+
+.auth-page-header {
+  margin-bottom: 2rem;
+}
+
+.auth-page-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--color-ocean);
+}
+
+.auth-page-header h1 {
+  margin: 0.75rem 0 0.5rem;
+  font-size: 1.875rem;
+  font-weight: 800;
+  color: var(--color-deep-ocean);
+}
+
+.auth-page-header p {
+  color: var(--color-medium-teal);
+  line-height: 1.6;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.auth-form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+.auth-form-options a {
+  color: var(--color-ocean);
+  text-decoration: none;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-medium-teal);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  color: var(--color-medium-teal);
+  font-size: 0.75rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-medium-teal);
+}
+
+.auth-switch a {
+  color: var(--color-ocean);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-success {
+  text-align: center;
+}
+
+.auth-success-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  background: var(--color-pale-aqua);
+  color: var(--color-ocean);
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+/* --------------------------------
+   Landing page
+-------------------------------- */
+
+.landing-page {
+  min-height: 100vh;
+  background: var(--color-soft-mint);
+  color: var(--color-dark-teal);
+}
+
+.landing-hero {
+  padding: 1.5rem 2rem 4rem;
+}
+
+.landing-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 72rem;
+  margin: 0 auto 4rem;
+}
+
+.landing-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.landing-logo-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem;
+  background: var(--color-ocean);
+  color: white;
+  font-weight: 800;
+}
+
+.landing-logo-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.landing-nav-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.landing-hero-content {
+  display: grid;
+  gap: 3rem;
+  max-width: 72rem;
+  margin: 0 auto;
+  align-items: center;
+}
+
+@media (min-width: 1024px) {
+  .landing-hero-content {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.landing-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--color-ocean);
+}
+
+.landing-hero-text h1 {
+  margin: 1rem 0;
+  font-size: clamp(2.5rem, 5vw, 3.75rem);
+  font-weight: 900;
+  line-height: 1.1;
+  color: var(--color-deep-ocean);
+}
+
+.landing-hero-text h1 span {
+  color: var(--color-ocean);
+}
+
+.landing-hero-text p {
+  max-width: 32rem;
+  line-height: 1.7;
+  color: var(--color-medium-teal);
+}
+
+.landing-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.landing-hero-visual {
+  position: relative;
+  min-height: 20rem;
+}
+
+.hero-circle {
+  position: absolute;
+  border-radius: 9999px;
+  background: var(--color-pale-aqua);
+}
+
+.hero-circle-one {
+  width: 12rem;
+  height: 12rem;
+  top: 0;
+  right: 2rem;
+  opacity: 0.6;
+}
+
+.hero-circle-two {
+  width: 8rem;
+  height: 8rem;
+  bottom: 1rem;
+  left: 1rem;
+  opacity: 0.4;
+}
+
+.hero-eye-card {
+  position: relative;
+  z-index: 1;
+  max-width: 20rem;
+  margin: 2rem auto 0;
+  padding: 2rem;
+  border-radius: 2rem;
+  background: white;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+}
+
+.hero-eye-icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.landing-features {
+  padding: 4rem 2rem;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+
+.landing-section-heading span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--color-ocean);
+}
+
+.landing-section-heading h2 {
+  margin-top: 0.75rem;
+  font-size: 2.25rem;
+  font-weight: 800;
+  color: var(--color-deep-ocean);
+}
+
+.landing-feature-grid {
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+@media (min-width: 768px) {
+  .landing-feature-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.landing-feature-card {
+  padding: 2rem;
+  border-radius: 1.5rem;
+  background: white;
+  box-shadow: 0 8px 30px rgba(53, 98, 103, 0.08);
+}
+
+.feature-icon {
+  display: inline-flex;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  background: var(--color-pale-aqua);
+  color: var(--color-ocean);
+  margin-bottom: 1rem;
+}
+
+.landing-feature-card span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-ocean);
+}
+
+.landing-feature-card h3 {
+  margin: 0.5rem 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.landing-feature-card p {
+  color: var(--color-medium-teal);
+  line-height: 1.6;
+  font-size: 0.9375rem;
+}
+
+.landing-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  margin: 2rem;
+  padding: 3rem;
+  border-radius: 2rem;
+  background: linear-gradient(135deg, #356267 0%, #07545c 100%);
+  color: white;
+}
+
+.landing-cta span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  opacity: 0.8;
+}
+
+.landing-cta h2 {
+  margin-top: 0.75rem;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.landing-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 2rem;
+  font-size: 0.875rem;
+  color: var(--color-medium-teal);
+  border-top: 1px solid var(--color-border);
+}
