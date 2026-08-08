@@ -1,0 +1,19 @@
+# Environment
+Backend/.env
+
+# Virtual Environment
+Backend/venv/
+
+# Uploads
+Backend/uploads/
+
+# Python Cache
+**/__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
