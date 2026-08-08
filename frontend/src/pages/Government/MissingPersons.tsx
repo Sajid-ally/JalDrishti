@@ -2,7 +2,7 @@ export default function MissingPersons() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       <div className="mx-auto max-w-7xl px-6 py-10 sm:px-8">
-        <div className="rounded-[32px] bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
+        <div className="rounded-4xl bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-sky-600">
             Missing persons
           </p>

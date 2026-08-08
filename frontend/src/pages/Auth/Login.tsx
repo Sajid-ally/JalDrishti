@@ -1,20 +1,21 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiArrowRight, FiLock, FiMail } from "react-icons/fi";
+import { FiArrowRight, FiLock, FiMail, FiShield, FiUser } from "react-icons/fi";
 import toast from "react-hot-toast";
 
 import AuthLayout from "../../layouts/AuthLayout";
 import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import useAuth from "../../hooks/useAuth";
+import type { UserRole } from "../../context/AuthContext";
 
 export default function Login() {
     const navigate = useNavigate();
     const { login } = useAuth();
 
+    const [role, setRole] = useState<UserRole>("citizen");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (
@@ -30,7 +31,7 @@ export default function Login() {
         setIsLoading(true);
 
         try {
-            const success = await login(email, password);
+            const success = await login(email, password, role);
 
             if (!success) {
                 toast.error("Invalid login details.");
@@ -39,7 +40,12 @@ export default function Login() {
 
             toast.success("Welcome back!");
 
-            navigate("/citizen/dashboard");
+            // Route based on selected role
+            if (role === "government") {
+                navigate("/government/dashboard");
+            } else {
+                navigate("/citizen");
+            }
         } finally {
             setIsLoading(false);
         }
@@ -55,9 +61,39 @@ export default function Login() {
                 <h1>Login to CoastalEye</h1>
 
                 <p>
-                    Continue making your community a better
-                    place.
+                    Select your role and sign in to continue.
                 </p>
+            </div>
+
+            {/* Role Selector */}
+            <div className="role-selector">
+                <button
+                    type="button"
+                    id="role-citizen"
+                    className={`role-card ${role === "citizen" ? "role-card-active" : ""}`}
+                    onClick={() => setRole("citizen")}
+                    aria-pressed={role === "citizen"}
+                >
+                    <span className="role-card-icon">
+                        <FiUser size={20} />
+                    </span>
+                    <span className="role-card-label">Citizen</span>
+                    <span className="role-card-desc">Report hazards &amp; stay informed</span>
+                </button>
+
+                <button
+                    type="button"
+                    id="role-government"
+                    className={`role-card ${role === "government" ? "role-card-active" : ""}`}
+                    onClick={() => setRole("government")}
+                    aria-pressed={role === "government"}
+                >
+                    <span className="role-card-icon">
+                        <FiShield size={20} />
+                    </span>
+                    <span className="role-card-label">Government Official</span>
+                    <span className="role-card-desc">Verify reports &amp; coordinate response</span>
+                </button>
             </div>
 
             <form
@@ -104,9 +140,11 @@ export default function Login() {
                     fullWidth
                     loading={isLoading}
                 >
-                    Login
                     {!isLoading && (
-                        <FiArrowRight size={18} />
+                        <>
+                            Login as {role === "government" ? "Government Official" : "Citizen"}
+                            <FiArrowRight size={18} />
+                        </>
                     )}
                 </Button>
             </form>

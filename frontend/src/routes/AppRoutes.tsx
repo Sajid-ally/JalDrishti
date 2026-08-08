@@ -27,12 +27,6 @@ import DisasterAlerts from "../pages/Government/DisasterAlerts";
 import GovernmentMissingPersons from "../pages/Government/MissingPersons";
 import GovernmentProfile from "../pages/Government/Profile";
 
-import AnalystDashboard from "../pages/Analyst/Dashboard";
-import Analytics from "../pages/Analyst/Analytics";
-import AnalystHeatmap from "../pages/Analyst/Heatmap";
-import Trends from "../pages/Analyst/Trends";
-import AIInsights from "../pages/Analyst/AIInsights";
-import AnalystProfile from "../pages/Analyst/Profile";
 
 import Notifications from "../pages/Shared/Notifications";
 import Settings from "../pages/Shared/Settings";
@@ -107,22 +101,6 @@ export default function AppRoutes() {
           element={withLayout(<GovernmentProfile />)}
         />
 
-        {/* Analyst */}
-        <Route
-          path="/analyst"
-          element={<Navigate to="/analyst/dashboard" replace />}
-        />
-        <Route
-          path="/analyst/dashboard"
-          element={withLayout(<AnalystDashboard />)}
-        />
-        <Route path="/analyst/analytics" element={withLayout(<Analytics />)} />
-        <Route path="/analyst/heatmap" element={withLayout(<AnalystHeatmap />)} />
-        <Route path="/analyst/trends" element={withLayout(<Trends />)} />
-        <Route path="/analyst/insights" element={withLayout(<AIInsights />)} />
-        <Route path="/analyst/profile" element={withLayout(<AnalystProfile />)} />
-
-        {/* Shared */}
         <Route path="/notifications" element={withLayout(<Notifications />)} />
         <Route path="/settings" element={withLayout(<Settings />)} />
 

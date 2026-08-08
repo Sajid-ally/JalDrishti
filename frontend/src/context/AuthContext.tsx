@@ -8,17 +8,20 @@ import {
 
 import { STORAGE_KEYS } from "../utils/constants";
 
+export type UserRole = "citizen" | "government";
+
 interface User {
     id: string;
     name: string;
     email: string;
+    role: UserRole;
 }
 
 interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (email: string, password: string) => Promise<boolean>;
+    login: (email: string, password: string, role: UserRole) => Promise<boolean>;
     signup: (
         name: string,
         email: string,
@@ -61,10 +64,13 @@ export function AuthProvider({
 
     const login = async (
         email: string,
-        password: string
+        password: string,
+        role: UserRole
     ): Promise<boolean> => {
         // Temporary frontend authentication.
-        // Backend API will replace this later.
+        // TODO: Replace with backend API call — POST /api/auth/login
+        // The backend should validate credentials and return { user, token }
+        // where user contains the verified role.
 
         if (!email || !password) {
             return false;
@@ -74,6 +80,7 @@ export function AuthProvider({
             id: "USR-001",
             name: email.split("@")[0],
             email,
+            role,
         };
 
         localStorage.setItem(
@@ -97,7 +104,7 @@ export function AuthProvider({
         password: string
     ): Promise<boolean> => {
         // Temporary frontend signup.
-        // Backend API will replace this later.
+        // TODO: Replace with backend API call — POST /api/auth/signup
 
         if (!name || !email || !password) {
             return false;
@@ -107,6 +114,7 @@ export function AuthProvider({
             id: `USR-${Date.now()}`,
             name,
             email,
+            role: "citizen", // New signups default to citizen
         };
 
         localStorage.setItem(

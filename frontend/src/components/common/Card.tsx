@@ -1,11 +1,15 @@
 import type { ReactNode } from "react";
 
+export type CardVariant = "default" | "glass" | "stat" | "news" | "hazard";
+
 export type CardProps = {
   children?: ReactNode;
   className?: string;
   title?: ReactNode;
   subtitle?: ReactNode;
   value?: ReactNode;
+  /** Visual variant: default | glass | stat | news | hazard */
+  variant?: CardVariant;
 };
 
 export default function Card({
@@ -14,10 +18,13 @@ export default function Card({
   title,
   subtitle,
   value,
+  variant = "default",
 }: CardProps) {
+  const variantClass = variant !== "default" ? `card-${variant}` : "";
+
   return (
     <div
-      className={`rounded-[28px] border border-white/50 bg-white/45 p-6 shadow-[0_8px_30px_rgba(53,98,103,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:bg-white/55 hover:shadow-[0_12px_35px_rgba(53,98,103,0.18)] ${className}`}
+      className={`rounded-[28px] border border-white/50 bg-white/45 p-6 shadow-[0_8px_30px_rgba(53,98,103,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:bg-white/55 hover:shadow-[0_12px_35px_rgba(53,98,103,0.18)] ${variantClass} ${className}`}
     >
       {title && (
         <p className="text-sm font-medium uppercase tracking-[0.15em] text-[#356267]">
