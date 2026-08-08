@@ -1,0 +1,54 @@
+[
+  {
+    "report_id": "R001",
+    "hazard_type": "flood",
+    "severity": "critical",
+    "affected_people": 500,
+    "location": "Coastal residential area",
+    "type": "natural_disaster",
+    "description": "Severe flooding has affected a large residential area.",
+    "latitude": 20.2961,
+    "longitude": 85.8245,
+    "confidence": 0.95,
+    "time": "2026-08-08T10:30:00+05:30"
+  },
+  {
+    "report_id": "R002",
+    "hazard_type": "road_damage",
+    "severity": "medium",
+    "affected_people": 20,
+    "location": "Main coastal road",
+    "type": "infrastructure",
+    "description": "A section of the coastal road is damaged and difficult to use.",
+    "latitude": 20.3001,
+    "longitude": 85.8300,
+    "confidence": 0.88,
+    "time": "2026-08-08T09:15:00+05:30"
+  },
+  {
+    "report_id": "R003",
+    "hazard_type": "flood",
+    "severity": "high",
+    "affected_people": 150,
+    "location": "Low lying village",
+    "type": "natural_disaster",
+    "description": "Rising water levels have entered several houses.",
+    "latitude": 20.2900,
+    "longitude": 85.8100,
+    "confidence": 0.91,
+    "time": "2026-08-08T11:00:00+05:30"
+  },
+  {
+    "report_id": "R004",
+    "hazard_type": "erosion",
+    "severity": "low",
+    "affected_people": 5,
+    "location": "Northern shoreline",
+    "type": "coastal_hazard",
+    "description": "Minor coastal erosion has been observed along the shoreline.",
+    "latitude": 20.3100,
+    "longitude": 85.8400,
+    "confidence": 0.82,
+    "time": "2026-08-08T08:00:00+05:30"
+  }
+]
