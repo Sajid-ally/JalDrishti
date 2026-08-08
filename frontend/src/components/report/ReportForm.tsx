@@ -24,7 +24,7 @@ export default function ReportForm() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("http://localhost:8000/api/reports", {
+      const res = await fetch("http://localhost:8001/api/detect", {
         method: "POST",
         body: formData,
       });
@@ -32,7 +32,7 @@ export default function ReportForm() {
       if (!res.ok) throw new Error(`Server responded ${res.status}`);
 
       const data = await res.json();
-      setResult(data.aiResult);
+      setResult(data);
     } catch (err: unknown) {
       setError((err as Error).message);
     } finally {
