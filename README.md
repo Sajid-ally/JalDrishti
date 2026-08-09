@@ -309,51 +309,39 @@ independently deployed,
 accessed from another device,
 connected to CoastalEye through APIs.
 🧩 System Architecture
-                         ┌─────────────────────┐
-                         │      CITIZEN        │
-                         │  Reports / Images   │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │     COASTALEYE      │
-                         │      BACKEND        │
-                         │      FastAPI        │
-                         └──────────┬──────────┘
-                                    │
-                    ┌───────────────┼────────────────┐
-                    │               │                │
-                    ▼               ▼                ▼
-             ┌────────────┐  ┌────────────┐  ┌──────────────┐
-             │   Gemini   │  │ MongoDB    │  │ ML Services  │
-             │ AI Vision  │  │ Database   │  │ / Analytics  │
-             └─────┬──────┘  └─────┬──────┘  └──────┬───────┘
-                   │               │                │
-                   └───────────────┼────────────────┘
-                                   ▼
-                         ┌─────────────────────┐
-                         │ VALIDATION ENGINE   │
-                         │                     │
-                         │ Reliability Score   │
-                         │ Status              │
-                         └──────────┬──────────┘
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │ INCIDENT ENGINE     │
-                         │                     │
-                         │ Clustering          │
-                         │ Confidence          │
-                         │ Aggregation          │
-                         └──────────┬──────────┘
-                                    │
-                    ┌───────────────┼────────────────┐
-                    ▼               ▼                ▼
-             ┌────────────┐  ┌────────────┐  ┌──────────────┐
-             │  Heatmaps  │  │ Government │  │ Emergency /  │
-             │    & GIS   │  │  Alerts    │  │ Response UI  │
-             └────────────┘  └────────────┘  └──────────────┘
-             
+                                     👤 CITIZEN
+              Reports / Images
+                     │
+                     ▼
+          🌊 COASTALEYE BACKEND
+                 FastAPI
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+     🤖 Gemini    🗄️ MongoDB    🧠 ML
+     AI Vision    Database      Services
+        │            │            │
+        └────────────┼────────────┘
+                     ▼
+             🛡️ VALIDATION
+                     │
+          Reliability + Status
+                     │
+                     ▼
+             🚨 INCIDENT ENGINE
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+    Clustering    Confidence   Aggregation
+        │            │            │
+        └────────────┼────────────┘
+                     ▼
+          📊 DISASTER INTELLIGENCE
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+    🗺️ Heatmaps   🏛️ Alerts   🚑 Response
+    
 ##🛠️ **Technology Stack**
 Backend
 Python
