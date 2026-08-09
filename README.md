@@ -308,39 +308,39 @@ independently developed,
 independently deployed,
 accessed from another device,
 connected to CoastalEye through APIs.
-🧩 System Architecture
-                                     👤 CITIZEN
-              Reports / Images
-                     │
-                     ▼
-          🌊 COASTALEYE BACKEND
-                 FastAPI
-                     │
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
-     🤖 Gemini    🗄️ MongoDB    🧠 ML
-     AI Vision    Database      Services
-        │            │            │
-        └────────────┼────────────┘
-                     ▼
-             🛡️ VALIDATION
-                     │
-          Reliability + Status
-                     │
-                     ▼
-             🚨 INCIDENT ENGINE
-                     │
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
-    Clustering    Confidence   Aggregation
-        │            │            │
-        └────────────┼────────────┘
-                     ▼
-          📊 DISASTER INTELLIGENCE
-                     │
-        ┌────────────┼────────────┐
-        ▼            ▼            ▼
-    🗺️ Heatmaps   🏛️ Alerts   🚑 Response
+
+         ## 🧩 System Architecture
+
+```mermaid
+flowchart TD
+
+    A["👤 Citizen<br/>Reports / Images"] --> B["🌊 CoastalEye Backend<br/>FastAPI"]
+
+    B --> C["🤖 Gemini<br/>AI Vision"]
+    B --> D["🗄️ MongoDB<br/>Database"]
+    B --> E["🧠 ML Services<br/>Analytics"]
+
+    C --> F["🛡️ Validation Engine"]
+    D --> F
+    E --> F
+
+    F --> F1["Reliability Score"]
+    F --> F2["Validation Status"]
+
+    F --> G["🚨 Incident Engine"]
+
+    G --> G1["Incident Clustering"]
+    G --> G2["Confidence Analysis"]
+    G --> G3["Report Aggregation"]
+
+    G --> H["📊 Disaster Intelligence"]
+
+    H --> I["🗺️ Heatmaps & GIS"]
+    H --> J["🏛️ Government Alerts"]
+    H --> K["🚑 Emergency / Response"]
+
+    L["📱 Independent Social Media App"] -.->|"REST API"| B
+```
     
 ##🛠️ **Technology Stack**
 Backend
