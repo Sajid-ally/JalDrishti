@@ -18,10 +18,9 @@ from app.gemini.service import analyzeImage
 from app.utils.fileHandler import saveImage
 
 app = FastAPI(
-title="OceanShield Backend",
-version="1.0.0"
+    title="OceanShield Backend",
+    version="1.0.0"
 )
-
 # =====================================================
 
 # CORS
@@ -38,7 +37,6 @@ allow_credentials=True,
 allow_methods=["*"],
 allow_headers=["*"],
 )
-
 # =====================================================
 
 # SERVE UPLOADED FILES
@@ -47,9 +45,6 @@ allow_headers=["*"],
 
 BASE_DIR = Path(**file**).resolve().parent.parent
 UPLOADS_DIR = BASE_DIR / "uploads"
-
-# Create uploads folder if it doesn't exist
-
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 app.mount(
@@ -58,11 +53,11 @@ StaticFiles(directory=UPLOADS_DIR),
 name="uploads"
 )
 
-# =====================================================
-
-# REGISTER ROUTES
-
-# =====================================================
+app.mount(
+    "/uploads",
+    StaticFiles(directory="uploads"),
+    name="uploads"
+)
 
 app.include_router(reportRouter)
 app.include_router(locationRouter)
@@ -71,40 +66,28 @@ app.include_router(missingPersonRouter)
 app.include_router(validationRouter)
 app.include_router(socialMediaRouter)
 
-# =====================================================
-
-# ROOT
-
-# =====================================================
 
 @app.get("/")
 async def home():
-return {
-"message": "Coastal Eye Backend Running Successfully"
-}
+    return {
+        "message": "OceanShield Backend Running Successfully"
+    }
 
-# =====================================================
-
-# GEMINI / ML TEST ENDPOINT
-
-# =====================================================
 
 @app.post("/test-gemini")
 async def testGemini(
-image: UploadFile = File(...)
+    image: UploadFile = File(...)
 ):
-print("STEP 1")
+    print("STEP 1")
 
-```
-imagePath = saveImage(image, "uploads/test")
+    imagePath = saveImage(image, "uploads/test")
 
-print("STEP 2")
-print(imagePath)
+    print("STEP 2")
+    print(imagePath)
 
-result = await analyzeImage(imagePath)
+    result = await analyzeImage(imagePath)
 
-print("STEP 3")
-print(result)
+    print("STEP 3")
+    print(result)
 
-return result
-```
+    return result

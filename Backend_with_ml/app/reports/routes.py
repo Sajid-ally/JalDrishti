@@ -1,9 +1,9 @@
 from datetime import datetime
-
-from fastapi import APIRouter, UploadFile, File, Form
-
+from app.reports.validation import checkDuplicateImage, checkNearbyReports
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from app.models.report_ranker import rank_reports
 from app.gemini.service import analyzeImage
-
+from app.ml_client import getOwnModelPrediction
 from app.reports.service import (
     createReport,
     getReports,
@@ -12,9 +12,10 @@ from app.reports.service import (
     getNearbyReports,
     getReportById,
     updateReportStatus,
-    updateReportVerification
+    updateReportVerification,
+    getReportsForRanking,
 )
-
+from app.models.report_ranker import rank_reports
 from app.utils.fileHandler import saveImage
 
 
@@ -22,6 +23,9 @@ router = APIRouter(
     prefix="/reports",
     tags=["Reports"]
 )
+
+# File size limit for uploaded images
+MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
 
 
 # =========================================================
@@ -40,6 +44,17 @@ async def addReport(
     print("STEP 1: Report request received")
 
     # -----------------------------------------------------
+    # VALIDATE FILE SIZE
+    # -----------------------------------------------------
+
+    imageBytes = await image.read()
+
+    if len(imageBytes) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail="Image must be under 8MB")
+
+    await image.seek(0)  # reset pointer so saveImage() can read the file again
+
+    # -----------------------------------------------------
     # SAVE IMAGE
     # -----------------------------------------------------
 
@@ -52,8 +67,25 @@ async def addReport(
     print(imagePath)
 
     # -----------------------------------------------------
+    # CHECK DUPLICATE IMAGE
+    # -----------------------------------------------------
+
+    print("STEP 2.5: Checking for duplicate image")
+
+    duplicateCheck = await checkDuplicateImage(imagePath)
+
+    if duplicateCheck["isDuplicate"]:
+        raise HTTPException(
+            status_code=400,
+            detail="This image appears to be a duplicate of an existing report."
+        )
+
+    imageHash = duplicateCheck["hash"]
+
+    # -----------------------------------------------------
     # GEMINI
-    # Gemini ONLY generates title and description
+    # Gemini generates title, description, relevance check,
+    # and a backup hazard-type opinion for low-confidence cases
     # -----------------------------------------------------
 
     print("STEP 3: Sending image to Gemini")
@@ -63,20 +95,63 @@ async def addReport(
     print("STEP 4: Gemini response")
     print(aiResult)
 
+    # If Gemini flags the image as irrelevant (meme/selfie/unrelated), reject it
+    if aiResult.get("is_relevant") is False:
+        raise HTTPException(
+            status_code=400,
+            detail="Image does not appear related to a disaster report."
+        )
+
     aiTitle = aiResult.get("title")
     aiDescription = aiResult.get("description")
 
     # -----------------------------------------------------
     # ML CLASSIFICATION
-    # TEMPORARILY DISABLED
-    #
-    # Your ML model will be connected here later.
+    # Calls our own trained model via ml-service.
+    # Falls back to Gemini's opinion when our model is unsure.
     # -----------------------------------------------------
 
-    category = None
-    severity = None
-    confidence = None
+    print("STEP 5: Sending image to ML service")
+
+    mlResult = await getOwnModelPrediction(imagePath)
+
+    print("STEP 6: ML response")
+    print(mlResult)
+
+    CONFIDENCE_THRESHOLD = 0.70
+
+    category = mlResult.get("hazard_type")
+    severity = mlResult.get("severity")
+    confidence = mlResult.get("confidence")
+    source = "own_model"
+
+    # Our model is unsure -> check Gemini's independent opinion
+    if confidence is not None and confidence < CONFIDENCE_THRESHOLD:
+
+        geminiGuess = aiResult.get("gemini_hazard_guess")
+        geminiConfidence = aiResult.get("gemini_confidence")
+
+        print(f"STEP 6.5: Own model confidence low ({confidence}). Checking Gemini's opinion: {geminiGuess} ({geminiConfidence})")
+
+        if geminiGuess and geminiConfidence and geminiConfidence > confidence:
+            category = geminiGuess
+            confidence = geminiConfidence
+            source = "gemini_fallback"
+
+    severityMap = {"flood": 5, "landslide": 5, "no_flood": 0}
+    severity = severityMap.get(category, 1)
+
     priority = None
+
+    # -----------------------------------------------------
+    # CHECK NEARBY REPORTS (corroboration)
+    # -----------------------------------------------------
+
+    print("STEP 6.6: Checking nearby reports")
+
+    nearbyCount = await checkNearbyReports(latitude, longitude, category)
+
+    print(f"Nearby similar reports found: {nearbyCount}")
 
     # -----------------------------------------------------
     # CREATE REPORT DATA
@@ -102,6 +177,7 @@ async def addReport(
         },
 
         "imageUrl": imagePath,
+        "imageHash": imageHash,
 
         "aiAnalysis": {
             "title": aiTitle,
@@ -112,43 +188,22 @@ async def addReport(
             "category": category,
             "severity": severity,
             "confidence": confidence,
-            "priority": priority
+            "priority": priority,
+            "source": source
         },
-
-        # -------------------------------------------------
-        # GOVERNMENT / MANUAL VERIFICATION
-        # -------------------------------------------------
 
         "verification": {
             "status": "Pending",
             "verifiedBy": None
         },
 
-        # -------------------------------------------------
-        # AUTOMATIC VALIDATION
-        # -------------------------------------------------
-
         "validation": {
-
             "status": "Pending",
-
             "reliabilityScore": 0,
-
-            "governmentAlert": {
-                "found": False
-            },
-
-            "socialMediaEvidence": {
-                "reportCount": 0
-            },
-
-            "nearbyReportEvidence": {
-                "similarReportCount": 0
-            },
-
-            "imageSimilarity": {
-                "score": None
-            }
+            "governmentAlert": {"found": False},
+            "socialMediaEvidence": {"reportCount": 0},
+            "nearbyReportEvidence": {"similarReportCount": nearbyCount},
+            "imageSimilarity": {"score": duplicateCheck["maxSimilarity"]}
         },
 
         "reportStatus": "Submitted",
@@ -162,17 +217,18 @@ async def addReport(
     # SAVE TO MONGODB
     # -----------------------------------------------------
 
-    print("STEP 5: Saving report to MongoDB")
+    print("STEP 7: Saving report to MongoDB")
 
     insertedId = await createReport(reportData)
 
-    print("STEP 6: Report saved")
+    print("STEP 8: Report saved")
 
     return {
         "message": "Report submitted successfully",
         "reportId": str(insertedId),
         "aiAnalysis": reportData["aiAnalysis"],
-        "mlAnalysis": reportData["mlAnalysis"]
+        "mlAnalysis": reportData["mlAnalysis"],
+        "validation": reportData["validation"]
     }
 
 
@@ -260,6 +316,16 @@ async def fetchNearbyReports(
 # =========================================================
 # UPDATE REPORT VERIFICATION
 # =========================================================
+@router.get("/ranked")
+async def getRankedReports():
+    print("FETCHING AND RANKING REPORTS")
+    reports = await getReportsForRanking()
+
+    if not reports:
+        return {"count": 0, "reports": []}
+
+    ranked = rank_reports(reports)
+    return {"count": len(ranked), "reports": ranked}
 
 @router.put("/{reportId}/verification")
 async def changeReportVerification(
