@@ -1,13 +1,12 @@
 import numpy as np
 from sklearn.cluster import DBSCAN
 
-
 def extract_coordinates(reports):
     coordinates = []
 
     for report in reports:
-        latitude = report["location"]["latitude"]
-        longitude = report["location"]["longitude"]
+        latitude = report["latitude"]
+        longitude = report["longitude"]
 
         coordinates.append([latitude, longitude])
 
@@ -64,11 +63,11 @@ def build_hotspots(reports, labels):
         hotspots[label]["reports"].append(report)
 
         hotspots[label]["latitude_sum"] += (
-            report["location"]["latitude"]
+            report["latitude"]
         )
 
         hotspots[label]["longitude_sum"] += (
-            report["location"]["longitude"]
+            report["longitude"]
         )
 
     result = []
@@ -88,7 +87,7 @@ def build_hotspots(reports, labels):
                 "longitude": center_longitude
             },
             "report_ids": [
-                report["_id"]
+                report["report_id"]
                 for report in data["reports"]
             ],
             "level": get_hotspot_level(count)
