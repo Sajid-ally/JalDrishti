@@ -10,6 +10,7 @@ import {
   LifeBuoy,
   Siren,
   Users,
+  User,
 } from "lucide-react";
 
 import useAuth from "../../hooks/useAuth";
@@ -22,9 +23,9 @@ const citizenItems = [
     end: true,
   },
   {
-    to: "/citizen/live-map",
-    label: "Live Map",
-    icon: MapPinned,
+    to: "/citizen/missing",
+    label: "Missing Persons",
+    icon: Users,
     end: false,
   },
   {
@@ -34,15 +35,27 @@ const citizenItems = [
     end: false,
   },
   {
-    to: "/citizen/track-report",
-    label: "Track Report",
+    to: "/citizen/rescue",
+    label: "Rescue Request",
+    icon: Send,
+    end: false,
+  },
+  {
+    to: "/citizen/relief-tracking",
+    label: "Relief Tracking",
     icon: ClipboardCheck,
     end: false,
   },
   {
-    to: "/citizen/rescue",
-    label: "Rescue Request",
-    icon: Send,
+    to: "/citizen/live-map",
+    label: "Live Map",
+    icon: MapPinned,
+    end: false,
+  },
+  {
+    to: "/citizen/profile",
+    label: "Profile",
+    icon: User,
     end: false,
   },
 ];
@@ -53,6 +66,18 @@ const governmentItems = [
     label: "Dashboard",
     icon: LayoutGrid,
     end: true,
+  },
+  {
+    to: "/government/missing",
+    label: "Missing Persons",
+    icon: Users,
+    end: false,
+  },
+  {
+    to: "/government/alerts",
+    label: "Alerts / News Feed",
+    icon: Siren,
+    end: false,
   },
   {
     to: "/government/verify",
@@ -67,15 +92,15 @@ const governmentItems = [
     end: false,
   },
   {
-    to: "/government/alerts",
-    label: "Disaster Alerts",
-    icon: Siren,
+    to: "/government/live-map",
+    label: "Live Map",
+    icon: MapPinned,
     end: false,
   },
   {
-    to: "/government/missing",
-    label: "Missing Persons",
-    icon: Users,
+    to: "/government/profile",
+    label: "Profile",
+    icon: User,
     end: false,
   },
 ];

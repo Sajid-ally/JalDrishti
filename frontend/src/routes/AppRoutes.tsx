@@ -20,6 +20,8 @@ import CitizenProfile from "../pages/Citizen/Profile";
 import MyReports from "../pages/Citizen/MyReports";
 import ReportDetails from "../pages/Citizen/ReportDetails";
 
+import ReliefTracking from "../pages/Citizen/ReliefTracking";
+
 import GovernmentDashboard from "../pages/Government/Dashboard";
 import VerifyReports from "../pages/Government/VerifyReports";
 import GovernmentRescueRequests from "../pages/Government/RescueRequests";
@@ -64,6 +66,8 @@ export default function AppRoutes() {
         <Route path="/citizen/alerts" element={withLayout(<CitizenAlerts />)} />
         <Route path="/citizen/sos" element={withLayout(<SOS />)} />
         <Route path="/citizen/rescue" element={withLayout(<RescueRequest />)} />
+        <Route path="/citizen/relief-tracking" element={withLayout(<ReliefTracking />)} />
+        <Route path="/citizen/track-report" element={withLayout(<ReliefTracking />)} />
         <Route path="/citizen/profile" element={withLayout(<CitizenProfile />)} />
         <Route path="/citizen/reports" element={withLayout(<MyReports />)} />
         <Route
@@ -79,6 +83,10 @@ export default function AppRoutes() {
         <Route
           path="/government/dashboard"
           element={withLayout(<GovernmentDashboard />)}
+        />
+        <Route
+          path="/government/live-map"
+          element={withLayout(<CitizenLiveMap />)}
         />
         <Route
           path="/government/verify"
@@ -100,6 +108,7 @@ export default function AppRoutes() {
           path="/government/profile"
           element={withLayout(<GovernmentProfile />)}
         />
+
 
         <Route path="/notifications" element={withLayout(<Notifications />)} />
         <Route path="/settings" element={withLayout(<Settings />)} />

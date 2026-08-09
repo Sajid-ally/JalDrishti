@@ -25,7 +25,8 @@ interface AuthContextType {
     signup: (
         name: string,
         email: string,
-        password: string
+        password: string,
+        role?: UserRole
     ) => Promise<boolean>;
     logout: () => void;
 }
@@ -101,7 +102,8 @@ export function AuthProvider({
     const signup = async (
         name: string,
         email: string,
-        password: string
+        password: string,
+        role: UserRole = "citizen"
     ): Promise<boolean> => {
         // Temporary frontend signup.
         // TODO: Replace with backend API call — POST /api/auth/signup
@@ -114,7 +116,7 @@ export function AuthProvider({
             id: `USR-${Date.now()}`,
             name,
             email,
-            role: "citizen", // New signups default to citizen
+            role,
         };
 
         localStorage.setItem(

@@ -13,10 +13,14 @@ import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import useAuth from "../../hooks/useAuth";
 
+import RoleSelector from "../../components/common/RoleSelector";
+import type { UserRole } from "../../context/AuthContext";
+
 export default function Signup() {
     const navigate = useNavigate();
     const { signup } = useAuth();
 
+    const [role, setRole] = useState<UserRole>("citizen");
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -53,7 +57,8 @@ export default function Signup() {
             const success = await signup(
                 name,
                 email,
-                password
+                password,
+                role
             );
 
             if (!success) {
@@ -63,7 +68,11 @@ export default function Signup() {
 
             toast.success("Account created successfully!");
 
-            navigate("/citizen/dashboard");
+            if (role === "government") {
+                navigate("/government/dashboard");
+            } else {
+                navigate("/citizen");
+            }
         } finally {
             setIsLoading(false);
         }
@@ -79,10 +88,15 @@ export default function Signup() {
                 <h1>Create your account</h1>
 
                 <p>
-                    Start reporting issues and help improve
-                    your community.
+                    Select your role and sign up to get started.
                 </p>
             </div>
+
+            {/* Role Selector */}
+            <RoleSelector
+                selectedRole={role}
+                onSelectRole={setRole}
+            />
 
             <form
                 className="auth-form"

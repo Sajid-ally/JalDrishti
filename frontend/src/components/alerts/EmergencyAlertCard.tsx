@@ -21,7 +21,12 @@ export default function EmergencyAlertCard({ title, message, onClose }: Emergenc
           </div>
         </div>
         {onClose && (
-          <button type="button" onClick={onClose} className="rounded-full p-1 text-rose-100 hover:bg-white/20">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close alert"
+            className="rounded-full p-1 text-rose-100 hover:bg-white/20 transition-colors"
+          >
             <X className="h-4 w-4" />
           </button>
         )}

@@ -11,9 +11,9 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[var(--color-soft-mint)] text-[var(--color-dark-teal)]">
+    <div className="min-h-screen bg-[(--color-soft-mint)] text-[(--color-dark-teal)]">
       <Navbar />
-      <div className="mx-auto flex max-w-7xl">
+      <div className="flex w-full">
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((value) => !value)} />
         <main className="flex-1 p-6 md:p-8">{children}</main>
       </div>

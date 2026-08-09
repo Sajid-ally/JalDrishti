@@ -52,13 +52,13 @@ export default function CitizenLiveMap() {
     <main>
       {/* Header */}
       <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[(--color-ocean)]">
           Puri Coastal Region
         </p>
-        <h1 className="mt-2 text-3xl font-black text-[var(--color-deep-ocean)]">
+        <h1 className="mt-2 text-3xl font-black text-[(--color-deep-ocean)]">
           Live Hazard Map
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-medium-teal)]">
+        <p className="mt-1 text-sm text-[(--color-medium-teal)]">
           Real-time hazard markers around Puri, Odisha. Click a marker for details.
         </p>
       </div>
@@ -80,7 +80,7 @@ export default function CitizenLiveMap() {
 
       {/* Legend */}
       <div className="mb-6 flex flex-wrap gap-3">
-        <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)] self-center mr-1">Severity:</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[(--color-medium-teal)] self-center mr-1">Severity:</span>
         {(["low", "moderate", "high", "critical"] as Severity[]).map((s) =>
           severityBadge(s)
         )}
@@ -88,7 +88,7 @@ export default function CitizenLiveMap() {
 
       {/* Hazard list */}
       <section>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.15em] text-[var(--color-dark-teal)]">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.15em] text-[(--color-dark-teal)]">
           Active Hazard Reports ({hazards.length})
         </h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -99,21 +99,21 @@ export default function CitizenLiveMap() {
             >
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[var(--color-ocean)]">
+                  <span className="text-[(--color-ocean)]">
                     {HAZARD_ICONS[hazard.hazardType]}
                   </span>
-                  <span className="text-sm font-semibold text-[var(--color-deep-ocean)]">
+                  <span className="text-sm font-semibold text-[(--color-deep-ocean)]">
                     {HAZARD_LABELS[hazard.hazardType]}
                   </span>
                 </div>
                 {severityBadge(hazard.severity)}
               </div>
               {hazard.placeName && (
-                <p className="text-xs text-[var(--color-medium-teal)]">
+                <p className="text-xs text-[(--color-medium-teal)]">
                   📍 {hazard.placeName}
                 </p>
               )}
-              <p className="mt-1 text-xs text-[var(--color-medium-teal)]/70">
+              <p className="mt-1 text-xs text-[(--color-medium-teal)]/70">
                 Status: <span className="font-medium">{hazard.status}</span>
               </p>
             </div>

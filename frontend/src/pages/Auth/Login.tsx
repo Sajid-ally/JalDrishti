@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiArrowRight, FiLock, FiMail, FiShield, FiUser } from "react-icons/fi";
+import { FiArrowRight, FiLock, FiMail } from "react-icons/fi";
 import toast from "react-hot-toast";
 
 import AuthLayout from "../../layouts/AuthLayout";
 import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
+import RoleSelector from "../../components/common/RoleSelector";
 import useAuth from "../../hooks/useAuth";
 import type { UserRole } from "../../context/AuthContext";
 
@@ -66,35 +67,10 @@ export default function Login() {
             </div>
 
             {/* Role Selector */}
-            <div className="role-selector">
-                <button
-                    type="button"
-                    id="role-citizen"
-                    className={`role-card ${role === "citizen" ? "role-card-active" : ""}`}
-                    onClick={() => setRole("citizen")}
-                    aria-pressed={role === "citizen"}
-                >
-                    <span className="role-card-icon">
-                        <FiUser size={20} />
-                    </span>
-                    <span className="role-card-label">Citizen</span>
-                    <span className="role-card-desc">Report hazards &amp; stay informed</span>
-                </button>
-
-                <button
-                    type="button"
-                    id="role-government"
-                    className={`role-card ${role === "government" ? "role-card-active" : ""}`}
-                    onClick={() => setRole("government")}
-                    aria-pressed={role === "government"}
-                >
-                    <span className="role-card-icon">
-                        <FiShield size={20} />
-                    </span>
-                    <span className="role-card-label">Government Official</span>
-                    <span className="role-card-desc">Verify reports &amp; coordinate response</span>
-                </button>
-            </div>
+            <RoleSelector
+                selectedRole={role}
+                onSelectRole={setRole}
+            />
 
             <form
                 className="auth-form"
