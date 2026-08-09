@@ -186,7 +186,7 @@ for epoch in range(EPOCHS):
                 "classes": class_names,
                 "best_val_accuracy": best_val_acc,
             },
-            "app/models/hazard_classifier.pt"
+            "trained_models/hazard_classifier.pt"
         )
 
         print(

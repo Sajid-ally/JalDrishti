@@ -27,7 +27,7 @@ async def createReport(reportData: dict):
         },
 
         "imageUrl": reportData["imageUrl"],
-
+        "imageHash": reportData.get("imageHash"),
         "aiAnalysis": {
             "title": reportData["aiAnalysis"]["title"],
             "description": reportData["aiAnalysis"]["description"]
@@ -56,7 +56,7 @@ async def createReport(reportData: dict):
         # AUTOMATIC VALIDATION
         # -------------------------------------------------
 
-        "validation": {
+        "validation": reportData.get("validation", {
 
             "status": "Pending",
 
@@ -77,7 +77,7 @@ async def createReport(reportData: dict):
             "imageSimilarity": {
                 "score": None
             }
-        },
+        }),
 
         "reportStatus": "Submitted",
 
@@ -825,3 +825,40 @@ async def updateReportVerification(
         return False
 
     return True
+    # =========================================================
+# GET REPORTS FOR RANKING
+# Fetches live MongoDB reports in the shape report_ranker.py
+# expects, so priority ranking runs on real, dynamic data
+# instead of a hardcoded JSON file.
+# =========================================================
+
+async def getReportsForRanking():
+
+    cursor = database.reports.find()
+
+    reports = []
+
+    async for report in cursor:
+
+        try:
+
+            reports.append({
+                "report_id": str(report["_id"]),
+                "severity": report["mlAnalysis"]["severity"],
+                "affected_people": report.get("affectedPeople", 0),
+                "hazard_type": report["mlAnalysis"]["category"],
+                "confidence": report["mlAnalysis"]["confidence"],
+                "time": report["createdAt"].isoformat(),
+                "location": f"{report['location']['latitude']},{report['location']['longitude']}",
+                "latitude": report["location"]["latitude"],
+                "longitude": report["location"]["longitude"],
+                "description": report["description"],
+                "validation": report.get("validation"),
+            })
+
+        except (KeyError, TypeError):
+
+            # Skip malformed/incomplete reports rather than crashing the whole batch
+            continue
+
+    return reports

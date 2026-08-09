@@ -13,7 +13,7 @@ import io
 DEVICE = "cpu"   # inference is light enough to run on CPU even without a GPU
 
 # Load the saved checkpoint (weights + class names) from training
-checkpoint = torch.load("app/models/hazard_classifier.pt", map_location=DEVICE)
+checkpoint = torch.load("trained_models/hazard_classifier.pt", map_location=DEVICE)
 class_names = checkpoint["classes"]   # e.g. ['flood', 'no_flood']
 
 # Rebuild the same model architecture used during training,

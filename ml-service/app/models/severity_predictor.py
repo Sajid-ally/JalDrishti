@@ -8,7 +8,8 @@ domain judgment instead, same approach as the priority ranker.
 
 # Base severity per hazard type (0 = none, 5 = most severe)
 SEVERITY_MAP = {
-    "flood": 4,
+    "flood": 5,
+    "landslide": 5,
     "no_flood": 0,
 }
 
