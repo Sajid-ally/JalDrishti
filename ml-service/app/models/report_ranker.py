@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-
+from app.models.hotspot_clustering import detect_hotspots
 
 SEVERITY_SCORE = {
     "low": 25,
@@ -94,19 +94,42 @@ def get_recency_score(report_time):
     else:
         return 20
 
+def get_area_report_score(report_count):
+    try:
+        report_count = int(report_count)
+    except (TypeError, ValueError):
+        return 0
+
+    if report_count <= 0:
+        return 0
+    elif report_count == 1:
+        return 10
+    elif report_count == 2:
+        return 30
+    elif report_count <= 4:
+        return 55
+    elif report_count <= 6:
+        return 75
+    elif report_count <= 9:
+        return 90
+    else:
+        return 100    
+
 
 def calculate_priority_score(
     severity,
     affected_people,
     hazard_type,
     confidence,
-    report_time
+    report_time,
+    area_report_count
 ):
     severity_score = get_severity_score(severity)
     people_score = get_affected_people_score(affected_people)
     hazard_score = get_hazard_score(hazard_type)
     confidence_score = get_confidence_score(confidence)
     recency_score = get_recency_score(report_time)
+    area_score = get_area_report_score(area_report_count)
 
     priority_score = (
         severity_score * 0.30
@@ -114,6 +137,7 @@ def calculate_priority_score(
         + hazard_score * 0.20
         + recency_score * 0.15
         + confidence_score * 0.10
+        + area_score * 0.20
     )
 
     return round(priority_score, 2)
@@ -151,7 +175,7 @@ def validate_report(report):
 
 
 
-def rank_report(report):
+def rank_report(report,area_report_count=1):
     missing_fields = validate_report(report)
 
     if missing_fields:
@@ -164,7 +188,8 @@ def rank_report(report):
         affected_people=report["affected_people"],
         hazard_type=report["hazard_type"],
         confidence=report["confidence"],
-        report_time=report["time"]
+        report_time=report["time"],
+        area_report_count=area_report_count
     )
 
     priority_level = get_priority_level(priority_score)
@@ -189,10 +214,33 @@ def load_reports(file_path):
         return json.load(file)
 
 def rank_reports(reports):
+    hotspots = detect_hotspots(
+        reports,
+        eps_km=1.0,
+        min_samples=3
+    )
+
+    report_area_counts = {}
+
+    for hotspot in hotspots:
+        count = hotspot["report_count"]
+
+        for report_id in hotspot["report_ids"]:
+            report_area_counts[report_id] = count
+
     ranked_reports = []
 
     for report in reports:
-        ranked_report = rank_report(report)
+        area_report_count = report_area_counts.get(
+            report["report_id"],
+            1
+        )
+
+        ranked_report = rank_report(
+            report,
+            area_report_count
+        )
+
         ranked_reports.append(ranked_report)
 
     ranked_reports.sort(
@@ -201,4 +249,3 @@ def rank_reports(reports):
     )
 
     return ranked_reports
-
