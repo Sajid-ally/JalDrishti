@@ -28,7 +28,6 @@ router = APIRouter(
 
 MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
 CONFIDENCE_THRESHOLD = 0.70
-
 SEVERITY_MAP = {
     "flood": 5,
     "landslide": 5,
@@ -63,16 +62,17 @@ async def addReport(
         raise HTTPException(status_code=400, detail="Image must be under 8MB")
 
     await image.seek(0)
-
     # -----------------------------------------------------
     # SAVE IMAGE
     # -----------------------------------------------------
 
-    imagePath = saveImage(image, "uploads/reports")
+    imagePath = saveImage(
+        image,
+        "uploads/reports"
+    )
 
-    print("STEP 2: Image saved:", imagePath)
-
-    # -----------------------------------------------------
+    print("STEP 2: Image saved")
+# -----------------------------------------------------
     # CHECK DUPLICATE IMAGE
     # -----------------------------------------------------
 
@@ -88,7 +88,7 @@ async def addReport(
 
     imageHash = duplicateCheck["hash"]
 
-    # -----------------------------------------------------
+     # -----------------------------------------------------
     # GEMINI — relevance check + title/description + hazard opinion
     # -----------------------------------------------------
 
@@ -107,7 +107,7 @@ async def addReport(
     aiTitle = aiResult.get("title")
     aiDescription = aiResult.get("description")
 
-    # -----------------------------------------------------
+ # -----------------------------------------------------
     # ML CLASSIFICATION — our trained model, Gemini as fallback
     # Fallback triggers on low confidence REGARDLESS of which
     # category our model guessed (flood, landslide, or no_flood) —
@@ -156,7 +156,7 @@ async def addReport(
 
     severity = SEVERITY_MAP.get(category, 1)
 
-    # -----------------------------------------------------
+      # -----------------------------------------------------
     # NOT A REAL HAZARD (no_flood) — stop early.
     # Skip nearby-report correlation and government review queue.
     # -----------------------------------------------------
@@ -312,47 +312,53 @@ async def fetchNearbyReports(latitude: float, longitude: float, radiusKm: float 
 
 
 # =========================================================
+
 # GET RANKED REPORTS
+
 # =========================================================
 
 @router.get("/ranked")
 async def fetchRankedReports():
-    reports = await getReportsForRanking()
-    return {
-        "count": len(reports),
-        "reports": reports
-    }
+reports = await getReportsForRanking()
+return {
+"count": len(reports),
+"reports": reports
+}
+
 # =========================================================
+
 # UPDATE REPORT VERIFICATION
+
 # =========================================================
 
 @router.put("/{reportId}/verification")
 async def changeReportVerification(
-    reportId: str,
-    status: str,
-    verifiedBy: str = None,
-    reliabilityScore: float = 0,
-    validationSources: list[str] = None
+reportId: str,
+status: str,
+verifiedBy: str = None,
+reliabilityScore: float = 0,
+validationSources: list[str] = None
 ):
-    if validationSources is None:
-        validationSources = []
+if validationSources is None:
+validationSources = []
 
-    updated = await updateReportVerification(
-        reportId=reportId,
-        status=status,
-        verifiedBy=verifiedBy,
-        reliabilityScore=reliabilityScore,
-        validationSources=validationSources
-    )
+```
+updated = await updateReportVerification(
+    reportId=reportId,
+    status=status,
+    verifiedBy=verifiedBy,
+    reliabilityScore=reliabilityScore,
+    validationSources=validationSources
+)
 
-    if not updated:
-        return {"message": "Report not found"}
+if not updated:
+    return {"message": "Report not found"}
 
-    return {
-        "message": "Report verification updated successfully",
-        "reportId": reportId,
-        "status": status
-    }
+return {
+    "message": "Report verification updated successfully",
+    "reportId": reportId,
+    "status": status
+}
 
 
 # =========================================================

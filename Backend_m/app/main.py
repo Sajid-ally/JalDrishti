@@ -10,7 +10,8 @@ from app.reports.routes import router as reportRouter
 from app.relief.routes import router as reliefRouter
 from app.missingPerson.routes import router as missingPersonRouter
 from app.validation.routes import router as validationRouter
-from app.socialMedia.routes import router as socialMediaRouter
+
+# from app.socialMedia.routes import router as socialMediaRouter
 
 # ML / Gemini
 
@@ -18,9 +19,10 @@ from app.gemini.service import analyzeImage
 from app.utils.fileHandler import saveImage
 
 app = FastAPI(
-    title="OceanShield Backend",
-    version="1.0.0"
+title="OceanShield Backend",
+version="1.0.0"
 )
+
 # =====================================================
 
 # CORS
@@ -37,6 +39,7 @@ allow_credentials=True,
 allow_methods=["*"],
 allow_headers=["*"],
 )
+
 # =====================================================
 
 # SERVE UPLOADED FILES
@@ -53,41 +56,52 @@ StaticFiles(directory=UPLOADS_DIR),
 name="uploads"
 )
 
-app.mount(
-    "/uploads",
-    StaticFiles(directory="uploads"),
-    name="uploads"
-)
+# =====================================================
+
+# REGISTER ROUTES
+
+# =====================================================
 
 app.include_router(reportRouter)
 app.include_router(locationRouter)
 app.include_router(reliefRouter)
 app.include_router(missingPersonRouter)
 app.include_router(validationRouter)
-app.include_router(socialMediaRouter)
 
+# app.include_router(socialMediaRouter)
+
+# =====================================================
+
+# ROOT
+
+# =====================================================
 
 @app.get("/")
 async def home():
-    return {
-        "message": "OceanShield Backend Running Successfully"
-    }
+return {
+"message": "OceanShield Backend Running Successfully"
+}
 
+# =====================================================
+
+# GEMINI / ML TEST ENDPOINT
+
+# =====================================================
 
 @app.post("/test-gemini")
-async def testGemini(
-    image: UploadFile = File(...)
-):
-    print("STEP 1")
+async def testGemini(image: UploadFile = File(...)):
+print("STEP 1")
 
-    imagePath = saveImage(image, "uploads/test")
+```
+imagePath = saveImage(image, "uploads/test")
 
-    print("STEP 2")
-    print(imagePath)
+print("STEP 2")
+print(imagePath)
 
-    result = await analyzeImage(imagePath)
+result = await analyzeImage(imagePath)
 
-    print("STEP 3")
-    print(result)
+print("STEP 3")
+print(result)
 
-    return result
+return result
+```

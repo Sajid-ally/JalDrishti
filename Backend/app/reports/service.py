@@ -7,7 +7,7 @@ from app.database import database
 from sklearn.cluster import DBSCAN
 
 import math
-
+from app.database import database
 
 # =========================================================
 # CREATE REPORT
@@ -28,6 +28,8 @@ async def createReport(reportData: dict):
 
         "imageUrl": reportData["imageUrl"],
 
+        "imageHash": reportData.get("imageHash"),
+
         "aiAnalysis": {
             "title": reportData["aiAnalysis"]["title"],
             "description": reportData["aiAnalysis"]["description"]
@@ -37,26 +39,27 @@ async def createReport(reportData: dict):
             "category": reportData["mlAnalysis"]["category"],
             "severity": reportData["mlAnalysis"]["severity"],
             "confidence": reportData["mlAnalysis"]["confidence"],
-            "priority": reportData["mlAnalysis"]["priority"]
+            "priority": reportData["mlAnalysis"]["priority"],
+            "source": reportData["mlAnalysis"].get("source")
         },
 
         # -------------------------------------------------
         # GOVERNMENT / MANUAL VERIFICATION
         # -------------------------------------------------
 
-        "verification": {
+        "verification": reportData.get("verification", {
             "status": "Pending",
             "verifiedBy": None,
             "verifiedAt": None,
             "reliabilityScore": 0,
             "validationSources": []
-        },
+        }),
 
         # -------------------------------------------------
         # AUTOMATIC VALIDATION
         # -------------------------------------------------
 
-        "validation": {
+        "validation": reportData.get("validation", {
 
             "status": "Pending",
 
@@ -77,9 +80,9 @@ async def createReport(reportData: dict):
             "imageSimilarity": {
                 "score": None
             }
-        },
+        }),
 
-        "reportStatus": "Submitted",
+        "reportStatus": reportData.get("reportStatus", "Submitted"),
 
         "createdAt": reportData["createdAt"],
 
@@ -127,10 +130,6 @@ async def getHotspots(category=None):
 
     print("CALCULATING HOTSPOTS")
 
-    # -----------------------------------------------------
-    # BUILD QUERY
-    # -----------------------------------------------------
-
     if not category:
 
         query = {}
@@ -168,10 +167,6 @@ async def getHotspots(category=None):
 
     reports = []
 
-    # -----------------------------------------------------
-    # GET REPORT LOCATIONS
-    # -----------------------------------------------------
-
     async for report in cursor:
 
         if "location" in report:
@@ -194,8 +189,6 @@ async def getHotspots(category=None):
                 "longitude"
             )
 
-        # Ignore reports without coordinates
-
         if (
             latitude is None
             or longitude is None
@@ -212,18 +205,6 @@ async def getHotspots(category=None):
         len(reports)
     )
 
-    for report in reports:
-
-        print(
-            "REPORT LOCATION:",
-            report["latitude"],
-            report["longitude"]
-        )
-
-    # -----------------------------------------------------
-    # NOT ENOUGH REPORTS
-    # -----------------------------------------------------
-
     if len(reports) < 2:
 
         print(
@@ -231,10 +212,6 @@ async def getHotspots(category=None):
         )
 
         return []
-
-    # -----------------------------------------------------
-    # CONVERT LAT/LONG TO APPROX KM
-    # -----------------------------------------------------
 
     meanLatitude = sum(
         report["latitude"]
@@ -263,13 +240,6 @@ async def getHotspots(category=None):
             [x, y]
         )
 
-    # -----------------------------------------------------
-    # DBSCAN
-    #
-    # eps = 0.5 km = 500 meters
-    # min_samples = 2 reports
-    # -----------------------------------------------------
-
     clustering = DBSCAN(
         eps=0.5,
         min_samples=2,
@@ -285,10 +255,6 @@ async def getHotspots(category=None):
         labels
     )
 
-    # -----------------------------------------------------
-    # GROUP CLUSTERS
-    # -----------------------------------------------------
-
     clusters = {}
 
     for index, label in enumerate(labels):
@@ -303,10 +269,6 @@ async def getHotspots(category=None):
         clusters[label].append(
             reports[index]
         )
-
-    # -----------------------------------------------------
-    # CREATE HOTSPOTS
-    # -----------------------------------------------------
 
     hotspots = []
 
@@ -325,10 +287,6 @@ async def getHotspots(category=None):
             report["longitude"]
             for report in clusterReports
         ) / reportCount
-
-        # -------------------------------------------------
-        # HOTSPOT LEVEL
-        # -------------------------------------------------
 
         if reportCount >= 11:
 
@@ -352,10 +310,6 @@ async def getHotspots(category=None):
 
             "level": level
         })
-
-    # -----------------------------------------------------
-    # SORT BY REPORT COUNT
-    # -----------------------------------------------------
 
     hotspots.sort(
         key=lambda hotspot:
@@ -381,17 +335,9 @@ async def getMapReports(category=None):
         "FETCHING MAP REPORTS"
     )
 
-    # -----------------------------------------------------
-    # NO FILTER
-    # -----------------------------------------------------
-
     if not category:
 
         query = {}
-
-    # -----------------------------------------------------
-    # CATEGORY FILTER
-    # -----------------------------------------------------
 
     else:
 
@@ -464,10 +410,6 @@ async def getNearbyReports(
         "SEARCHING NEARBY REPORTS"
     )
 
-    # -----------------------------------------------------
-    # CATEGORY QUERY
-    # -----------------------------------------------------
-
     if not category:
 
         query = {}
@@ -500,10 +442,6 @@ async def getNearbyReports(
 
     nearbyReports = []
 
-    # -----------------------------------------------------
-    # CHECK EACH REPORT
-    # -----------------------------------------------------
-
     async for report in cursor:
 
         if "location" in report:
@@ -526,10 +464,6 @@ async def getNearbyReports(
                 "longitude"
             )
 
-        # -------------------------------------------------
-        # IGNORE INVALID LOCATION
-        # -------------------------------------------------
-
         if (
             reportLatitude is None
             or reportLongitude is None
@@ -544,10 +478,6 @@ async def getNearbyReports(
             reportLongitude
         )
 
-        # -------------------------------------------------
-        # CALCULATE DISTANCE
-        # -------------------------------------------------
-
         distanceKm = calculateDistance(
 
             latitude,
@@ -556,10 +486,6 @@ async def getNearbyReports(
             reportLatitude,
             reportLongitude
         )
-
-        # -------------------------------------------------
-        # CHECK RADIUS
-        # -------------------------------------------------
 
         if distanceKm <= radiusKm:
 
@@ -577,10 +503,6 @@ async def getNearbyReports(
             nearbyReports.append(
                 report
             )
-
-    # -----------------------------------------------------
-    # NEAREST FIRST
-    # -----------------------------------------------------
 
     nearbyReports.sort(
         key=lambda report:
@@ -705,16 +627,6 @@ async def updateReportStatus(
         "UPDATING REPORT STATUS"
     )
 
-    print(
-        "REPORT ID:",
-        reportId
-    )
-
-    print(
-        "NEW STATUS:",
-        reportStatus
-    )
-
     try:
 
         objectId = ObjectId(
@@ -764,21 +676,6 @@ async def updateReportVerification(
         "UPDATING REPORT VERIFICATION"
     )
 
-    print(
-        "REPORT ID:",
-        reportId
-    )
-
-    print(
-        "STATUS:",
-        status
-    )
-
-    print(
-        "RELIABILITY SCORE:",
-        reliabilityScore
-    )
-
     if validationSources is None:
 
         validationSources = []
@@ -825,3 +722,48 @@ async def updateReportVerification(
         return False
 
     return True
+
+
+# =========================================================
+# GET REPORTS FOR RANKING
+# Fetches live MongoDB reports in the shape report_ranker.py
+# expects, excluding closed/non-hazard reports.
+# =========================================================
+
+async def getReportsForRanking():
+    cursor = database.reports.find({
+        "reportStatus": {"$ne": "Closed"},
+        "mlAnalysis.category": {"$ne": "no_flood"},
+        "mlAnalysis.severity": {"$gt": 0}
+    })
+
+    reports = []
+
+    async for report in cursor:
+        ml = report.get("mlAnalysis", {})
+        loc = report.get("location", {})
+
+        reports.append({
+            "report_id": str(report.get("_id")),
+            "hazard_type": ml.get("category"),
+            "severity": ml.get("severity", 0),
+            "affected_people": report.get("affectedPeople", 0),
+            "location": f"{loc.get('latitude')},{loc.get('longitude')}",
+            "latitude": loc.get("latitude"),
+            "longitude": loc.get("longitude"),
+            "description": report.get("description"),
+            "confidence": ml.get("confidence", 0),
+            "time": report.get("createdAt"),
+            "validation": report.get("validation", {})
+        })
+
+    reports.sort(
+        key=lambda r: (
+            r["severity"],
+            r["validation"].get("nearbyReportEvidence", {}).get("similarReportCount", 0),
+            r["confidence"]
+        ),
+        reverse=True
+    )
+
+    return reports
