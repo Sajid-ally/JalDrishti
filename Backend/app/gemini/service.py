@@ -1,21 +1,19 @@
 import json
-
 from PIL import Image
 from google import genai
-
 from app.config import settings
 from app.gemini.prompt import ANALYSIS_PROMPT
 
-
 print("SERVICE.PY LOADED")
-
-client = genai.Client(
-    api_key=settings.GEMINI_API_KEY
+print(
+    "Gemini key loaded:",
+    settings.GEMINI_API_KEY[:8] + "..." if settings.GEMINI_API_KEY else None,
 )
+
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
 
 async def analyzeImage(imagePath: str):
-
     print("Opening image...")
 
     image = Image.open(imagePath)
@@ -23,13 +21,9 @@ async def analyzeImage(imagePath: str):
     print("Sending request to Gemini...")
 
     try:
-
         response = await client.aio.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=[
-                ANALYSIS_PROMPT,
-                image
-            ]
+            model="gemini-2.5-flash",
+            contents=[ANALYSIS_PROMPT, image],
         )
 
         print("Gemini responded.")
@@ -40,8 +34,7 @@ async def analyzeImage(imagePath: str):
         print(responseText)
 
         responseText = (
-            responseText
-            .replace("```json", "")
+            responseText.replace("```json", "")
             .replace("```", "")
             .strip()
         )
@@ -49,7 +42,6 @@ async def analyzeImage(imagePath: str):
         return json.loads(responseText)
 
     except Exception as e:
-
         print("========================================")
         print("GEMINI ERROR:")
         print(repr(e))
@@ -57,5 +49,5 @@ async def analyzeImage(imagePath: str):
 
         return {
             "title": None,
-            "description": None
+            "description": None,
         }

@@ -114,9 +114,7 @@ async def addReport(
     # a missed real hazard is just as dangerous as a false alarm.
     # -----------------------------------------------------
 
-    print("STEP 6: Sending image to ML service")
-
-    mlResult = await getOwnModelPrediction(imagePath)
+   
 
     print("STEP 7: ML response:", mlResult)
 

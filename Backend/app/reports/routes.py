@@ -36,7 +36,41 @@ SEVERITY_MAP = {
 }
 
 HAZARD_CATEGORIES = {"flood", "landslide"}  # anything in this set = real hazard, goes to gov review
+# =========================================================
+# ANALYZE IMAGE (ML first, Gemini fallback)
+# =========================================================
 
+@router.post("/analyze")
+async def analyzeReport(image: UploadFile = File(...)):
+    imagePath = saveImage(image, "uploads/temp")
+    print("ANALYZE ENDPOINT: calling ML model first")
+    # ML first
+    mlResult = await getOwnModelPrediction(imagePath)
+    print("ML RESULT:", mlResult)
+    category = mlResult["hazard_type"]
+    severity = mlResult["severity"]
+    confidence = mlResult["confidence"]
+
+    # Gemini only if ML confidence is low
+    aiResult = await analyzeImage(imagePath)
+
+    if confidence < CONFIDENCE_THRESHOLD:
+        geminiGuess = aiResult.get("hazard_type")
+        geminiConfidence = aiResult.get("confidence")
+
+        if geminiGuess and geminiConfidence and geminiConfidence > confidence:
+            category = geminiGuess
+            confidence = geminiConfidence
+            severity = SEVERITY_MAP.get(category, severity)
+
+    return {
+        "hazard_type": category,
+        "severity": severity,
+        "confidence": confidence,
+        "title": aiResult.get("title"),
+        "description": aiResult.get("description"),
+        "is_relevant": aiResult.get("is_relevant", True),
+    }
 
 # =========================================================
 # CREATE REPORT
@@ -48,6 +82,7 @@ async def addReport(
     description: str = Form(...),
     latitude: float = Form(...),
     longitude: float = Form(...),
+    claimedHazard: str = Form(...),
     image: UploadFile = File(...)
 ):
 
@@ -86,74 +121,69 @@ async def addReport(
             detail="This image appears to be a duplicate of an existing report."
         )
 
-    imageHash = duplicateCheck["hash"]
+        imageHash = duplicateCheck["hash"]
 
     # -----------------------------------------------------
-    # GEMINI — relevance check + title/description + hazard opinion
+    # ML FIRST
     # -----------------------------------------------------
+    print("STEP 4: Sending image to ML service")
 
-    print("STEP 4: Sending image to Gemini")
+    mlResult = await getOwnModelPrediction(imagePath)
 
+    category = mlResult.get("hazard_type", "other")
+    severity = mlResult.get("severity", 0)
+    confidence = mlResult.get("confidence", 0)
+    source = "own_model"
+
+    # -----------------------------------------------------
+    # GEMINI (title/description always, hazard fallback only if ML is low)
+    # -----------------------------------------------------
     aiResult = await analyzeImage(imagePath)
-
-    print("STEP 5: Gemini response:", aiResult)
 
     if aiResult.get("is_relevant") is False:
         raise HTTPException(
             status_code=400,
-            detail="Image does not appear related to a disaster report."
+            detail="NOT_RELEVANT_IMAGE"
         )
+
+    if confidence < CONFIDENCE_THRESHOLD:
+        geminiGuess = aiResult.get("hazard_type")
+        geminiConfidence = aiResult.get("confidence")
+
+        if (
+            geminiGuess
+            and geminiConfidence is not None
+            and geminiConfidence > confidence
+        ):
+            category = geminiGuess
+            confidence = geminiConfidence
+            severity = SEVERITY_MAP.get(category, severity)
+            source = "gemini_fallback"
 
     aiTitle = aiResult.get("title")
     aiDescription = aiResult.get("description")
 
+    print(
+        f"[FINAL DECISION] category={category}, severity={severity}, confidence={confidence}, source={source}"
+    )
+
     # -----------------------------------------------------
-    # ML CLASSIFICATION — our trained model, Gemini as fallback
-    # Fallback triggers on low confidence REGARDLESS of which
-    # category our model guessed (flood, landslide, or no_flood) —
-    # a missed real hazard is just as dangerous as a false alarm.
+    # CLAIM VERIFICATION
     # -----------------------------------------------------
 
-    print("STEP 6: Sending image to ML service")
+    verifiedHazard = category
+    claimVerified = claimedHazard.lower() == verifiedHazard.lower()
 
-    mlResult = await getOwnModelPrediction(imagePath)
+    if verifiedHazard == "no_flood":
+        raise HTTPException(
+            status_code=400,
+            detail="Image is not related to a disaster or hazard report."
+        )
 
-    print("STEP 7: ML response:", mlResult)
-
-    category = mlResult.get("hazard_type")
-    confidence = mlResult.get("confidence")
-    source = "own_model"
-
-    print(f"[SOURCE CHECK] Own model predicted '{category}' with confidence {confidence}")
-
-    if confidence is not None and confidence < CONFIDENCE_THRESHOLD:
-
-        print(f"[FALLBACK TRIGGERED] Confidence {confidence} is below threshold {CONFIDENCE_THRESHOLD}. Consulting Gemini for a second opinion...")
-
-        geminiGuess = aiResult.get("gemini_hazard_guess")
-        geminiConfidence = aiResult.get("gemini_confidence")
-
-        print(f"[GEMINI OPINION] Gemini predicted '{geminiGuess}' with confidence {geminiConfidence}")
-
-        if geminiGuess and geminiConfidence and geminiConfidence > confidence:
-
-            if geminiGuess != category:
-                print(f"[DISAGREEMENT] Own model said '{category}', Gemini said '{geminiGuess}' — Gemini is more confident, OVERRIDING.")
-            else:
-                print(f"[AGREEMENT] Both models agree on '{category}', using Gemini's higher confidence score.")
-
-            category = geminiGuess
-            confidence = geminiConfidence
-            source = "gemini_fallback"
-
-        else:
-            print(f"[FALLBACK SKIPPED] Gemini's confidence ({geminiConfidence}) was not higher than our model's ({confidence}). Keeping own_model result.")
-
-    else:
-        print(f"[HIGH CONFIDENCE] {confidence} >= {CONFIDENCE_THRESHOLD} — trusting own model, no fallback needed.")
-
-    print(f"[FINAL DECISION] category='{category}', confidence={confidence}, source='{source}'")
-
+    if not claimVerified:
+        print(
+            f"[CLAIM CORRECTION] User claimed '{claimedHazard}', AI verified '{verifiedHazard}'"
+        )
     severity = SEVERITY_MAP.get(category, 1)
 
     # -----------------------------------------------------
@@ -212,13 +242,18 @@ async def addReport(
 
     print(f"STEP 8: Real hazard '{category}' detected — running full validation pipeline")
 
-    nearbyCount = await checkNearbyReports(latitude, longitude, category)
+    nearbyCount = await checkNearbyReports(latitude, longitude, category,verifiedHazard)
 
     print(f"Nearby similar reports found: {nearbyCount}")
 
     reportData = {
         "title": aiTitle if aiTitle else title,
         "description": aiDescription if aiDescription else description,
+         # User claim vs AI verification
+        "hazardTypeClaimed": claimedHazard,
+        "hazardTypeVerified": verifiedHazard,
+        "claimVerified": claimVerified,
+        
         "location": {"latitude": latitude, "longitude": longitude},
         "imageUrl": imagePath,
         "imageHash": imageHash,

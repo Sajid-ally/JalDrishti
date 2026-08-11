@@ -94,20 +94,28 @@ export const SEVERITY_STYLES: Record<
 /** Shape of a report as it's being composed on the citizen ReportHazard form,
  * before it has a server-assigned id / status. */
 export interface HazardReportDraft {
-  type: HazardType | null;
+ type: HazardType | null;
   description: string;
   location: GeoPoint | null;
   placeName?: string;
   severity: Severity | null;
   mediaFile?: File | null;
+
+  // Backend fields
+  title?: string;
+  latitude?: number;
+  longitude?: number;
+  hazardType?: HazardType;
+  file?: File | null;
 }
 
 /** Result of the (mocked, prototype-stage) AI analysis run over an uploaded photo/video. */
 export interface AIAnalysisResult {
+  title?: string;
   suggestedDescription: string;
   suggestedSeverity: Severity;
   suggestedType: HazardType;
-  confidence: number; // 0-1
+  confidence: number;
 }
 
 export const HAZARD_LABELS: Record<HazardType, string> = {

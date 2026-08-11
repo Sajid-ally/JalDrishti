@@ -62,7 +62,8 @@ const ReportHazard: React.FC = () => {
   const [description, setDescription] = useState("");
   const [placeName, setPlaceName] = useState("");
   const [severity, setSeverity] = useState<Severity | null>(null);
-
+  const [title, setTitle] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -76,8 +77,8 @@ const ReportHazard: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { coords, loading: locLoading, error: locError, request: requestLocation } =
-    useGeolocation();
-
+  useGeolocation();
+  
   // Track connectivity and flush any queued offline reports once we're back online.
   useEffect(() => {
     const handleOnline = async () => {
@@ -96,7 +97,6 @@ const ReportHazard: React.FC = () => {
       setPendingCount(remaining);
     };
     const handleOffline = () => setIsOnline(false);
-
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
     return () => {
@@ -118,12 +118,14 @@ const ReportHazard: React.FC = () => {
     setAiLoading(true);
 
     try {
-      const result = await analyzeMedia(file, description);
-      setAiResult(result);
-    } finally {
-      setAiLoading(false);
-    }
-  }
+  const result = await analyzeMedia(file, description);
+  setTitle(result.title || "");
+setDescription(result.suggestedDescription);
+setHazardType(result.suggestedType);
+setSeverity(result.suggestedSeverity);
+} finally {
+  setAiLoading(false);
+}}
 
   function applyAiSuggestion() {
     if (!aiResult) return;
@@ -132,6 +134,7 @@ const ReportHazard: React.FC = () => {
     setDescription((prev) => (prev.trim() ? prev : aiResult.suggestedDescription));
     setAiApplied(true);
   }
+  
 
   function clearMedia() {
     setMediaFile(null);
@@ -141,51 +144,68 @@ const ReportHazard: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!isValid || !coords) return;
+async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
 
-    setSubmitState("submitting");
+  if (!hazardType || !severity || !description.trim()) {
+    return;
+  }
+
+  setSubmitState("submitting");
+
+  try {
+    // Use GPS from your existing hook
+    let location = coords;
+
+    if (!location) {
+      await requestLocation();
+      if (!coords) {
+        throw new Error("Location not available");
+      }
+      location = coords;
+    }
 
     const draft: HazardReportDraft = {
       type: hazardType,
+      hazardType: hazardType,
+      title: title.trim() || HAZARD_LABELS[hazardType],
       description: description.trim(),
-      location: coords,
+      location: location,
+      latitude: location.lat,
+      longitude: location.lng,
       placeName: placeName.trim() || undefined,
       severity,
       mediaFile,
+      file: mediaFile,
     };
 
-    if (!isOnline) {
-      const mediaDataUrl = mediaFile ? await fileToDataUrl(mediaFile) : undefined;
-      enqueueReport({
-        localId: `local-${Date.now()}`,
-        draft: { ...draft, mediaFile: undefined },
-        mediaDataUrl,
-        queuedAt: new Date().toISOString(),
-      });
-      setPendingCount(queueLength());
-      setSubmitState("queued");
-      return;
-    }
+    const result = await submitReport(draft);
 
-    const res = await submitReport(draft);
-    if (res.success) {
-      setSubmittedId(res.reportId ?? null);
-      setSubmitState("success");
-    } else {
-      // Fall back to the offline queue rather than losing the report.
-      const mediaDataUrl = mediaFile ? await fileToDataUrl(mediaFile) : undefined;
-      enqueueReport({
-        localId: `local-${Date.now()}`,
-        draft: { ...draft, mediaFile: undefined },
-        mediaDataUrl,
-        queuedAt: new Date().toISOString(),
-      });
-      setPendingCount(queueLength());
-      setSubmitState("queued");
-    }
+if (!result.success) {
+  setSubmitError(result.error || "Failed to submit report.");
+  return;
+}
+
+setSubmitError(null);
+setSubmitState("success");
+
+    // Offline fallback
+    const mediaDataUrl = mediaFile ? await fileToDataUrl(mediaFile) : undefined;
+
+    enqueueReport({
+      localId: `local-${Date.now()}`,
+      draft: { ...draft, mediaFile: undefined, file: undefined },
+      mediaDataUrl,
+      queuedAt: new Date().toISOString(),
+    });
+
+    setPendingCount(queueLength());
+    setSubmitState("queued");
+  } catch (error) {
+    console.error("Submit error:", error);
+    setSubmitState("error");
   }
+}
 
   function resetForm() {
     setHazardType(null);
@@ -370,7 +390,20 @@ const ReportHazard: React.FC = () => {
             })}
           </div>
         </div>
+<div>
+  <label htmlFor="title" className="mb-2 block text-sm font-medium text-slate-700">
+    Report title
+  </label>
 
+  <input
+    id="title"
+    type="text"
+    value={title}
+    onChange={(e) => setTitle(e.target.value)}
+    placeholder="Short title for the report"
+    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400"
+  />
+</div>
         {/* Description */}
         <div>
           <label htmlFor="description" className="mb-2 block text-sm font-medium text-slate-700">
@@ -449,14 +482,20 @@ const ReportHazard: React.FC = () => {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={!isValid || submitState === "submitting"}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-        >
-          {submitState === "submitting" && <Loader2 className="h-4 w-4 animate-spin" />}
-          {submitState === "submitting" ? "Submitting…" : "Submit report"}
-        </button>
+        {submitError && (
+  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+    {submitError}
+  </div>
+)}
+
+<button
+  type="submit"
+  disabled={!isValid || submitState === "submitting"}
+  className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+>
+  {submitState === "submitting" && <Loader2 className="h-4 w-4 animate-spin" />}
+  {submitState === "submitting" ? "Submitting…" : "Submit report"}
+</button>
       </form>
     </div>
   );

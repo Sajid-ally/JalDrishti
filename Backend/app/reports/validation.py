@@ -37,13 +37,20 @@ async def checkDuplicateImage(imagePath: str) -> dict:
     }
 
 
-async def checkNearbyReports(latitude: float, longitude: float, category: str) -> int:
+async def checkNearbyReports(
+    latitude: float,
+    longitude: float,
+    category: str,
+    verifiedHazard: str | None = None,
+) -> int:
     cutoffTime = datetime.utcnow() - timedelta(hours=NEARBY_TIME_WINDOW_HOURS)
 
-    recentReports = await database.reports.find({
+    query = {
         "mlAnalysis.category": category,
-        "createdAt": {"$gte": cutoffTime}
-    }).to_list(length=100)
+        "createdAt": {"$gte": cutoffTime},
+    }
+
+    recentReports = await database.reports.find(query).to_list(length=100)
 
     nearbyCount = 0
 
@@ -53,8 +60,10 @@ async def checkNearbyReports(latitude: float, longitude: float, category: str) -
             continue
 
         distance = haversine_distance_km(
-            latitude, longitude,
-            loc["latitude"], loc["longitude"]
+            latitude,
+            longitude,
+            loc["latitude"],
+            loc["longitude"],
         )
 
         if distance <= NEARBY_RADIUS_KM:
