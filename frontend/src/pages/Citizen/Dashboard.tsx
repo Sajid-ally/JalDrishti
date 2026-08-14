@@ -153,7 +153,7 @@ export default function Dashboard() {
             <div>
               <p className="font-bold text-sm sm:text-base text-(--color-deep-ocean)">Live Map</p>
               <p className="text-xs text-(--color-medium-teal)">
-                View Puri coastal hazard map
+                View live nationwide hazard map
               </p>
             </div>
           </button>

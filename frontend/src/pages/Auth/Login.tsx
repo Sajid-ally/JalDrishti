@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FiArrowRight, FiLock, FiMail } from "react-icons/fi";
 import toast from "react-hot-toast";
 
@@ -12,6 +12,7 @@ import type { UserRole } from "../../context/AuthContext";
 
 export default function Login() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { login } = useAuth();
 
     const [role, setRole] = useState<UserRole>("citizen");
@@ -41,11 +42,17 @@ export default function Login() {
 
             toast.success("Welcome back!");
 
-            // Route based on selected role
-            if (role === "government") {
-                navigate("/government/dashboard");
+            // Route based on redirect target from location state or role default
+            const fromPath = typeof location.state?.from === "string"
+                ? location.state.from
+                : location.state?.from?.pathname;
+
+            if (fromPath && !fromPath.startsWith("/login") && !fromPath.startsWith("/signup")) {
+                navigate(fromPath, { replace: true });
+            } else if (role === "government") {
+                navigate("/government/dashboard", { replace: true });
             } else {
-                navigate("/citizen");
+                navigate("/citizen", { replace: true });
             }
         } finally {
             setIsLoading(false);

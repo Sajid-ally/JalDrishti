@@ -30,8 +30,8 @@ export interface HazardReport {
   location: GeoPoint;
 
   // Geographic information used by the Live Map filters
-  city: string;
-  state: string;
+  city?: string;
+  state?: string;
   area?: string;
   placeName?: string;
 

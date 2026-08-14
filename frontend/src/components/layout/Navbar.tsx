@@ -7,7 +7,6 @@ import {
   LifeBuoy,
   UserCircle2,
   CheckSquare,
-  Users,
   Siren,
   LogOut,
   Menu,
@@ -28,7 +27,7 @@ const governmentNavItems = [
   { to: "/government/verify", label: "Verify Reports", icon: CheckSquare },
   { to: "/government/rescue", label: "Rescue", icon: LifeBuoy },
   { to: "/government/alerts", label: "Alerts", icon: Siren },
-  { to: "/government/missing", label: "Missing", icon: Users },
+  { to: "/government/live-map", label: "Live Map", icon: MapPinned },
 ];
 
 interface NavbarProps {

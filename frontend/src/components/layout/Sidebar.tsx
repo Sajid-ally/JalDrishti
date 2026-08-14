@@ -6,110 +6,133 @@ import {
   MapPinned,
   ShieldAlert,
   Send,
-  ClipboardCheck,
   CheckSquare,
   LifeBuoy,
   Siren,
-  Users,
   User,
   Search,
+  AlertTriangle,
+  type LucideIcon,
 } from "lucide-react";
-
 import useAuth from "../../hooks/useAuth";
 
-const citizenItems = [
+interface NavItem {
+  to: string;
+  label: string;
+  icon: LucideIcon;
+  end?: boolean;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const citizenSections: NavSection[] = [
   {
-    to: "/citizen",
-    label: "Dashboard",
-    icon: LayoutGrid,
-    end: true,
+    title: "Report & Monitor",
+    items: [
+      {
+        to: "/citizen/report",
+        label: "Submit Report",
+        icon: ShieldAlert,
+      },
+      {
+        to: "/citizen/track-report",
+        label: "Track Report",
+        icon: Search,
+      },
+      {
+        to: "/citizen/live-map",
+        label: "Live Map",
+        icon: MapPinned,
+      },
+    ],
   },
   {
-    to: "/citizen/report",
-    label: "Submit Report",
-    icon: ShieldAlert,
-    end: false,
+    title: "Emergency Services",
+    items: [
+      {
+        to: "/citizen/sos",
+        label: "SOS",
+        icon: LifeBuoy,
+      },
+      {
+        to: "/citizen/rescue-relief",
+        label: "Rescue & Relief",
+        icon: Send,
+      },
+      {
+        to: "/citizen/alerts",
+        label: "Disaster Alerts",
+        icon: AlertTriangle,
+      },
+    ],
   },
   {
-    to: "/citizen/track-report",
-    label: "Track Your Reports",
-    icon: Search,
-    end: false,
-  },
-  {
-    to: "/citizen/rescue",
-    label: "Rescue Request",
-    icon: Send,
-    end: false,
-  },
-  {
-    to: "/citizen/relief-tracking",
-    label: "Relief Tracking",
-    icon: ClipboardCheck,
-    end: false,
-  },
-  {
-    to: "/citizen/live-map",
-    label: "Live Map",
-    icon: MapPinned,
-    end: false,
-  },
-  {
-    to: "/citizen/missing",
-    label: "Missing Persons",
-    icon: Users,
-    end: false,
-  },
-  {
-    to: "/citizen/profile",
-    label: "Profile",
-    icon: User,
-    end: false,
+    title: "Account",
+    items: [
+      {
+        to: "/citizen",
+        label: "Dashboard",
+        icon: LayoutGrid,
+        end: true,
+      },
+      {
+        to: "/citizen/profile",
+        label: "Profile",
+        icon: User,
+      },
+    ],
   },
 ];
 
-const governmentItems = [
+const governmentSections: NavSection[] = [
   {
-    to: "/government/dashboard",
-    label: "Dashboard",
-    icon: LayoutGrid,
-    end: true,
+    title: "Report & Monitor",
+    items: [
+      {
+        to: "/government/verify",
+        label: "Verify Reports",
+        icon: CheckSquare,
+      },
+      {
+        to: "/government/live-map",
+        label: "Live Map",
+        icon: MapPinned,
+      },
+    ],
   },
   {
-    to: "/government/verify",
-    label: "Verify Reports",
-    icon: CheckSquare,
-    end: false,
+    title: "Emergency Services",
+    items: [
+      {
+        to: "/government/rescue",
+        label: "Rescue Teams",
+        icon: LifeBuoy,
+      },
+      {
+        to: "/government/alerts",
+        label: "Disaster Alerts",
+        icon: Siren,
+      },
+    ],
   },
   {
-    to: "/government/rescue",
-    label: "Rescue Requests",
-    icon: LifeBuoy,
-    end: false,
-  },
-  {
-    to: "/government/alerts",
-    label: "Alerts / News Feed",
-    icon: Siren,
-    end: false,
-  },
-  {
-    to: "/government/live-map",
-    label: "Live Map",
-    icon: MapPinned,
-    end: false,
-  },
-  {
-    to: "/government/missing",
-    label: "Missing Persons",
-    icon: Users,
-    end: false,
-  },
-  {
-    to: "/government/profile",
-    label: "Profile",
-    icon: User,
-    end: false,
+    title: "Account",
+    items: [
+      {
+        to: "/government/dashboard",
+        label: "Dashboard",
+        icon: LayoutGrid,
+        end: true,
+      },
+      {
+        to: "/government/profile",
+        label: "Profile",
+        icon: User,
+      },
+    ],
   },
 ];
 
@@ -129,7 +152,7 @@ export default function Sidebar({
   const { user } = useAuth();
 
   const isCitizen = !user || user.role === "citizen";
-  const sidebarItems = isCitizen ? citizenItems : governmentItems;
+  const sections = isCitizen ? citizenSections : governmentSections;
 
   if (isMobileDrawer) {
     return (
@@ -140,7 +163,7 @@ export default function Sidebar({
               CoastalEye
             </span>
             <p className="text-[11px] text-[var(--color-medium-teal)]">
-              {isCitizen ? "Citizen Quick Menu" : "Gov Command Menu"}
+              {isCitizen ? "Citizen Command Menu" : "Gov Command Menu"}
             </p>
           </div>
 
@@ -154,29 +177,37 @@ export default function Sidebar({
           </button>
         </div>
 
-        <nav className="mt-4 flex flex-col gap-1.5 overflow-y-auto">
-          {sidebarItems.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                onClick={onCloseMobile}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
-                    isActive
-                      ? "bg-[var(--color-ocean)] text-white shadow-sm font-bold"
-                      : "text-[var(--color-dark-teal)] hover:bg-[var(--color-pale-aqua)]/50"
-                  }`
-                }
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          })}
+        <nav className="mt-4 flex flex-col gap-5 overflow-y-auto">
+          {sections.map((section) => (
+            <div key={section.title} className="space-y-1.5">
+              <p className="px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-medium-teal)]">
+                {section.title}
+              </p>
+              <div className="flex flex-col gap-1">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      onClick={onCloseMobile}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all ${
+                          isActive
+                            ? "bg-[var(--color-ocean)] text-white shadow-sm font-bold"
+                            : "text-[var(--color-dark-teal)] hover:bg-[var(--color-pale-aqua)]/50"
+                        }`
+                      }
+                    >
+                      <Icon className="h-4.5 w-4.5 shrink-0" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
       </div>
     );
@@ -206,7 +237,13 @@ export default function Sidebar({
           py-5
         `}
       >
-        {/* Menu button */}
+        {!collapsed && (
+          <span className="text-xs font-black uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+            Navigation
+          </span>
+        )}
+
+        {/* Toggle Button */}
         <button
           type="button"
           onClick={onToggle}
@@ -222,84 +259,77 @@ export default function Sidebar({
             transition
             hover:bg-(--color-aqua)
           "
-          aria-label={
-            collapsed
-              ? "Expand sidebar"
-              : "Collapse sidebar"
-          }
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <Menu className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Menu */}
+      {/* Menu Sections */}
       <div
         className={`
           flex-1
-          ${collapsed ? "px-3" : "px-5"}
+          ${collapsed ? "px-3" : "px-4"}
           overflow-y-auto
+          space-y-6
+          pb-6
         `}
       >
-        {!collapsed && (
-          <p
-            className="
-              mb-4
-              px-1
-              text-xs
-              font-semibold
-              uppercase
-              tracking-[0.3em]
-              text-(--color-medium-teal)
-            "
-          >
-            Quick Access
-          </p>
-        )}
+        {sections.map((section) => (
+          <div key={section.title} className="space-y-1.5">
+            {!collapsed && (
+              <p className="px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-medium-teal)]">
+                {section.title}
+              </p>
+            )}
 
-        <nav className="flex flex-col gap-1.5">
-          {sidebarItems.map((item) => {
-            const Icon = item.icon;
+            <nav className="flex flex-col gap-1">
+              {section.items.map((item) => {
+                const Icon = item.icon;
 
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) =>
-                  `
-                  flex
-                  items-center
-                  gap-3
-                  rounded-2xl
-                  py-3
-                  text-sm
-                  font-medium
-                  transition-all
-                  duration-200
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    title={collapsed ? item.label : undefined}
+                    className={({ isActive }) =>
+                      `
+                      flex
+                      items-center
+                      gap-3
+                      rounded-2xl
+                      py-2.5
+                      text-sm
+                      font-medium
+                      transition-all
+                      duration-200
 
-                  ${
-                    isActive
-                      ? "bg-(--color-aqua) text-(--color-dark-teal) font-bold shadow-xs"
-                      : "text-(--color-medium-teal) hover:bg-(--color-pale-aqua)"
-                  }
+                      ${
+                        isActive
+                          ? "bg-(--color-aqua) text-(--color-dark-teal) font-bold shadow-xs"
+                          : "text-(--color-medium-teal) hover:bg-(--color-pale-aqua)"
+                      }
 
-                  ${
-                    collapsed
-                      ? "justify-center px-2"
-                      : "px-3"
-                  }
-                  `
-                }
-              >
-                <Icon className="h-5 w-5 shrink-0" />
+                      ${
+                        collapsed
+                          ? "justify-center px-2"
+                          : "px-3.5"
+                      }
+                      `
+                    }
+                  >
+                    <Icon className="h-4.5 w-4.5 shrink-0" />
 
-                {!collapsed && (
-                  <span className="truncate">{item.label}</span>
-                )}
-              </NavLink>
-            );
-          })}
-        </nav>
+                    {!collapsed && (
+                      <span className="truncate">{item.label}</span>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+        ))}
       </div>
     </aside>
   );

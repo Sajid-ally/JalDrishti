@@ -23,10 +23,6 @@ export default function GovernmentProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
   const fetchProfile = async () => {
     setLoading(true);
     try {
@@ -36,6 +32,10 @@ export default function GovernmentProfile() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

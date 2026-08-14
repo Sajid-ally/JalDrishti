@@ -3,8 +3,9 @@
 // Allows citizens to enter a unique Report ID, search, and view live status timeline,
 // uploaded media, location, AI analysis results, and municipal verification details.
 
-import React, { useState, useEffect, useId } from "react";
+import React, { useState, useEffect, useCallback, useId } from "react";
 import { useSearchParams, Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   Search,
   CheckCircle2,
@@ -62,16 +63,7 @@ export default function TrackReport() {
   const [copied, setCopied] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
 
-  // Initialize search from query parameter if present (e.g., /citizen/track-report?id=WR-2026-8F4K29)
-  useEffect(() => {
-    const queryId = searchParams.get("id");
-    if (queryId) {
-      setReportIdInput(queryId);
-      performSearch(queryId);
-    }
-  }, [searchParams]);
-
-  const performSearch = async (idToSearch: string) => {
+  const performSearch = useCallback(async (idToSearch: string) => {
     const cleanId = formatReportId(idToSearch);
     if (!cleanId) return;
 
@@ -84,14 +76,26 @@ export default function TrackReport() {
       setReport(result);
       if (result) {
         setSearchParams({ id: cleanId }, { replace: true });
+        toast.success(`Found report ${cleanId}`);
+      } else {
+        toast.error(`No hazard report found for "${cleanId}"`);
       }
-    } catch (err) {
-      console.error("Failed to search report:", err);
+    } catch {
+      toast.error("Failed to load report status. Please try again.");
       setReport(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [setSearchParams]);
+
+  // Auto-search if ID is provided in query param on load
+  useEffect(() => {
+    const queryId = searchParams.get("id");
+    if (queryId) {
+      setReportIdInput(queryId);
+      performSearch(queryId);
+    }
+  }, [searchParams, performSearch]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -6,7 +6,6 @@ import {
   Clock,
   ExternalLink,
   ShieldAlert,
-  Users,
   LifeBuoy,
   Radio,
 } from "lucide-react";
@@ -30,8 +29,6 @@ function getAlertIcon(type: GovernmentAlert["type"]) {
   switch (type) {
     case "New hazard report":
       return <ShieldAlert className="h-5 w-5 text-amber-600" />;
-    case "New missing-person report":
-      return <Users className="h-5 w-5 text-rose-600" />;
     case "Rescue request":
       return <LifeBuoy className="h-5 w-5 text-red-600" />;
     case "High-priority incident":
@@ -46,10 +43,6 @@ export default function GovernmentDisasterAlerts() {
   const [alerts, setAlerts] = useState<GovernmentAlert[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchAlerts();
-  }, []);
-
   const fetchAlerts = async () => {
     setLoading(true);
     try {
@@ -59,6 +52,10 @@ export default function GovernmentDisasterAlerts() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchAlerts();
+  }, []);
 
   const handleAction = async (alert: GovernmentAlert) => {
     if (alert.targetRoute) {
@@ -82,7 +79,7 @@ export default function GovernmentDisasterAlerts() {
             Government Alerts &amp; News Feed
           </h1>
           <p className="mt-1 text-sm text-[var(--color-medium-teal)]">
-            Real-time feed of reported hazards, missing person verification tasks, rescue dispatches, and field updates.
+            Real-time feed of reported hazards, incident verifications, rescue dispatches, and field updates.
           </p>
         </div>
 

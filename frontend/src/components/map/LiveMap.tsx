@@ -61,13 +61,15 @@ const HAZARD_LABELS: Record<MapIssueType, string> = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-const PURI_CENTER: [number, number] = [19.8135, 85.8312];
-const DEFAULT_ZOOM = 13;
+const INDIA_CENTER: [number, number] = [22.5937, 78.9629];
+const DEFAULT_ZOOM = 5;
 
 function MapViewport({ selectedArea }: Pick<LiveMapProps, "selectedArea">) {
   const map = useMap();
   useEffect(() => {
-    if (selectedArea) map.flyTo([selectedArea.latitude, selectedArea.longitude], selectedArea.zoom, { duration: 0.8 });
+    if (selectedArea) {
+      map.flyTo([selectedArea.latitude, selectedArea.longitude], selectedArea.zoom, { duration: 0.8 });
+    }
   }, [map, selectedArea]);
   return null;
 }
@@ -76,8 +78,9 @@ export default function LiveMap({ hazards, height = "480px", selectedArea }: Liv
   return (
     <div style={{ height, borderRadius: "1.5rem", overflow: "hidden" }}>
       <MapContainer
-        center={PURI_CENTER}
+        center={INDIA_CENTER}
         zoom={DEFAULT_ZOOM}
+        minZoom={4}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom
         attributionControl

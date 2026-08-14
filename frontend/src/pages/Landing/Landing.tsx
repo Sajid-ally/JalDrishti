@@ -7,10 +7,28 @@ import {
 } from "react-icons/fi";
 
 import Button from "../../components/common/Button";
+import useAuth from "../../hooks/useAuth";
 import { APP_NAME, APP_TAGLINE } from "../../utils/constants";
 
 export default function Landing() {
     const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
+
+    const handleReportClick = () => {
+        if (isAuthenticated) {
+            navigate("/citizen/report");
+        } else {
+            navigate("/login", { state: { from: { pathname: "/citizen/report" } } });
+        }
+    };
+
+    const handleTrackClick = () => {
+        if (isAuthenticated) {
+            navigate("/citizen/track-report");
+        } else {
+            navigate("/login", { state: { from: { pathname: "/citizen/track-report" } } });
+        }
+    };
 
     return (
         <div className="landing-page">
@@ -66,7 +84,7 @@ export default function Landing() {
                         <div className="landing-hero-actions">
                             <Button
                                 variant="primary"
-                                onClick={() => navigate("/citizen/report")}
+                                onClick={handleReportClick}
                             >
                                 Report an Issue
                                 <FiArrowRight size={18} />
@@ -74,7 +92,7 @@ export default function Landing() {
 
                             <Button
                                 variant="outline"
-                                onClick={() => navigate("/citizen/track-report")}
+                                onClick={handleTrackClick}
                             >
                                 Track a Report
                             </Button>
