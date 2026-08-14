@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import {
   Menu,
+  X,
   LayoutGrid,
   MapPinned,
   ShieldAlert,
@@ -11,6 +12,7 @@ import {
   Siren,
   Users,
   User,
+  Search,
 } from "lucide-react";
 
 import useAuth from "../../hooks/useAuth";
@@ -23,15 +25,15 @@ const citizenItems = [
     end: true,
   },
   {
-    to: "/citizen/missing",
-    label: "Missing Persons",
-    icon: Users,
+    to: "/citizen/report",
+    label: "Submit Report",
+    icon: ShieldAlert,
     end: false,
   },
   {
-    to: "/citizen/report",
-    label: "Report Hazard",
-    icon: ShieldAlert,
+    to: "/citizen/track-report",
+    label: "Track Your Reports",
+    icon: Search,
     end: false,
   },
   {
@@ -53,6 +55,12 @@ const citizenItems = [
     end: false,
   },
   {
+    to: "/citizen/missing",
+    label: "Missing Persons",
+    icon: Users,
+    end: false,
+  },
+  {
     to: "/citizen/profile",
     label: "Profile",
     icon: User,
@@ -68,18 +76,6 @@ const governmentItems = [
     end: true,
   },
   {
-    to: "/government/missing",
-    label: "Missing Persons",
-    icon: Users,
-    end: false,
-  },
-  {
-    to: "/government/alerts",
-    label: "Alerts / News Feed",
-    icon: Siren,
-    end: false,
-  },
-  {
     to: "/government/verify",
     label: "Verify Reports",
     icon: CheckSquare,
@@ -92,9 +88,21 @@ const governmentItems = [
     end: false,
   },
   {
+    to: "/government/alerts",
+    label: "Alerts / News Feed",
+    icon: Siren,
+    end: false,
+  },
+  {
     to: "/government/live-map",
     label: "Live Map",
     icon: MapPinned,
+    end: false,
+  },
+  {
+    to: "/government/missing",
+    label: "Missing Persons",
+    icon: Users,
     end: false,
   },
   {
@@ -108,19 +116,71 @@ const governmentItems = [
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  isMobileDrawer?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export default function Sidebar({
   collapsed,
   onToggle,
+  isMobileDrawer = false,
+  onCloseMobile,
 }: SidebarProps) {
   const { user } = useAuth();
 
   const isCitizen = !user || user.role === "citizen";
+  const sidebarItems = isCitizen ? citizenItems : governmentItems;
 
-  const sidebarItems = isCitizen
-    ? citizenItems
-    : governmentItems;
+  if (isMobileDrawer) {
+    return (
+      <div className="flex h-full flex-col bg-white p-5">
+        <div className="flex items-center justify-between pb-4 border-b border-[rgba(53,98,103,0.14)]">
+          <div>
+            <span className="text-base font-bold text-[var(--color-ocean)]">
+              CoastalEye
+            </span>
+            <p className="text-[11px] text-[var(--color-medium-teal)]">
+              {isCitizen ? "Citizen Quick Menu" : "Gov Command Menu"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-pale-aqua)] text-[var(--color-dark-teal)] hover:bg-[var(--color-aqua)]"
+            aria-label="Close menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <nav className="mt-4 flex flex-col gap-1.5 overflow-y-auto">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                onClick={onCloseMobile}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-all ${
+                    isActive
+                      ? "bg-[var(--color-ocean)] text-white shadow-sm font-bold"
+                      : "text-[var(--color-dark-teal)] hover:bg-[var(--color-pale-aqua)]/50"
+                  }`
+                }
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
+      </div>
+    );
+  }
 
   return (
     <aside
@@ -168,11 +228,7 @@ export default function Sidebar({
               : "Collapse sidebar"
           }
         >
-          {collapsed ? (
-            <Menu className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
-          )}
+          <Menu className="h-5 w-5" />
         </button>
       </div>
 
@@ -181,12 +237,13 @@ export default function Sidebar({
         className={`
           flex-1
           ${collapsed ? "px-3" : "px-5"}
+          overflow-y-auto
         `}
       >
         {!collapsed && (
           <p
             className="
-              mb-5
+              mb-4
               px-1
               text-xs
               font-semibold
@@ -199,7 +256,7 @@ export default function Sidebar({
           </p>
         )}
 
-        <nav className="flex flex-col gap-2">
+        <nav className="flex flex-col gap-1.5">
           {sidebarItems.map((item) => {
             const Icon = item.icon;
 
@@ -222,7 +279,7 @@ export default function Sidebar({
 
                   ${
                     isActive
-                      ? "bg-(--color-aqua) text-(--color-dark-teal)"
+                      ? "bg-(--color-aqua) text-(--color-dark-teal) font-bold shadow-xs"
                       : "text-(--color-medium-teal) hover:bg-(--color-pale-aqua)"
                   }
 
@@ -237,7 +294,7 @@ export default function Sidebar({
                 <Icon className="h-5 w-5 shrink-0" />
 
                 {!collapsed && (
-                  <span>{item.label}</span>
+                  <span className="truncate">{item.label}</span>
                 )}
               </NavLink>
             );

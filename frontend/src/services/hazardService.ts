@@ -13,6 +13,8 @@
 
 import type { HazardReport, HazardType, Severity, ReportStatus } from "../types/hazard";
 
+export type MapIssueType = HazardType | "waterlogging" | "sewage" | "water_quality" | "pond" | "lake";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Map location type (used by LiveMap component)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,10 +23,13 @@ export interface HazardLocation {
   id: string;
   latitude: number;
   longitude: number;
-  hazardType: HazardType;
+  hazardType: MapIssueType;
   severity: Severity;
   status: ReportStatus;
   placeName?: string;
+  state: string;
+  district: string;
+  locality: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -172,6 +177,7 @@ export const MOCK_HAZARD_LOCATIONS: HazardLocation[] = [
     severity: "high",
     status: "verified",
     placeName: "Puri Beach",
+    state: "Odisha", district: "Puri", locality: "Puri Beach",
   },
   {
     id: "LOC-002",
@@ -181,6 +187,7 @@ export const MOCK_HAZARD_LOCATIONS: HazardLocation[] = [
     severity: "moderate",
     status: "pending",
     placeName: "Swargadwar",
+    state: "Odisha", district: "Puri", locality: "Swargadwar",
   },
   {
     id: "LOC-003",
@@ -190,6 +197,7 @@ export const MOCK_HAZARD_LOCATIONS: HazardLocation[] = [
     severity: "moderate",
     status: "pending",
     placeName: "Pentakota",
+    state: "Odisha", district: "Puri", locality: "Pentakota",
   },
   {
     id: "LOC-004",
@@ -199,6 +207,7 @@ export const MOCK_HAZARD_LOCATIONS: HazardLocation[] = [
     severity: "critical",
     status: "verified",
     placeName: "Balighai",
+    state: "Odisha", district: "Puri", locality: "Balighai",
   },
   {
     id: "LOC-005",
@@ -208,6 +217,7 @@ export const MOCK_HAZARD_LOCATIONS: HazardLocation[] = [
     severity: "moderate",
     status: "pending",
     placeName: "Brahmagiri",
+    state: "Odisha", district: "Puri", locality: "Brahmagiri",
   },
   {
     id: "LOC-006",
@@ -217,7 +227,13 @@ export const MOCK_HAZARD_LOCATIONS: HazardLocation[] = [
     severity: "low",
     status: "pending",
     placeName: "Chakratirtha Road",
+    state: "Odisha", district: "Puri", locality: "Chakratirtha Road",
   },
+  { id: "LOC-007", latitude: 19.8072, longitude: 85.8278, hazardType: "waterlogging", severity: "high", status: "verified", placeName: "Grand Road", state: "Odisha", district: "Puri", locality: "Grand Road" },
+  { id: "LOC-008", latitude: 19.8158, longitude: 85.8389, hazardType: "sewage", severity: "moderate", status: "pending", placeName: "Baliapanda Drain", state: "Odisha", district: "Puri", locality: "Baliapanda" },
+  { id: "LOC-009", latitude: 19.8305, longitude: 85.8492, hazardType: "water_quality", severity: "high", status: "verified", placeName: "Narendra Tank", state: "Odisha", district: "Puri", locality: "Narendra Tank" },
+  { id: "LOC-010", latitude: 20.2961, longitude: 85.8245, hazardType: "pond", severity: "low", status: "verified", placeName: "Bindu Sagar", state: "Odisha", district: "Khordha", locality: "Old Town" },
+  { id: "LOC-011", latitude: 20.2701, longitude: 85.8398, hazardType: "lake", severity: "moderate", status: "pending", placeName: "Kanjia Lake", state: "Odisha", district: "Khordha", locality: "Nandankanan" },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────

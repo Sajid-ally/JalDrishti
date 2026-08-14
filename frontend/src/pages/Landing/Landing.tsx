@@ -66,7 +66,7 @@ export default function Landing() {
                         <div className="landing-hero-actions">
                             <Button
                                 variant="primary"
-                                onClick={() => navigate("/signup")}
+                                onClick={() => navigate("/citizen/report")}
                             >
                                 Report an Issue
                                 <FiArrowRight size={18} />
@@ -74,7 +74,7 @@ export default function Landing() {
 
                             <Button
                                 variant="outline"
-                                onClick={() => navigate("/login")}
+                                onClick={() => navigate("/citizen/track-report")}
                             >
                                 Track a Report
                             </Button>

@@ -12,7 +12,6 @@ import ForgotPassword from "../pages/Auth/ForgotPassword";
 import CitizenDashboard from "../pages/Citizen/Dashboard";
 import ReportHazard from "../pages/Citizen/ReportHazard";
 import CitizenLiveMap from "../pages/Citizen/LiveMap";
-import CitizenMissingPersons from "../pages/Citizen/MissingPersons";
 import CitizenAlerts from "../pages/Citizen/Alerts";
 import SOS from "../pages/Citizen/SOS";
 import RescueRequest from "../pages/Citizen/RescueRequest";
@@ -21,12 +20,12 @@ import MyReports from "../pages/Citizen/MyReports";
 import ReportDetails from "../pages/Citizen/ReportDetails";
 
 import ReliefTracking from "../pages/Citizen/ReliefTracking";
+import TrackReport from "../pages/Citizen/TrackReport";
 
 import GovernmentDashboard from "../pages/Government/Dashboard";
 import VerifyReports from "../pages/Government/VerifyReports";
 import GovernmentRescueRequests from "../pages/Government/RescueRequests";
 import DisasterAlerts from "../pages/Government/DisasterAlerts";
-import GovernmentMissingPersons from "../pages/Government/MissingPersons";
 import GovernmentProfile from "../pages/Government/Profile";
 
 
@@ -59,15 +58,12 @@ export default function AppRoutes() {
         />
         <Route path="/citizen/report" element={withLayout(<ReportHazard />)} />
         <Route path="/citizen/live-map" element={withLayout(<CitizenLiveMap />)} />
-        <Route
-          path="/citizen/missing"
-          element={withLayout(<CitizenMissingPersons />)}
-        />
         <Route path="/citizen/alerts" element={withLayout(<CitizenAlerts />)} />
         <Route path="/citizen/sos" element={withLayout(<SOS />)} />
         <Route path="/citizen/rescue" element={withLayout(<RescueRequest />)} />
+        <Route path="/citizen/submit-report" element={withLayout(<ReportHazard />)} />
         <Route path="/citizen/relief-tracking" element={withLayout(<ReliefTracking />)} />
-        <Route path="/citizen/track-report" element={withLayout(<ReliefTracking />)} />
+        <Route path="/citizen/track-report" element={withLayout(<TrackReport />)} />
         <Route path="/citizen/profile" element={withLayout(<CitizenProfile />)} />
         <Route path="/citizen/reports" element={withLayout(<MyReports />)} />
         <Route
@@ -99,10 +95,6 @@ export default function AppRoutes() {
         <Route
           path="/government/alerts"
           element={withLayout(<DisasterAlerts />)}
-        />
-        <Route
-          path="/government/missing"
-          element={withLayout(<GovernmentMissingPersons />)}
         />
         <Route
           path="/government/profile"

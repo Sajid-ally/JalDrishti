@@ -6,9 +6,11 @@
 //
 // Map center: Puri, Odisha, India (19.8135°N, 85.8312°E)
 
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
+import { useEffect } from "react";
 import "leaflet/dist/leaflet.css";
-import type { HazardType, Severity } from "../../types/hazard";
+import type { Severity } from "../../types/hazard";
+import type { MapIssueType } from "../../services/hazardService";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -16,10 +18,13 @@ export interface HazardLocation {
   id: string;
   latitude: number;
   longitude: number;
-  hazardType: HazardType;
+  hazardType: MapIssueType;
   severity: Severity;
   status: string;
   placeName?: string;
+  state: string;
+  district: string;
+  locality: string;
 }
 
 interface LiveMapProps {
@@ -27,6 +32,7 @@ interface LiveMapProps {
    *  TODO: Parent should fetch this from GET /api/map/hazards */
   hazards: HazardLocation[];
   height?: string;
+  selectedArea?: { latitude: number; longitude: number; zoom: number } | null;
 }
 
 // ─── Severity → marker color ─────────────────────────────────────────────────
@@ -38,7 +44,7 @@ const SEVERITY_COLOR: Record<Severity, string> = {
   critical: "#dc2626",
 };
 
-const HAZARD_LABELS: Record<HazardType, string> = {
+const HAZARD_LABELS: Record<MapIssueType, string> = {
   flood: "Flood",
   tsunami: "Tsunami",
   storm_surge: "Storm Surge",
@@ -46,6 +52,11 @@ const HAZARD_LABELS: Record<HazardType, string> = {
   coastal_erosion: "Coastal Erosion",
   coastal_damage: "Coastal Damage",
   other: "Other Hazard",
+  waterlogging: "Waterlogging",
+  sewage: "Sewage",
+  water_quality: "Water Quality",
+  pond: "Pond",
+  lake: "Lake",
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -53,7 +64,15 @@ const HAZARD_LABELS: Record<HazardType, string> = {
 const PURI_CENTER: [number, number] = [19.8135, 85.8312];
 const DEFAULT_ZOOM = 13;
 
-export default function LiveMap({ hazards, height = "480px" }: LiveMapProps) {
+function MapViewport({ selectedArea }: Pick<LiveMapProps, "selectedArea">) {
+  const map = useMap();
+  useEffect(() => {
+    if (selectedArea) map.flyTo([selectedArea.latitude, selectedArea.longitude], selectedArea.zoom, { duration: 0.8 });
+  }, [map, selectedArea]);
+  return null;
+}
+
+export default function LiveMap({ hazards, height = "480px", selectedArea }: LiveMapProps) {
   return (
     <div style={{ height, borderRadius: "1.5rem", overflow: "hidden" }}>
       <MapContainer
@@ -62,7 +81,8 @@ export default function LiveMap({ hazards, height = "480px" }: LiveMapProps) {
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom
         attributionControl
-      >
+        >
+        <MapViewport selectedArea={selectedArea} />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -100,6 +120,9 @@ export default function LiveMap({ hazards, height = "480px" }: LiveMapProps) {
                   </p>
                   <p style={{ fontSize: "0.78rem", color: "#64748b" }}>
                     Status: {hazard.status}
+                  </p>
+                  <p style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "0.2rem" }}>
+                    {hazard.locality}, {hazard.district}, {hazard.state}
                   </p>
                 </div>
               </Popup>
