@@ -92,7 +92,7 @@ export default function RescueRelief() {
     setPhotoPreview(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!location || !description) {
       toast.error("Please enter location and description details.");
@@ -134,31 +134,31 @@ export default function RescueRelief() {
   };
 
   return (
-    <main className="min-h-screen text-[var(--color-dark-teal)] space-y-6">
+    <main className="min-h-screen text-(--color-dark-teal) space-y-6">
       <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-8 shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-[rgba(53,98,103,0.12)]">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
               Emergency Services
             </p>
-            <h1 className="mt-1 text-2xl sm:text-3xl font-black text-[var(--color-deep-ocean)]">
+            <h1 className="mt-1 text-2xl sm:text-3xl font-black text-(--color-deep-ocean)">
               Rescue &amp; Relief
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-[var(--color-medium-teal)]">
+            <p className="mt-1 text-xs sm:text-sm text-(--color-medium-teal)">
               Request emergency rescue assistance and track real-time operational status of ongoing relief efforts.
             </p>
           </div>
 
           {/* Tab Selector Buttons */}
-          <div className="flex items-center gap-1.5 rounded-2xl bg-[var(--color-soft-mint)] p-1.5 border border-[rgba(53,98,103,0.15)] self-start sm:self-auto">
+          <div className="flex items-center gap-1.5 rounded-2xl bg-(--color-soft-mint) p-1.5 border border-[rgba(53,98,103,0.15)] self-start sm:self-auto">
             <button
               type="button"
               onClick={() => switchTab("request")}
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
                 activeTab === "request"
-                  ? "bg-[var(--color-ocean)] text-white shadow-sm"
-                  : "text-[var(--color-dark-teal)] hover:bg-[var(--color-pale-aqua)]/50"
+                  ? "bg-(--color-ocean) text-white shadow-sm"
+                  : "text-(--color-dark-teal) hover:bg-(--color-pale-aqua)/50"
               }`}
             >
               <Send className="h-4 w-4" />
@@ -170,8 +170,8 @@ export default function RescueRelief() {
               onClick={() => switchTab("status")}
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
                 activeTab === "status"
-                  ? "bg-[var(--color-ocean)] text-white shadow-sm"
-                  : "text-[var(--color-dark-teal)] hover:bg-[var(--color-pale-aqua)]/50"
+                  ? "bg-(--color-ocean) text-white shadow-sm"
+                  : "text-(--color-dark-teal) hover:bg-(--color-pale-aqua)/50"
               }`}
             >
               <ClipboardList className="h-4 w-4" />
@@ -184,16 +184,16 @@ export default function RescueRelief() {
         {activeTab === "request" && (
           <div className="pt-6">
             <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
-              <div className="rounded-3xl border border-[rgba(53,98,103,0.16)] bg-[var(--color-soft-mint)]/20 p-5 sm:p-6 space-y-5">
+              <div className="rounded-3xl border border-[rgba(53,98,103,0.16)] bg-(--color-soft-mint)/20 p-5 sm:p-6 space-y-5">
                 {/* Request Type */}
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)] mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
                     Request Type *
                   </label>
                   <select
                     value={requestType}
                     onChange={(e) => setRequestType(e.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm text-[var(--color-dark-teal)] outline-none focus:border-[var(--color-ocean)] font-medium"
+                    className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean) font-medium"
                   >
                     <option value="Flood Evacuation">Flood Evacuation</option>
                     <option value="Medical Emergency">Medical Emergency</option>
@@ -205,18 +205,18 @@ export default function RescueRelief() {
 
                 {/* Location */}
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)] mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
                     Exact Location / Landmark *
                   </label>
                   <div className="relative">
-                    <MapPin className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-medium-teal)]" />
+                    <MapPin className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--color-medium-teal)" />
                     <input
                       type="text"
                       required
                       placeholder="e.g. House #42, Beach Road Sector 4"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
-                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm text-[var(--color-dark-teal)] outline-none focus:border-[var(--color-ocean)]"
+                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean)"
                     />
                   </div>
                 </div>
@@ -224,11 +224,11 @@ export default function RescueRelief() {
                 {/* Grid for People Count & Urgency */}
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)] mb-1">
+                    <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
                       Number of People Needing Help *
                     </label>
                     <div className="relative">
-                      <Users className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-medium-teal)]" />
+                      <Users className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--color-medium-teal)" />
                       <input
                         type="number"
                         min={1}
@@ -236,23 +236,23 @@ export default function RescueRelief() {
                         required
                         value={peopleCount}
                         onChange={(e) => setPeopleCount(parseInt(e.target.value) || 1)}
-                        className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm text-[var(--color-dark-teal)] outline-none focus:border-[var(--color-ocean)] font-medium"
+                        className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean) font-medium"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)] mb-1">
+                    <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
                       Severity / Urgency *
                     </label>
                     <div className="relative">
-                      <AlertTriangle className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-medium-teal)]" />
+                      <AlertTriangle className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--color-medium-teal)" />
                       <select
                         value={urgency}
                         onChange={(e) =>
                           setUrgency(e.target.value as "Low" | "Medium" | "High" | "Critical")
                         }
-                        className="w-full appearance-none rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm text-[var(--color-dark-teal)] outline-none focus:border-[var(--color-ocean)] font-bold cursor-pointer"
+                        className="w-full appearance-none rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean) font-bold cursor-pointer"
                       >
                         <option value="Low">Low - Non Immediate</option>
                         <option value="Medium">Medium - Standard Request</option>
@@ -265,7 +265,7 @@ export default function RescueRelief() {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)] mb-1">
+                  <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
                     Description of Emergency *
                   </label>
                   <textarea
@@ -274,25 +274,25 @@ export default function RescueRelief() {
                     placeholder="Describe current situation, water levels, medical conditions, or hazards..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm text-[var(--color-dark-teal)] outline-none focus:border-[var(--color-ocean)]"
+                    className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean)"
                   />
                 </div>
 
                 {/* Optional Image Upload with Preview */}
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)] mb-2">
+                  <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-2">
                     Optional Site Photo / Evidence
                   </label>
 
                   {photoPreview ? (
-                    <div className="relative inline-block overflow-hidden rounded-3xl border-2 border-[var(--color-ocean)] bg-white p-2">
+                    <div className="relative inline-block overflow-hidden rounded-3xl border-2 border-(--color-ocean) bg-white p-2">
                       <img
                         src={photoPreview}
                         alt="Rescue preview"
                         className="h-44 w-44 object-cover rounded-2xl"
                       />
                       <div className="mt-2 flex items-center justify-between gap-2 px-1">
-                        <label className="cursor-pointer text-xs font-bold text-[var(--color-ocean)] hover:underline">
+                        <label className="cursor-pointer text-xs font-bold text-(--color-ocean) hover:underline">
                           Change Image
                           <input
                             type="file"
@@ -311,12 +311,12 @@ export default function RescueRelief() {
                       </div>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[rgba(53,98,103,0.25)] bg-white p-5 text-center cursor-pointer transition hover:border-[var(--color-ocean)] hover:bg-[var(--color-pale-aqua)]/20">
-                      <Upload className="h-7 w-7 text-[var(--color-ocean)] mb-1" />
-                      <span className="text-sm font-bold text-[var(--color-dark-teal)]">
+                    <label className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[rgba(53,98,103,0.25)] bg-white p-5 text-center cursor-pointer transition hover:border-(--color-ocean) hover:bg-(--color-pale-aqua)/20">
+                      <Upload className="h-7 w-7 text-(--color-ocean) mb-1" />
+                      <span className="text-sm font-bold text-(--color-dark-teal)">
                         Upload image of site or hazard
                       </span>
-                      <span className="text-xs text-[var(--color-medium-teal)]">PNG, JPG up to 5MB</span>
+                      <span className="text-xs text-(--color-medium-teal)">PNG, JPG up to 5MB</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -332,7 +332,7 @@ export default function RescueRelief() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-8 py-3.5 text-sm font-bold text-white transition hover:bg-[var(--color-deep-ocean)] disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white transition hover:bg-(--color-deep-ocean) disabled:opacity-50"
                 >
                   <Send className="h-4 w-4" />
                   {submitting ? "Submitting Request..." : "Submit Rescue Request"}
@@ -346,22 +346,22 @@ export default function RescueRelief() {
         {activeTab === "status" && (
           <div className="pt-6">
             {loadingTracking ? (
-              <div className="py-12 text-center text-sm text-[var(--color-medium-teal)]">
+              <div className="py-12 text-center text-sm text-(--color-medium-teal)">
                 Loading your relief tracking records...
               </div>
             ) : requests.length === 0 ? (
-              <div className="rounded-3xl border border-[rgba(53,98,103,0.14)] bg-[var(--color-soft-mint)]/20 p-8 text-center space-y-4">
-                <AlertCircle className="h-10 w-10 text-[var(--color-ocean)] mx-auto opacity-70" />
+              <div className="rounded-3xl border border-[rgba(53,98,103,0.14)] bg-(--color-soft-mint)/20 p-8 text-center space-y-4">
+                <AlertCircle className="h-10 w-10 text-(--color-ocean) mx-auto opacity-70" />
                 <div>
-                  <p className="text-base font-bold text-[var(--color-deep-ocean)]">No Active Relief Requests</p>
-                  <p className="text-xs text-[var(--color-medium-teal)] mt-1">
+                  <p className="text-base font-bold text-(--color-deep-ocean)">No Active Relief Requests</p>
+                  <p className="text-xs text-(--color-medium-teal) mt-1">
                     You currently have no active rescue or relief tracking tickets on file.
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => switchTab("request")}
-                  className="inline-block rounded-2xl bg-[var(--color-ocean)] px-6 py-2.5 text-xs font-bold text-white hover:bg-[var(--color-deep-ocean)] transition"
+                  className="inline-block rounded-2xl bg-(--color-ocean) px-6 py-2.5 text-xs font-bold text-white hover:bg-(--color-deep-ocean) transition"
                 >
                   Submit Rescue Request
                 </button>
@@ -370,7 +370,7 @@ export default function RescueRelief() {
               <div className="grid gap-8 lg:grid-cols-12">
                 {/* Request Selector List */}
                 <div className="lg:col-span-4 space-y-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--color-medium-teal)] px-1">
+                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-(--color-medium-teal) px-1">
                     Your Submitted Requests ({requests.length})
                   </p>
                   <div className="space-y-3">
@@ -381,12 +381,12 @@ export default function RescueRelief() {
                         onClick={() => setSelectedReq(req)}
                         className={`w-full rounded-3xl border p-4 text-left transition-all ${
                           selectedReq?.id === req.id
-                            ? "border-[var(--color-ocean)] bg-[var(--color-mint)]/40 shadow-sm ring-2 ring-[var(--color-ocean)]/20"
-                            : "border-[rgba(53,98,103,0.16)] bg-white hover:bg-[var(--color-soft-mint)]/40"
+                            ? "border-(--color-ocean) bg-(--color-mint)/40 shadow-sm ring-2 ring-(--color-ocean)/20"
+                            : "border-[rgba(53,98,103,0.16)] bg-white hover:bg-(--color-soft-mint)/40"
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs font-bold text-[var(--color-deep-ocean)]">
+                          <span className="font-mono text-xs font-bold text-(--color-deep-ocean)">
                             #{req.id}
                           </span>
                           <Badge
@@ -401,10 +401,10 @@ export default function RescueRelief() {
                             {req.status}
                           </Badge>
                         </div>
-                        <p className="mt-2 text-sm font-bold text-[var(--color-deep-ocean)]">
+                        <p className="mt-2 text-sm font-bold text-(--color-deep-ocean)">
                           {req.type}
                         </p>
-                        <p className="mt-1 text-xs text-[var(--color-medium-teal)] truncate">
+                        <p className="mt-1 text-xs text-(--color-medium-teal) truncate">
                           {req.location}
                         </p>
                       </button>
@@ -414,21 +414,21 @@ export default function RescueRelief() {
 
                 {/* Step Tracker Detail View */}
                 {selectedReq && (
-                  <div className="lg:col-span-8 rounded-3xl border border-[rgba(53,98,103,0.16)] bg-[var(--color-soft-mint)]/20 p-6 space-y-6">
+                  <div className="lg:col-span-8 rounded-3xl border border-[rgba(53,98,103,0.16)] bg-(--color-soft-mint)/20 p-6 space-y-6">
                     {/* Details Header */}
                     <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-[rgba(53,98,103,0.12)]">
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-bold text-[var(--color-ocean)]">
+                          <span className="font-mono text-sm font-bold text-(--color-ocean)">
                             Request ID: #{selectedReq.id}
                           </span>
                           <Badge variant="info">{selectedReq.type}</Badge>
                         </div>
-                        <h2 className="mt-1 text-xl font-bold text-[var(--color-deep-ocean)]">
+                        <h2 className="mt-1 text-xl font-bold text-(--color-deep-ocean)">
                           Relief Request Progress
                         </h2>
                       </div>
-                      <div className="text-right text-xs text-[var(--color-medium-teal)]">
+                      <div className="text-right text-xs text-(--color-medium-teal)">
                         <p>Submitted: <strong>{selectedReq.submittedAt}</strong></p>
                         <p className="mt-0.5">Last Update: <strong>{selectedReq.lastUpdate}</strong></p>
                       </div>
@@ -437,28 +437,28 @@ export default function RescueRelief() {
                     {/* Information Chips */}
                     <div className="grid gap-4 sm:grid-cols-3 text-xs bg-white p-4 rounded-2xl border border-[rgba(53,98,103,0.12)]">
                       <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-[var(--color-ocean)] shrink-0 mt-0.5" />
+                        <MapPin className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-semibold text-[var(--color-medium-teal)]">Location</span>
-                          <p className="font-bold text-[var(--color-dark-teal)]">{selectedReq.location}</p>
+                          <span className="font-semibold text-(--color-medium-teal)">Location</span>
+                          <p className="font-bold text-(--color-dark-teal)">{selectedReq.location}</p>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-2">
-                        <LifeBuoy className="h-4 w-4 text-[var(--color-ocean)] shrink-0 mt-0.5" />
+                        <LifeBuoy className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-semibold text-[var(--color-medium-teal)]">Assigned Team</span>
-                          <p className="font-bold text-[var(--color-dark-teal)]">
+                          <span className="font-semibold text-(--color-medium-teal)">Assigned Team</span>
+                          <p className="font-bold text-(--color-dark-teal)">
                             {selectedReq.assignedTeam || "Awaiting Assignment"}
                           </p>
                         </div>
                       </div>
 
                       <div className="flex items-start gap-2">
-                        <Clock className="h-4 w-4 text-[var(--color-ocean)] shrink-0 mt-0.5" />
+                        <Clock className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-semibold text-[var(--color-medium-teal)]">Est. Response</span>
-                          <p className="font-bold text-[var(--color-dark-teal)]">
+                          <span className="font-semibold text-(--color-medium-teal)">Est. Response</span>
+                          <p className="font-bold text-(--color-dark-teal)">
                             {selectedReq.estimatedResponse || "N/A"}
                           </p>
                         </div>
@@ -467,7 +467,7 @@ export default function RescueRelief() {
 
                     {/* Flow Diagram Tracker */}
                     <div className="bg-white p-6 rounded-3xl border border-[rgba(53,98,103,0.14)] space-y-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+                      <p className="text-xs font-bold uppercase tracking-[0.15em] text-(--color-medium-teal)">
                         Live Status Flow
                       </p>
 
@@ -483,7 +483,7 @@ export default function RescueRelief() {
                               <div
                                 className={`flex w-full items-center justify-between rounded-2xl px-5 py-3 border transition-all ${
                                   isCurrent
-                                    ? "border-[var(--color-ocean)] bg-[var(--color-mint)]/50 shadow-sm"
+                                    ? "border-(--color-ocean) bg-(--color-mint)/50 shadow-sm"
                                     : isCompleted
                                     ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
                                     : "border-[rgba(53,98,103,0.1)] bg-slate-50 text-slate-400 opacity-60"
@@ -493,7 +493,7 @@ export default function RescueRelief() {
                                   <div
                                     className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
                                       isCurrent
-                                        ? "bg-[var(--color-ocean)] text-white"
+                                        ? "bg-(--color-ocean) text-white"
                                         : isCompleted
                                         ? "bg-emerald-600 text-white"
                                         : "bg-slate-200 text-slate-500"
@@ -509,7 +509,7 @@ export default function RescueRelief() {
                                 </div>
 
                                 {isCurrent && (
-                                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-ocean)] bg-white px-3 py-1 rounded-full border border-[var(--color-ocean)]/30">
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-(--color-ocean) bg-white px-3 py-1 rounded-full border border-(--color-ocean)/30">
                                     Current Status
                                   </span>
                                 )}
@@ -517,7 +517,7 @@ export default function RescueRelief() {
 
                               {/* Connector Arrow */}
                               {idx < STATUS_STEPS.length - 1 && (
-                                <div className="my-1.5 flex justify-center text-[var(--color-medium-teal)]/40">
+                                <div className="my-1.5 flex justify-center text-(--color-medium-teal)/40">
                                   <span className="text-lg font-bold">↓</span>
                                 </div>
                               )}
@@ -527,8 +527,8 @@ export default function RescueRelief() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl bg-[var(--color-pale-aqua)]/30 p-4 text-xs text-[var(--color-dark-teal)] flex items-start gap-2">
-                      <ShieldCheck className="h-4 w-4 text-[var(--color-ocean)] shrink-0 mt-0.5" />
+                    <div className="rounded-2xl bg-(--color-pale-aqua)/30 p-4 text-xs text-(--color-dark-teal) flex items-start gap-2">
+                      <ShieldCheck className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
                       <span>
                         Emergency dispatch units update status automatically as field teams communicate with central control. If severity increases, submit an updated report or call emergency helpline.
                       </span>

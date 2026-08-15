@@ -6,7 +6,7 @@ import {
   MapPinned,
   ShieldAlert,
   Send,
-  CheckSquare,
+  Waves,
   LifeBuoy,
   Siren,
   User,
@@ -93,9 +93,9 @@ const governmentSections: NavSection[] = [
     title: "Report & Monitor",
     items: [
       {
-        to: "/government/review",
+        to: "/government/review-reports",
         label: "Review Reports",
-        icon: CheckSquare,
+        icon: Waves,
       },
       {
         to: "/government/live-map",
@@ -107,24 +107,14 @@ const governmentSections: NavSection[] = [
         label: "Department Tracking",
         icon: ShieldCheck,
       },
-      {
-        to: "/government/emergency-operations",
-        label: "Emergency Operations",
-        icon: Siren,
-      },
     ],
   },
   {
     title: "Emergency Services",
     items: [
       {
-        to: "/government/rescue",
-        label: "Rescue Teams",
-        icon: LifeBuoy,
-      },
-      {
-        to: "/government/alerts",
-        label: "Disaster Alerts",
+        to: "/government/emergency-operations",
+        label: "Emergency Operations",
         icon: Siren,
       },
     ],
@@ -170,10 +160,10 @@ export default function Sidebar({
       <div className="flex h-full flex-col bg-white p-5">
         <div className="flex items-center justify-between pb-4 border-b border-[rgba(53,98,103,0.14)]">
           <div>
-            <span className="text-base font-bold text-[var(--color-ocean)]">
+            <span className="text-base font-bold text-(--color-ocean)">
               CoastalEye
             </span>
-            <p className="text-[11px] text-[var(--color-medium-teal)]">
+            <p className="text-[11px] text-(--color-medium-teal)">
               {isCitizen ? "Citizen Command Menu" : "Gov Command Menu"}
             </p>
           </div>
@@ -181,7 +171,7 @@ export default function Sidebar({
           <button
             type="button"
             onClick={onCloseMobile}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-pale-aqua)] text-[var(--color-dark-teal)] hover:bg-[var(--color-aqua)]"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-(--color-pale-aqua) text-(--color-dark-teal) hover:bg-(--color-aqua)"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
@@ -191,7 +181,7 @@ export default function Sidebar({
         <nav className="mt-4 flex flex-col gap-5 overflow-y-auto">
           {sections.map((section) => (
             <div key={section.title} className="space-y-1.5">
-              <p className="px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-medium-teal)]">
+              <p className="px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-(--color-medium-teal)">
                 {section.title}
               </p>
               <div className="flex flex-col gap-1">
@@ -206,8 +196,8 @@ export default function Sidebar({
                       className={({ isActive }) =>
                         `flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all ${
                           isActive
-                            ? "bg-[var(--color-ocean)] text-white shadow-sm font-bold"
-                            : "text-[var(--color-dark-teal)] hover:bg-[var(--color-pale-aqua)]/50"
+                            ? "bg-(--color-ocean) text-white shadow-sm font-bold"
+                            : "text-(--color-dark-teal) hover:bg-(--color-pale-aqua)/50"
                         }`
                       }
                     >
@@ -229,7 +219,8 @@ export default function Sidebar({
       className={`
         hidden lg:flex
         sticky top-0
-        h-screen
+        min-h-screen
+        self-stretch
         shrink-0
         flex-col
         border-r border-[rgba(53,98,103,0.16)]
@@ -249,7 +240,7 @@ export default function Sidebar({
         `}
       >
         {!collapsed && (
-          <span className="text-xs font-black uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+          <span className="text-xs font-black uppercase tracking-[0.24em] text-(--color-ocean)">
             Navigation
           </span>
         )}
@@ -289,7 +280,7 @@ export default function Sidebar({
         {sections.map((section) => (
           <div key={section.title} className="space-y-1.5">
             {!collapsed && (
-              <p className="px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-medium-teal)]">
+              <p className="px-3 text-[11px] font-bold uppercase tracking-[0.2em] text-(--color-medium-teal)">
                 {section.title}
               </p>
             )}

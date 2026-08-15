@@ -51,13 +51,13 @@ export default function CitizenLiveMap() {
       {/* Top Header with Submit Report Action */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
             Nationwide Monitoring
           </p>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-black text-[var(--color-deep-ocean)]">
+          <h1 className="mt-1 text-2xl sm:text-3xl font-black text-(--color-deep-ocean)">
             Live Water &amp; Hazard Map
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-[var(--color-medium-teal)]">
+          <p className="mt-1 text-xs sm:text-sm text-(--color-medium-teal)">
             Monitor real-time environmental hazards, flood risks, and citizen reports across India.
           </p>
         </div>
@@ -65,7 +65,7 @@ export default function CitizenLiveMap() {
         <button
           type="button"
           onClick={() => navigate("/citizen/report")}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-[var(--color-deep-ocean)] transition self-start sm:self-auto active:scale-98"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-sm hover:bg-(--color-deep-ocean) transition self-start sm:self-auto active:scale-98"
         >
           <PlusCircle className="h-4 w-4" />
           Submit Report
@@ -74,7 +74,7 @@ export default function CitizenLiveMap() {
 
       {/* Filter Toolbar */}
       <section className="rounded-2xl border border-[rgba(53,98,103,0.16)] bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2 text-sm font-bold text-[var(--color-dark-teal)]">
+        <div className="mb-3 flex items-center gap-2 text-sm font-bold text-(--color-dark-teal)">
           <Filter className="h-4 w-4" />
           Filter Map Data
         </div>
@@ -114,11 +114,11 @@ export default function CitizenLiveMap() {
 
       {/* Incident List */}
       <section>
-        <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.15em] text-[var(--color-dark-teal)]">
+        <h2 className="mb-3 text-sm font-bold uppercase tracking-[0.15em] text-(--color-dark-teal)">
           Issues in view ({hazards.length})
         </h2>
         {hazards.length === 0 ? (
-          <p className="rounded-2xl bg-white border border-[rgba(53,98,103,0.14)] p-6 text-sm text-[var(--color-medium-teal)] text-center">
+          <p className="rounded-2xl bg-white border border-[rgba(53,98,103,0.14)] p-6 text-sm text-(--color-medium-teal) text-center">
             No active hazard reports match the selected filters.
           </p>
         ) : (
@@ -126,15 +126,15 @@ export default function CitizenLiveMap() {
             {hazards.map((hazard) => (
               <div key={hazard.id} className="rounded-2xl border border-[rgba(53,98,103,0.14)] bg-white p-4 shadow-sm hover:shadow-md transition">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-[var(--color-ocean)]">
+                  <div className="flex items-center gap-2 text-(--color-ocean)">
                     {ISSUE_ICONS[hazard.hazardType]}
-                    <span className="text-sm font-semibold text-[var(--color-deep-ocean)]">
+                    <span className="text-sm font-semibold text-(--color-deep-ocean)">
                       {ISSUE_LABELS[hazard.hazardType]}
                     </span>
                   </div>
                   <Badge variant={severityVariant[hazard.severity]}>{hazard.severity}</Badge>
                 </div>
-                <p className="text-xs font-semibold text-[var(--color-medium-teal)]">{hazard.placeName}</p>
+                <p className="text-xs font-semibold text-(--color-medium-teal)">{hazard.placeName}</p>
                 <p className="mt-1 text-xs text-slate-500">{hazard.locality}, {hazard.district}, {hazard.state}</p>
               </div>
             ))}

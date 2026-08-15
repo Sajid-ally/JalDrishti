@@ -17,6 +17,26 @@ export type WaterReportStatus =
   | "under_verification"
   | "resolved";
 
+/** Extended status used by Government review workflow */
+export type GovReportStatus =
+  | "under_review"
+  | "assigned"
+  | "in_progress"
+  | "resolved";
+
+export const DEPARTMENT_OPTIONS = [
+  "Nagar Nigam",
+  "Municipal Corporation",
+  "Municipal Council",
+  "Water Department",
+  "Drainage Department",
+  "Public Works Department",
+  "District Administration",
+  "Other",
+] as const;
+
+export type Department = typeof DEPARTMENT_OPTIONS[number];
+
 export interface WaterProblemCategory {
   id: WaterProblemType;
   label: string;
@@ -139,6 +159,10 @@ export interface WaterReport {
   timeline: StatusTimelineStep[];
   contactName?: string;
   contactPhone?: string;
+  /** Government review fields */
+  assignedDepartment?: Department;
+  govStatus?: GovReportStatus;
+  assignedAt?: string; // ISO
 }
 
 export interface SubmitReportDraft {

@@ -285,7 +285,7 @@ export default function ReportHazard() {
   // ─────────────────────────────────────────────────────────────────────────────
   if (submittedReportId) {
     return (
-      <main className="min-h-screen py-6 sm:py-10 text-[var(--color-dark-teal)]">
+      <main className="min-h-screen py-6 sm:py-10 text-(--color-dark-teal)">
         <div className="mx-auto max-w-xl px-4 sm:px-6">
           <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-6 sm:p-10 text-center shadow-[0_20px_70px_rgba(15,23,42,0.08)] space-y-6">
             {/* Animated Success Badge */}
@@ -297,26 +297,26 @@ export default function ReportHazard() {
               <span className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">
                 Submission Confirmed
               </span>
-              <h1 className="mt-3 text-2xl sm:text-3xl font-black text-[var(--color-deep-ocean)]">
+              <h1 className="mt-3 text-2xl sm:text-3xl font-black text-(--color-deep-ocean)">
                 Report Submitted Successfully
               </h1>
-              <p className="mt-2 text-xs sm:text-sm text-[var(--color-medium-teal)] leading-relaxed">
+              <p className="mt-2 text-xs sm:text-sm text-(--color-medium-teal) leading-relaxed">
                 Your water problem incident has been logged with real-time location data. Municipal disaster control teams have received the dispatch notice.
               </p>
             </div>
 
             {/* Prominent Report ID Box */}
-            <div className="rounded-3xl border-2 border-[var(--color-ocean)] bg-[var(--color-soft-mint)] p-5 sm:p-6 text-center space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--color-medium-teal)]">
+            <div className="rounded-3xl border-2 border-(--color-ocean) bg-(--color-soft-mint) p-5 sm:p-6 text-center space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-(--color-medium-teal)">
                 Your Unique Report ID
               </p>
-              <p className="font-mono text-2xl sm:text-3xl font-black tracking-wider text-[var(--color-ocean)] select-all">
+              <p className="font-mono text-2xl sm:text-3xl font-black tracking-wider text-(--color-ocean) select-all">
                 {submittedReportId}
               </p>
               <button
                 type="button"
                 onClick={handleCopyId}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white border border-[rgba(53,98,103,0.2)] px-4 py-2 text-xs font-bold text-[var(--color-deep-ocean)] hover:bg-[var(--color-pale-aqua)] active:scale-95 transition shadow-sm"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white border border-[rgba(53,98,103,0.2)] px-4 py-2 text-xs font-bold text-(--color-deep-ocean) hover:bg-(--color-pale-aqua) active:scale-95 transition shadow-sm"
               >
                 {copied ? (
                   <>
@@ -325,7 +325,7 @@ export default function ReportHazard() {
                   </>
                 ) : (
                   <>
-                    <Copy className="h-4 w-4 text-[var(--color-ocean)]" />
+                    <Copy className="h-4 w-4 text-(--color-ocean)" />
                     <span>Copy Report ID</span>
                   </>
                 )}
@@ -337,7 +337,7 @@ export default function ReportHazard() {
               <button
                 type="button"
                 onClick={() => navigate(`/citizen/track-report?id=${submittedReportId}`)}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-6 py-3.5 text-sm font-bold text-white shadow-md hover:bg-[var(--color-deep-ocean)] active:scale-95 transition"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-6 py-3.5 text-sm font-bold text-white shadow-md hover:bg-(--color-deep-ocean) active:scale-95 transition"
               >
                 <Search className="h-4 w-4" />
                 Track Report Now
@@ -346,7 +346,7 @@ export default function ReportHazard() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-6 py-3.5 text-sm font-bold text-[var(--color-deep-ocean)] hover:bg-[var(--color-soft-mint)] transition"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-6 py-3.5 text-sm font-bold text-(--color-deep-ocean) hover:bg-(--color-soft-mint) transition"
               >
                 Submit Another
               </button>
@@ -361,18 +361,18 @@ export default function ReportHazard() {
   // STEP-BASED REPORT FORM
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <main className="min-h-screen space-y-6 text-[var(--color-dark-teal)] pb-24 lg:pb-8">
+    <main className="min-h-screen space-y-6 text-(--color-dark-teal) pb-24 lg:pb-8">
       {/* Header Banner */}
       <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-8 shadow-[0_20px_70px_rgba(15,23,42,0.06)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+            <span className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
               Citizen Reporting System
             </span>
-            <h1 className="mt-1 text-2xl sm:text-3xl font-black text-[var(--color-deep-ocean)]">
+            <h1 className="mt-1 text-2xl sm:text-3xl font-black text-(--color-deep-ocean)">
               Submit Water Hazard Report
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-[var(--color-medium-teal)]">
+            <p className="mt-1 text-xs sm:text-sm text-(--color-medium-teal)">
               Capture evidence, select problem category, and submit with instant location tagging.
             </p>
           </div>
@@ -380,7 +380,7 @@ export default function ReportHazard() {
           <button
             type="button"
             onClick={() => navigate("/citizen/track-report")}
-            className="inline-flex items-center gap-2 text-xs font-bold text-[var(--color-ocean)] hover:underline self-start sm:self-auto"
+            className="inline-flex items-center gap-2 text-xs font-bold text-(--color-ocean) hover:underline self-start sm:self-auto"
           >
             <Search className="h-3.5 w-3.5" />
             Track an Existing Report
@@ -415,7 +415,7 @@ export default function ReportHazard() {
                   <div
                     className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs font-bold transition ${
                       isCurrent
-                        ? "bg-[var(--color-ocean)] text-white ring-4 ring-[var(--color-ocean)]/20 shadow-sm"
+                        ? "bg-(--color-ocean) text-white ring-4 ring-(--color-ocean)/20 shadow-sm"
                         : isPassed
                         ? "bg-emerald-600 text-white"
                         : "bg-slate-100 text-slate-500"
@@ -426,8 +426,8 @@ export default function ReportHazard() {
                   <span
                     className={`hidden sm:inline-block text-[11px] font-semibold ${
                       isCurrent
-                        ? "text-[var(--color-deep-ocean)] font-bold"
-                        : "text-[var(--color-medium-teal)]"
+                        ? "text-(--color-deep-ocean) font-bold"
+                        : "text-(--color-medium-teal)"
                     }`}
                   >
                     {step.label}
@@ -447,13 +447,13 @@ export default function ReportHazard() {
         {currentStep === 1 && (
           <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-8 shadow-sm space-y-6 animate-fadeIn">
             <div className="border-b border-[rgba(53,98,103,0.1)] pb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-ocean)]">
+              <span className="text-xs font-bold uppercase tracking-wider text-(--color-ocean)">
                 Step 1 of 5
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-[var(--color-deep-ocean)]">
+              <h2 className="text-xl sm:text-2xl font-black text-(--color-deep-ocean)">
                 Capture / Upload Evidence
               </h2>
-              <p className="text-xs sm:text-sm text-[var(--color-medium-teal)] mt-1">
+              <p className="text-xs sm:text-sm text-(--color-medium-teal) mt-1">
                 Upload photos or short video clips from the ground. Visuals allow AI and responders to verify severity quickly.
               </p>
             </div>
@@ -464,16 +464,16 @@ export default function ReportHazard() {
               <button
                 type="button"
                 onClick={() => cameraInputRef.current?.click()}
-                className="flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[var(--color-ocean)] bg-[var(--color-soft-mint)] p-5 text-left transition hover:bg-[var(--color-mint)]/40 active:scale-98"
+                className="flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-(--color-ocean) bg-(--color-soft-mint) p-5 text-left transition hover:bg-(--color-mint)/40 active:scale-98"
               >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-ocean)] text-white shadow-sm">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-(--color-ocean) text-white shadow-sm">
                   <Camera className="h-6 w-6" />
                 </div>
                 <div>
-                  <span className="font-bold text-sm sm:text-base text-[var(--color-deep-ocean)]">
+                  <span className="font-bold text-sm sm:text-base text-(--color-deep-ocean)">
                     Take Photo / Video
                   </span>
-                  <p className="text-xs text-[var(--color-medium-teal)]">
+                  <p className="text-xs text-(--color-medium-teal)">
                     Open device camera directly
                   </p>
                 </div>
@@ -483,16 +483,16 @@ export default function ReportHazard() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[rgba(53,98,103,0.2)] bg-slate-50 p-5 text-left transition hover:border-[var(--color-ocean)] hover:bg-[var(--color-soft-mint)] active:scale-98"
+                className="flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-[rgba(53,98,103,0.2)] bg-slate-50 p-5 text-left transition hover:border-(--color-ocean) hover:bg-(--color-soft-mint) active:scale-98"
               >
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--color-pale-aqua)] text-[var(--color-ocean)]">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-(--color-pale-aqua) text-(--color-ocean)">
                   <Upload className="h-6 w-6" />
                 </div>
                 <div>
-                  <span className="font-bold text-sm sm:text-base text-[var(--color-deep-ocean)]">
+                  <span className="font-bold text-sm sm:text-base text-(--color-deep-ocean)">
                     Upload from Gallery
                   </span>
-                  <p className="text-xs text-[var(--color-medium-teal)]">
+                  <p className="text-xs text-(--color-medium-teal)">
                     Select JPEG, PNG, MP4 files
                   </p>
                 </div>
@@ -522,13 +522,13 @@ export default function ReportHazard() {
             {mediaPreviews.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--color-dark-teal)]">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-(--color-dark-teal)">
                     Selected Media ({mediaPreviews.length})
                   </h3>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-xs font-bold text-[var(--color-ocean)] hover:underline"
+                    className="text-xs font-bold text-(--color-ocean) hover:underline"
                   >
                     + Add More Media
                   </button>
@@ -619,7 +619,7 @@ export default function ReportHazard() {
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
-                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-[var(--color-deep-ocean)] active:scale-95 transition"
+                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-(--color-deep-ocean) active:scale-95 transition"
               >
                 <span>Continue to Problem Type</span>
                 <ArrowRight className="h-4 w-4" />
@@ -634,13 +634,13 @@ export default function ReportHazard() {
         {currentStep === 2 && (
           <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-8 shadow-sm space-y-6 animate-fadeIn">
             <div className="border-b border-[rgba(53,98,103,0.1)] pb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-ocean)]">
+              <span className="text-xs font-bold uppercase tracking-wider text-(--color-ocean)">
                 Step 2 of 5
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-[var(--color-deep-ocean)]">
+              <h2 className="text-xl sm:text-2xl font-black text-(--color-deep-ocean)">
                 Select Problem Category
               </h2>
-              <p className="text-xs sm:text-sm text-[var(--color-medium-teal)] mt-1">
+              <p className="text-xs sm:text-sm text-(--color-medium-teal) mt-1">
                 Choose the water-related hazard that best matches what you observed on site.
               </p>
             </div>
@@ -657,8 +657,8 @@ export default function ReportHazard() {
                     onClick={() => setProblemType(cat.id)}
                     className={`flex flex-col items-start p-4 sm:p-5 rounded-2xl sm:rounded-3xl border-2 text-left transition-all ${
                       isSelected
-                        ? "border-[var(--color-ocean)] bg-[var(--color-mint)]/50 ring-4 ring-[var(--color-ocean)]/15 shadow-sm"
-                        : "border-[rgba(53,98,103,0.14)] bg-white hover:border-[var(--color-ocean)] hover:bg-[var(--color-soft-mint)]"
+                        ? "border-(--color-ocean) bg-(--color-mint)/50 ring-4 ring-(--color-ocean)/15 shadow-sm"
+                        : "border-[rgba(53,98,103,0.14)] bg-white hover:border-(--color-ocean) hover:bg-(--color-soft-mint)"
                     }`}
                   >
                     <div className="flex items-center justify-between w-full mb-3">
@@ -669,7 +669,7 @@ export default function ReportHazard() {
                       <div
                         className={`h-5 w-5 rounded-full border-2 flex items-center justify-center ${
                           isSelected
-                            ? "border-[var(--color-ocean)] bg-[var(--color-ocean)] text-white"
+                            ? "border-(--color-ocean) bg-(--color-ocean) text-white"
                             : "border-slate-300 bg-white"
                         }`}
                       >
@@ -677,10 +677,10 @@ export default function ReportHazard() {
                       </div>
                     </div>
 
-                    <h3 className="font-bold text-sm sm:text-base text-[var(--color-deep-ocean)]">
+                    <h3 className="font-bold text-sm sm:text-base text-(--color-deep-ocean)">
                       {cat.label}
                     </h3>
-                    <p className="mt-1 text-xs text-[var(--color-medium-teal)] leading-relaxed">
+                    <p className="mt-1 text-xs text-(--color-medium-teal) leading-relaxed">
                       {cat.description}
                     </p>
                   </button>
@@ -693,7 +693,7 @@ export default function ReportHazard() {
               <button
                 type="button"
                 onClick={() => setCurrentStep(1)}
-                className="flex items-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-[var(--color-dark-teal)] hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-(--color-dark-teal) hover:bg-slate-50"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
@@ -703,7 +703,7 @@ export default function ReportHazard() {
                 type="button"
                 disabled={!problemType}
                 onClick={() => setCurrentStep(3)}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-[var(--color-deep-ocean)] disabled:opacity-50 active:scale-95 transition"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-(--color-deep-ocean) disabled:opacity-50 active:scale-95 transition"
               >
                 <span>Continue to Details</span>
                 <ArrowRight className="h-4 w-4" />
@@ -718,20 +718,20 @@ export default function ReportHazard() {
         {currentStep === 3 && (
           <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-8 shadow-sm space-y-6 animate-fadeIn">
             <div className="border-b border-[rgba(53,98,103,0.1)] pb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-ocean)]">
+              <span className="text-xs font-bold uppercase tracking-wider text-(--color-ocean)">
                 Step 3 of 5
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-[var(--color-deep-ocean)]">
+              <h2 className="text-xl sm:text-2xl font-black text-(--color-deep-ocean)">
                 Describe the Situation
               </h2>
-              <p className="text-xs sm:text-sm text-[var(--color-medium-teal)] mt-1">
+              <p className="text-xs sm:text-sm text-(--color-medium-teal) mt-1">
                 Provide details regarding water levels, traffic blockage, or affected households.
               </p>
             </div>
 
             {/* Description Textarea */}
             <div className="space-y-2">
-              <label htmlFor="report-desc" className="block text-xs font-bold uppercase tracking-wider text-[var(--color-dark-teal)]">
+              <label htmlFor="report-desc" className="block text-xs font-bold uppercase tracking-wider text-(--color-dark-teal)">
                 Incident Description <span className="text-rose-500">*</span>
               </label>
               <textarea
@@ -740,9 +740,9 @@ export default function ReportHazard() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="e.g. Water is knee-deep on the main road causing vehicle breakdown. Drainage culvert is completely clogged with debris."
-                className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-4 text-sm text-[var(--color-deep-ocean)] focus:border-[var(--color-ocean)] focus:bg-white focus:ring-4 focus:ring-[var(--color-ocean)]/10 focus:outline-none transition"
+                className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-4 text-sm text-(--color-deep-ocean) focus:border-(--color-ocean) focus:bg-white focus:ring-4 focus:ring-(--color-ocean)/10 focus:outline-none transition"
               />
-              <div className="flex justify-between text-[11px] text-[var(--color-medium-teal)]">
+              <div className="flex justify-between text-[11px] text-(--color-medium-teal)">
                 <span>Minimum 10 characters</span>
                 <span>{description.trim().length} chars</span>
               </div>
@@ -750,7 +750,7 @@ export default function ReportHazard() {
 
             {/* Severity Level Selection */}
             <div className="space-y-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-dark-teal)]">
+              <label className="block text-xs font-bold uppercase tracking-wider text-(--color-dark-teal)">
                 Observed Severity Level
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -777,11 +777,11 @@ export default function ReportHazard() {
             </div>
 
             {/* Optional Contact Information */}
-            <div className="rounded-2xl border border-[rgba(53,98,103,0.12)] bg-[var(--color-soft-mint)] p-4 space-y-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-ocean)]">
+            <div className="rounded-2xl border border-[rgba(53,98,103,0.12)] bg-(--color-soft-mint) p-4 space-y-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-(--color-ocean)">
                 Citizen Contact (Optional)
               </span>
-              <p className="text-xs text-[var(--color-medium-teal)]">
+              <p className="text-xs text-(--color-medium-teal)">
                 Optional: Provide contact info if you wish to receive SMS updates from field officers.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -790,14 +790,14 @@ export default function ReportHazard() {
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   placeholder="Your Name (optional)"
-                  className="rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-[var(--color-deep-ocean)] focus:outline-none focus:border-[var(--color-ocean)]"
+                  className="rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-(--color-deep-ocean) focus:outline-none focus:border-(--color-ocean)"
                 />
                 <input
                   type="tel"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="Phone Number (optional)"
-                  className="rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-[var(--color-deep-ocean)] focus:outline-none focus:border-[var(--color-ocean)]"
+                  className="rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-(--color-deep-ocean) focus:outline-none focus:border-(--color-ocean)"
                 />
               </div>
             </div>
@@ -807,7 +807,7 @@ export default function ReportHazard() {
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
-                className="flex items-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-[var(--color-dark-teal)] hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-(--color-dark-teal) hover:bg-slate-50"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
@@ -817,7 +817,7 @@ export default function ReportHazard() {
                 type="button"
                 disabled={description.trim().length < 5}
                 onClick={() => setCurrentStep(4)}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-[var(--color-deep-ocean)] disabled:opacity-50 active:scale-95 transition"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-(--color-deep-ocean) disabled:opacity-50 active:scale-95 transition"
               >
                 <span>Continue to Location</span>
                 <ArrowRight className="h-4 w-4" />
@@ -832,13 +832,13 @@ export default function ReportHazard() {
         {currentStep === 4 && (
           <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-8 shadow-sm space-y-6 animate-fadeIn">
             <div className="border-b border-[rgba(53,98,103,0.1)] pb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-ocean)]">
+              <span className="text-xs font-bold uppercase tracking-wider text-(--color-ocean)">
                 Step 4 of 5
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-[var(--color-deep-ocean)]">
+              <h2 className="text-xl sm:text-2xl font-black text-(--color-deep-ocean)">
                 Incident Location
               </h2>
-              <p className="text-xs sm:text-sm text-[var(--color-medium-teal)] mt-1">
+              <p className="text-xs sm:text-sm text-(--color-medium-teal) mt-1">
                 Pinpoint where the water problem is located using automatic GPS or manual area selection.
               </p>
             </div>
@@ -853,11 +853,11 @@ export default function ReportHazard() {
                 }}
                 className={`flex items-center justify-center gap-2 p-3.5 rounded-2xl border-2 font-bold text-xs sm:text-sm transition ${
                   locationMode === "automatic"
-                    ? "border-[var(--color-ocean)] bg-[var(--color-mint)]/60 text-[var(--color-deep-ocean)] shadow-xs"
+                    ? "border-(--color-ocean) bg-(--color-mint)/60 text-(--color-deep-ocean) shadow-xs"
                     : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                <Navigation className="h-4 w-4 text-[var(--color-ocean)]" />
+                <Navigation className="h-4 w-4 text-(--color-ocean)" />
                 Use Current Location
               </button>
 
@@ -866,18 +866,18 @@ export default function ReportHazard() {
                 onClick={() => setLocationMode("manual")}
                 className={`flex items-center justify-center gap-2 p-3.5 rounded-2xl border-2 font-bold text-xs sm:text-sm transition ${
                   locationMode === "manual"
-                    ? "border-[var(--color-ocean)] bg-[var(--color-mint)]/60 text-[var(--color-deep-ocean)] shadow-xs"
+                    ? "border-(--color-ocean) bg-(--color-mint)/60 text-(--color-deep-ocean) shadow-xs"
                     : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                <MapPin className="h-4 w-4 text-[var(--color-ocean)]" />
+                <MapPin className="h-4 w-4 text-(--color-ocean)" />
                 Select Manually
               </button>
             </div>
 
             {/* AUTOMATIC MODE DISPLAY */}
             {locationMode === "automatic" && (
-              <div className="rounded-2xl border border-[rgba(53,98,103,0.14)] bg-[var(--color-soft-mint)] p-4 sm:p-5 space-y-4">
+              <div className="rounded-2xl border border-[rgba(53,98,103,0.14)] bg-(--color-soft-mint) p-4 sm:p-5 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="flex h-3 w-3 relative">
@@ -893,7 +893,7 @@ export default function ReportHazard() {
                     type="button"
                     onClick={requestGeo}
                     disabled={geoLoading}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-[var(--color-ocean)] hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-(--color-ocean) hover:underline"
                   >
                     <RefreshCw className={`h-3 w-3 ${geoLoading ? "animate-spin" : ""}`} />
                     Refresh Coordinates
@@ -901,21 +901,21 @@ export default function ReportHazard() {
                 </div>
 
                 {geoLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-[var(--color-medium-teal)] py-3">
-                    <Loader2 className="h-4 w-4 animate-spin text-[var(--color-ocean)]" />
+                  <div className="flex items-center gap-2 text-xs text-(--color-medium-teal) py-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-(--color-ocean)" />
                     Acquiring high-accuracy satellite coordinates…
                   </div>
                 ) : autoCoords ? (
                   <div className="bg-white p-4 rounded-2xl border border-[rgba(53,98,103,0.12)] space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-[var(--color-deep-ocean)]">
+                      <span className="text-xs font-bold text-(--color-deep-ocean)">
                         Location Detected
                       </span>
-                      <span className="font-mono text-xs text-[var(--color-ocean)] font-bold">
+                      <span className="font-mono text-xs text-(--color-ocean) font-bold">
                         {autoCoords.lat.toFixed(5)}° N, {autoCoords.lng.toFixed(5)}° E
                       </span>
                     </div>
-                    <p className="text-xs text-[var(--color-medium-teal)]">
+                    <p className="text-xs text-(--color-medium-teal)">
                       Puri Coastal Monitored Zone · GPS Confidence High (&lt;10m accuracy)
                     </p>
                   </div>
@@ -942,7 +942,7 @@ export default function ReportHazard() {
               <div className="space-y-4">
                 {/* Search / Preset Area Chips */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[var(--color-dark-teal)] mb-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-(--color-dark-teal) mb-2">
                     Quick Preset Coastal Areas
                   </label>
                   <div className="flex flex-wrap gap-2">
@@ -957,7 +957,7 @@ export default function ReportHazard() {
                         }}
                         className={`rounded-xl border px-3 py-2 text-xs text-left transition ${
                           manualAddress === preset.name
-                            ? "border-[var(--color-ocean)] bg-[var(--color-pale-aqua)] font-bold text-[var(--color-deep-ocean)]"
+                            ? "border-(--color-ocean) bg-(--color-pale-aqua) font-bold text-(--color-deep-ocean)"
                             : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                         }`}
                       >
@@ -969,7 +969,7 @@ export default function ReportHazard() {
 
                 <div className="space-y-3">
                   <div>
-                    <label htmlFor="manual-address" className="block text-xs font-bold uppercase tracking-wider text-[var(--color-dark-teal)] mb-1">
+                    <label htmlFor="manual-address" className="block text-xs font-bold uppercase tracking-wider text-(--color-dark-teal) mb-1">
                       Street / Area Name <span className="text-rose-500">*</span>
                     </label>
                     <input
@@ -978,12 +978,12 @@ export default function ReportHazard() {
                       value={manualAddress}
                       onChange={(e) => setManualAddress(e.target.value)}
                       placeholder="e.g. VIP Road near Lighthouse, Puri"
-                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-3 text-xs sm:text-sm text-[var(--color-deep-ocean)] focus:bg-white focus:border-[var(--color-ocean)] focus:outline-none"
+                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-3 text-xs sm:text-sm text-(--color-deep-ocean) focus:bg-white focus:border-(--color-ocean) focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="manual-landmark" className="block text-xs font-bold uppercase tracking-wider text-[var(--color-dark-teal)] mb-1">
+                    <label htmlFor="manual-landmark" className="block text-xs font-bold uppercase tracking-wider text-(--color-dark-teal) mb-1">
                       Landmark (Optional)
                     </label>
                     <input
@@ -992,7 +992,7 @@ export default function ReportHazard() {
                       value={manualLandmark}
                       onChange={(e) => setManualLandmark(e.target.value)}
                       placeholder="e.g. Opposite Post Office or Hotel Grand"
-                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-3 text-xs sm:text-sm text-[var(--color-deep-ocean)] focus:bg-white focus:border-[var(--color-ocean)] focus:outline-none"
+                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-3 text-xs sm:text-sm text-(--color-deep-ocean) focus:bg-white focus:border-(--color-ocean) focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1004,7 +1004,7 @@ export default function ReportHazard() {
               <button
                 type="button"
                 onClick={() => setCurrentStep(3)}
-                className="flex items-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-[var(--color-dark-teal)] hover:bg-slate-50"
+                className="flex items-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-(--color-dark-teal) hover:bg-slate-50"
               >
                 <ArrowLeft className="h-4 w-4" />
                 Back
@@ -1014,7 +1014,7 @@ export default function ReportHazard() {
                 type="button"
                 disabled={!effectiveLocation}
                 onClick={() => setCurrentStep(5)}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-[var(--color-deep-ocean)] disabled:opacity-50 active:scale-95 transition"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-(--color-deep-ocean) disabled:opacity-50 active:scale-95 transition"
               >
                 <span>Review Report</span>
                 <ArrowRight className="h-4 w-4" />
@@ -1029,13 +1029,13 @@ export default function ReportHazard() {
         {currentStep === 5 && (
           <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-8 shadow-sm space-y-6 animate-fadeIn">
             <div className="border-b border-[rgba(53,98,103,0.1)] pb-4">
-              <span className="text-xs font-bold uppercase tracking-wider text-[var(--color-ocean)]">
+              <span className="text-xs font-bold uppercase tracking-wider text-(--color-ocean)">
                 Step 5 of 5
               </span>
-              <h2 className="text-xl sm:text-2xl font-black text-[var(--color-deep-ocean)]">
+              <h2 className="text-xl sm:text-2xl font-black text-(--color-deep-ocean)">
                 Review &amp; Confirm Submission
               </h2>
-              <p className="text-xs sm:text-sm text-[var(--color-medium-teal)] mt-1">
+              <p className="text-xs sm:text-sm text-(--color-medium-teal) mt-1">
                 Please verify the details below before submitting to the municipal response hub.
               </p>
             </div>
@@ -1043,39 +1043,39 @@ export default function ReportHazard() {
             {/* Summary Review Cards */}
             <div className="space-y-4">
               {/* Problem Type Card */}
-              <div className="flex items-start justify-between rounded-2xl bg-[var(--color-soft-mint)] p-4 border border-[rgba(53,98,103,0.12)]">
+              <div className="flex items-start justify-between rounded-2xl bg-(--color-soft-mint) p-4 border border-[rgba(53,98,103,0.12)]">
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-medium-teal)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-(--color-medium-teal)">
                     Problem Type
                   </span>
-                  <p className="text-base font-black text-[var(--color-deep-ocean)] mt-0.5">
+                  <p className="text-base font-black text-(--color-deep-ocean) mt-0.5">
                     {WATER_PROBLEM_CATEGORIES.find((c) => c.id === problemType)?.label || problemType}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
-                  className="text-xs font-bold text-[var(--color-ocean)] underline"
+                  className="text-xs font-bold text-(--color-ocean) underline"
                 >
                   Edit
                 </button>
               </div>
 
               {/* Description & Severity Card */}
-              <div className="rounded-2xl bg-[var(--color-soft-mint)] p-4 border border-[rgba(53,98,103,0.12)] space-y-2">
+              <div className="rounded-2xl bg-(--color-soft-mint) p-4 border border-[rgba(53,98,103,0.12)] space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-medium-teal)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-(--color-medium-teal)">
                     Description &amp; Severity
                   </span>
                   <button
                     type="button"
                     onClick={() => setCurrentStep(3)}
-                    className="text-xs font-bold text-[var(--color-ocean)] underline"
+                    className="text-xs font-bold text-(--color-ocean) underline"
                   >
                     Edit
                   </button>
                 </div>
-                <p className="text-xs sm:text-sm text-[var(--color-deep-ocean)] leading-relaxed">
+                <p className="text-xs sm:text-sm text-(--color-deep-ocean) leading-relaxed">
                   {description}
                 </p>
                 <div className="pt-1">
@@ -1089,12 +1089,12 @@ export default function ReportHazard() {
               </div>
 
               {/* Location Card */}
-              <div className="flex items-start justify-between rounded-2xl bg-[var(--color-soft-mint)] p-4 border border-[rgba(53,98,103,0.12)]">
+              <div className="flex items-start justify-between rounded-2xl bg-(--color-soft-mint) p-4 border border-[rgba(53,98,103,0.12)]">
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-medium-teal)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-(--color-medium-teal)">
                     Location Target
                   </span>
-                  <p className="text-xs sm:text-sm font-bold text-[var(--color-deep-ocean)] mt-0.5">
+                  <p className="text-xs sm:text-sm font-bold text-(--color-deep-ocean) mt-0.5">
                     📍 {effectiveLocation?.address || effectiveLocation?.placeName}
                   </p>
                   <p className="text-[10px] font-mono text-slate-500 mt-0.5">
@@ -1104,26 +1104,26 @@ export default function ReportHazard() {
                 <button
                   type="button"
                   onClick={() => setCurrentStep(4)}
-                  className="text-xs font-bold text-[var(--color-ocean)] underline"
+                  className="text-xs font-bold text-(--color-ocean) underline"
                 >
                   Edit
                 </button>
               </div>
 
               {/* Media Count */}
-              <div className="flex items-center justify-between rounded-2xl bg-[var(--color-soft-mint)] p-4 border border-[rgba(53,98,103,0.12)]">
+              <div className="flex items-center justify-between rounded-2xl bg-(--color-soft-mint) p-4 border border-[rgba(53,98,103,0.12)]">
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-medium-teal)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-(--color-medium-teal)">
                     Attached Evidence
                   </span>
-                  <p className="text-xs sm:text-sm font-bold text-[var(--color-deep-ocean)] mt-0.5">
+                  <p className="text-xs sm:text-sm font-bold text-(--color-deep-ocean) mt-0.5">
                     {mediaPreviews.length} File{mediaPreviews.length === 1 ? "" : "s"} attached
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
-                  className="text-xs font-bold text-[var(--color-ocean)] underline"
+                  className="text-xs font-bold text-(--color-ocean) underline"
                 >
                   Edit
                 </button>
@@ -1135,7 +1135,7 @@ export default function ReportHazard() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-8 py-4 text-base font-bold text-white shadow-lg hover:bg-[var(--color-deep-ocean)] active:scale-98 disabled:opacity-50 transition"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-4 text-base font-bold text-white shadow-lg hover:bg-(--color-deep-ocean) active:scale-98 disabled:opacity-50 transition"
               >
                 {isSubmitting ? (
                   <>
@@ -1154,7 +1154,7 @@ export default function ReportHazard() {
                 type="button"
                 onClick={() => setCurrentStep(4)}
                 disabled={isSubmitting}
-                className="w-full text-center text-xs font-bold text-[var(--color-medium-teal)] hover:underline py-1"
+                className="w-full text-center text-xs font-bold text-(--color-medium-teal) hover:underline py-1"
               >
                 Back to Location
               </button>

@@ -27,7 +27,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
   const isCitizen = !user || user.role === "citizen";
 
   return (
-    <div className="min-h-screen bg-[var(--color-soft-mint)] text-[var(--color-dark-teal)] flex flex-col selection:bg-[var(--color-pale-aqua)] overflow-x-hidden">
+    <div className="min-h-screen bg-(--color-soft-mint) text-(--color-dark-teal) flex flex-col selection:bg-(--color-pale-aqua) overflow-x-hidden">
       {/* Top Navbar */}
       <Navbar onOpenMobileDrawer={() => setMobileDrawerOpen(true)} />
 
@@ -58,8 +58,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition ${
                     isActive
-                      ? "text-[var(--color-ocean)] font-bold"
-                      : "text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                      ? "text-(--color-ocean) font-bold"
+                      : "text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
                   }`
                 }
               >
@@ -72,8 +72,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition ${
                     isActive
-                      ? "text-[var(--color-ocean)] font-bold"
-                      : "text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                      ? "text-(--color-ocean) font-bold"
+                      : "text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
                   }`
                 }
               >
@@ -86,8 +86,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition ${
                     isActive
-                      ? "text-[var(--color-ocean)] font-bold"
-                      : "text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                      ? "text-(--color-ocean) font-bold"
+                      : "text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
                   }`
                 }
               >
@@ -100,8 +100,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition ${
                     isActive
-                      ? "text-[var(--color-ocean)] font-bold"
-                      : "text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                      ? "text-(--color-ocean) font-bold"
+                      : "text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
                   }`
                 }
               >
@@ -112,7 +112,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
               <button
                 type="button"
                 onClick={() => setMobileDrawerOpen(true)}
-                className="flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                className="flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
               >
                 <Menu className="h-5 w-5" />
                 <span className="text-[10px]">More</span>
@@ -126,8 +126,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition ${
                     isActive
-                      ? "text-[var(--color-ocean)] font-bold"
-                      : "text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                      ? "text-(--color-ocean) font-bold"
+                      : "text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
                   }`
                 }
               >
@@ -140,8 +140,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition ${
                     isActive
-                      ? "text-[var(--color-ocean)] font-bold"
-                      : "text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                      ? "text-(--color-ocean) font-bold"
+                      : "text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
                   }`
                 }
               >
@@ -150,37 +150,37 @@ export default function MainLayout({ children }: MainLayoutProps) {
               </NavLink>
 
               <NavLink
-                to="/government/rescue"
+                to="/government/emergency-operations"
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition ${
                     isActive
-                      ? "text-[var(--color-ocean)] font-bold"
-                      : "text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                      ? "text-(--color-ocean) font-bold"
+                      : "text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
                   }`
                 }
               >
                 <LifeBuoy className="h-5 w-5" />
-                <span className="text-[10px]">Rescue</span>
+                <span className="text-[10px]">Emergency</span>
               </NavLink>
 
               <NavLink
-                to="/government/alerts"
+                to="/government/live-map"
                 className={({ isActive }) =>
                   `flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition ${
                     isActive
-                      ? "text-[var(--color-ocean)] font-bold"
-                      : "text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                      ? "text-(--color-ocean) font-bold"
+                      : "text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
                   }`
                 }
               >
                 <Siren className="h-5 w-5" />
-                <span className="text-[10px]">Alerts</span>
+                <span className="text-[10px]">Live-Alerts</span>
               </NavLink>
 
               <button
                 type="button"
                 onClick={() => setMobileDrawerOpen(true)}
-                className="flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl text-[var(--color-medium-teal)]/70 hover:text-[var(--color-dark-teal)]"
+                className="flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl text-(--color-medium-teal)/70 hover:text-(--color-dark-teal)"
               >
                 <Menu className="h-5 w-5" />
                 <span className="text-[10px]">More</span>
@@ -194,7 +194,7 @@ export default function MainLayout({ children }: MainLayoutProps) {
           MOBILE SLIDE-OUT OFF-CANVAS DRAWER
       ───────────────────────────────────────────────────────────── */}
       {mobileDrawerOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
+        <div className="lg:hidden fixed inset-0 z-9999 flex">
           {/* Backdrop Blur */}
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity animate-fadeIn"

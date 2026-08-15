@@ -22,14 +22,12 @@ import ReportDetails from "../pages/Citizen/ReportDetails";
 import TrackReport from "../pages/Citizen/TrackReport";
 
 import GovernmentDashboard from "../pages/Government/Dashboard";
-// import VerifyReports from "../pages/Government/VerifyReports"; // removed per project requirements
 import ReviewReports from "../pages/Government/ReviewReports";
+import VerifyReports from "../pages/Government/VerifyReport";
 import DepartmentTracking from "../pages/Government/DepartmentTracking";
 import EmergencyOperations from "../pages/Government/EmergencyOperations";
-import GovernmentRescueRequests from "../pages/Government/RescueRequests";
-import DisasterAlerts from "../pages/Government/DisasterAlerts";
 import GovernmentProfile from "../pages/Government/Profile";
-
+import GovernmentLiveMap from "../pages/Government/LiveMap";
 import Notifications from "../pages/Shared/Notifications";
 import Settings from "../pages/Shared/Settings";
 import NotFound from "../pages/Shared/NotFound";
@@ -104,19 +102,15 @@ export default function AppRoutes() {
             path="/government/emergency-operations"
             element={withLayout(<EmergencyOperations />)}
           />
-
+          <Route
+            path="/government/verify"
+            element={withLayout(<VerifyReports />)}
+          />
           <Route
             path="/government/live-map"
-            element={withLayout(<CitizenLiveMap />)}
+            element={withLayout(<GovernmentLiveMap />)}
           />
-        <Route
-          path="/government/rescue"
-          element={withLayout(<GovernmentRescueRequests />)}
-        />
-        <Route
-          path="/government/alerts"
-          element={withLayout(<DisasterAlerts />)}
-        />
+       
         <Route
           path="/government/profile"
           element={withLayout(<GovernmentProfile />)}

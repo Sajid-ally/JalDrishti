@@ -7,9 +7,7 @@ import {
   LifeBuoy,
   UserCircle2,
   CheckSquare,
-  Siren,
   LogOut,
-  Menu,
   Search,
 } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
@@ -25,8 +23,7 @@ const citizenNavItems = [
 const governmentNavItems = [
   { to: "/government/dashboard", label: "Dashboard", icon: LayoutGrid },
   { to: "/government/verify", label: "Verify Reports", icon: CheckSquare },
-  { to: "/government/rescue", label: "Rescue", icon: LifeBuoy },
-  { to: "/government/alerts", label: "Alerts", icon: Siren },
+  { to: "/government/emergency-operations", label: "Emergency", icon: LifeBuoy },
   { to: "/government/live-map", label: "Live Map", icon: MapPinned },
 ];
 
@@ -34,7 +31,7 @@ interface NavbarProps {
   onOpenMobileDrawer?: () => void;
 }
 
-export default function Navbar({ onOpenMobileDrawer }: NavbarProps) {
+export default function Navbar({ }: NavbarProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
@@ -55,7 +52,7 @@ export default function Navbar({ onOpenMobileDrawer }: NavbarProps) {
           className="flex items-center gap-3 cursor-pointer select-none"
           onClick={() => navigate(isCitizen ? "/citizen" : "/government/dashboard")}
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-pale-aqua)] text-[#356267] font-black text-lg shadow-sm">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-(--color-pale-aqua) text-[#356267] font-black text-lg shadow-sm">
             C
           </div>
           <div>

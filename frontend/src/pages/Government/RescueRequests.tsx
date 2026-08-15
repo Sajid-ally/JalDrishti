@@ -81,18 +81,18 @@ function IncidentCard({ incident, onAssign }: IncidentCardProps) {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4 border-b border-[rgba(53,98,103,0.08)]">
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 rounded-2xl bg-[var(--color-pale-aqua)] p-2 shrink-0">
-            <LifeBuoy className="h-5 w-5 text-[var(--color-ocean)]" />
+          <div className="mt-0.5 rounded-2xl bg-(--color-pale-aqua) p-2 shrink-0">
+            <LifeBuoy className="h-5 w-5 text-(--color-ocean)" />
           </div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-mono font-semibold text-[var(--color-medium-teal)]">
+              <span className="text-xs font-mono font-semibold text-(--color-medium-teal)">
                 {report.id}
               </span>
               <SeverityBadge severity={report.severity} />
               {isAssigned && <Badge variant="success">Team Assigned</Badge>}
             </div>
-            <p className="mt-0.5 text-sm font-bold text-[var(--color-deep-ocean)]">
+            <p className="mt-0.5 text-sm font-bold text-(--color-deep-ocean)">
               {HAZARD_LABELS[report.type]}
             </p>
           </div>
@@ -102,34 +102,34 @@ function IncidentCard({ incident, onAssign }: IncidentCardProps) {
       {/* Details */}
       <div className="grid gap-4 px-5 py-4 text-sm sm:grid-cols-2">
         <div className="flex items-start gap-2">
-          <MapPin className="h-4 w-4 text-[var(--color-ocean)] mt-0.5 shrink-0" />
+          <MapPin className="h-4 w-4 text-(--color-ocean) mt-0.5 shrink-0" />
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-medium-teal)] mb-0.5">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--color-medium-teal) mb-0.5">
               Location
             </p>
-            <p className="text-[var(--color-dark-teal)] font-medium">
+            <p className="text-(--color-dark-teal) font-medium">
               {report.placeName ?? "Unknown"}
             </p>
-            <p className="text-xs text-[var(--color-medium-teal)]/70 mt-0.5">
+            <p className="text-xs text-(--color-medium-teal)/70 mt-0.5">
               {report.location.lat.toFixed(4)}°N, {report.location.lng.toFixed(4)}°E
             </p>
           </div>
         </div>
 
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-medium-teal)] mb-0.5">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-(--color-medium-teal) mb-0.5">
             Description
           </p>
-          <p className="text-[var(--color-dark-teal)] leading-relaxed line-clamp-3">
+          <p className="text-(--color-dark-teal) leading-relaxed line-clamp-3">
             {report.description}
           </p>
         </div>
       </div>
 
       {/* Team Assignment */}
-      <div className="flex flex-wrap items-center gap-3 border-t border-[rgba(53,98,103,0.08)] px-5 py-4 bg-[var(--color-soft-mint)]/30">
-        <Users className="h-4 w-4 text-[var(--color-ocean)] shrink-0" />
-        <span className="text-sm font-semibold text-[var(--color-dark-teal)]">
+      <div className="flex flex-wrap items-center gap-3 border-t border-[rgba(53,98,103,0.08)] px-5 py-4 bg-(--color-soft-mint)/30">
+        <Users className="h-4 w-4 text-(--color-ocean) shrink-0" />
+        <span className="text-sm font-semibold text-(--color-dark-teal)">
           Assign Rescue Team:
         </span>
 
@@ -137,7 +137,7 @@ function IncidentCard({ incident, onAssign }: IncidentCardProps) {
           <div className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4 text-emerald-600" />
             <span className="text-sm font-bold text-emerald-700">{assignedTeam}</span>
-            <span className="text-xs text-[var(--color-medium-teal)]">— team dispatched</span>
+            <span className="text-xs text-(--color-medium-teal)">— team dispatched</span>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2 ml-auto sm:ml-0">
@@ -146,7 +146,7 @@ function IncidentCard({ incident, onAssign }: IncidentCardProps) {
               <select
                 value={selectedTeam}
                 onChange={(e) => setSelectedTeam(e.target.value as RescueTeam)}
-                className="appearance-none rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2 pr-8 text-sm font-medium text-[var(--color-dark-teal)] outline-none focus:border-[var(--color-ocean)] cursor-pointer"
+                className="appearance-none rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2 pr-8 text-sm font-medium text-(--color-dark-teal) outline-none focus:border-(--color-ocean) cursor-pointer"
                 aria-label="Select rescue team"
               >
                 <option value="">— Select team —</option>
@@ -156,14 +156,14 @@ function IncidentCard({ incident, onAssign }: IncidentCardProps) {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-medium-teal)]" />
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--color-medium-teal)" />
             </div>
 
             <button
               type="button"
               onClick={handleAssign}
               disabled={!selectedTeam}
-              className="flex items-center gap-1.5 rounded-2xl bg-[var(--color-ocean)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-deep-ocean)] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 rounded-2xl bg-(--color-ocean) px-4 py-2 text-sm font-semibold text-white transition hover:bg-(--color-deep-ocean) disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <LifeBuoy className="h-4 w-4" />
               Assign
@@ -218,13 +218,13 @@ export default function RescueRequests() {
     <main>
       {/* Header */}
       <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
           Rescue Coordination
         </p>
-        <h1 className="mt-2 text-3xl font-black text-[var(--color-deep-ocean)]">
+        <h1 className="mt-2 text-3xl font-black text-(--color-deep-ocean)">
           Rescue Team Assignment
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-medium-teal)]">
+        <p className="mt-1 text-sm text-(--color-medium-teal)">
           Select and dispatch rescue teams to verified coastal incidents. Coordinate NDRF, SDRF, Coast Guard, and local response units.
         </p>
       </div>
@@ -232,10 +232,10 @@ export default function RescueRequests() {
       {/* Stats */}
       <div className="mb-6 flex flex-wrap gap-3">
         <div className="rounded-2xl border border-[rgba(53,98,103,0.16)] bg-white px-5 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
             Total Incidents
           </p>
-          <p className="text-2xl font-black text-[var(--color-deep-ocean)]">{incidents.length}</p>
+          <p className="text-2xl font-black text-(--color-deep-ocean)">{incidents.length}</p>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3">
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-amber-700">
@@ -264,7 +264,7 @@ export default function RescueRequests() {
       {/* Incident list */}
       {incidents.length === 0 ? (
         <div className="rounded-3xl border border-[rgba(53,98,103,0.14)] bg-white p-8 text-center">
-          <p className="text-sm text-[var(--color-medium-teal)]">
+          <p className="text-sm text-(--color-medium-teal)">
             No verified incidents requiring rescue assignment.
           </p>
         </div>

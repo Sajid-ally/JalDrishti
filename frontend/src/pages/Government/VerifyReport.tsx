@@ -109,30 +109,30 @@ function ReportCard({
       {/* Card Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-[rgba(53,98,103,0.08)]">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="h-5 w-5 text-[var(--color-ocean)] shrink-0" />
+          <ShieldCheck className="h-5 w-5 text-(--color-ocean) shrink-0" />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-mono font-semibold text-[var(--color-medium-teal)]">
+              <span className="text-xs font-mono font-semibold text-(--color-medium-teal)">
                 {report.id}
               </span>
               <StatusBadge status={report.status} />
               <SeverityBadge severity={report.severity} />
               {isPublished && <Badge variant="success">Published</Badge>}
             </div>
-            <p className="mt-0.5 text-sm font-semibold text-[var(--color-deep-ocean)]">
+            <p className="mt-0.5 text-sm font-semibold text-(--color-deep-ocean)">
               {HAZARD_LABELS[report.type]} — {report.placeName ?? "Unknown location"}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-[var(--color-medium-teal)]">
+          <span className="text-xs text-(--color-medium-teal)">
             <Clock className="h-3 w-3 inline mr-1" />
             {formatTime(report.reportedAt)}
           </span>
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="rounded-full p-1.5 hover:bg-[var(--color-pale-aqua)] text-[var(--color-medium-teal)] transition"
+            className="rounded-full p-1.5 hover:bg-(--color-pale-aqua) text-(--color-medium-teal) transition"
             aria-label={expanded ? "Collapse" : "Expand"}
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -142,37 +142,37 @@ function ReportCard({
 
       {/* Expanded Details */}
       {expanded && (
-        <div className="px-5 py-4 bg-[var(--color-soft-mint)]/40">
+        <div className="px-5 py-4 bg-(--color-soft-mint)/40">
           <div className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
                 Location
               </span>
-              <p className="mt-0.5 text-[var(--color-dark-teal)]">
+              <p className="mt-0.5 text-(--color-dark-teal)">
                 {report.placeName ?? "—"} ({report.location.lat.toFixed(4)}, {report.location.lng.toFixed(4)})
               </p>
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
                 Reported By
               </span>
-              <p className="mt-0.5 text-[var(--color-dark-teal)]">{report.reportedBy ?? "Anonymous"}</p>
+              <p className="mt-0.5 text-(--color-dark-teal)">{report.reportedBy ?? "Anonymous"}</p>
             </div>
             {report.aiConfidence !== undefined && (
               <div>
-                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
                   AI Confidence
                 </span>
-                <p className="mt-0.5 text-[var(--color-dark-teal)]">
+                <p className="mt-0.5 text-(--color-dark-teal)">
                   {(report.aiConfidence * 100).toFixed(0)}%
                 </p>
               </div>
             )}
             <div className="sm:col-span-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
                 Description
               </span>
-              <p className="mt-0.5 text-[var(--color-dark-teal)] leading-relaxed">
+              <p className="mt-0.5 text-(--color-dark-teal) leading-relaxed">
                 {report.description}
               </p>
             </div>
@@ -188,7 +188,7 @@ function ReportCard({
             <button
               type="button"
               onClick={() => onVerify(report.id)}
-              className="flex items-center gap-1.5 rounded-full bg-[var(--color-ocean)] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-deep-ocean)]"
+              className="flex items-center gap-1.5 rounded-full bg-(--color-ocean) px-4 py-2 text-xs font-semibold text-white transition hover:bg-(--color-deep-ocean)"
             >
               <CheckCircle className="h-3.5 w-3.5" />
               Verify
@@ -232,7 +232,7 @@ function ReportCard({
               <button
                 type="button"
                 onClick={() => onPublish(report.id)}
-                className="flex items-center gap-1.5 rounded-full bg-[var(--color-ocean)] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-deep-ocean)]"
+                className="flex items-center gap-1.5 rounded-full bg-(--color-ocean) px-4 py-2 text-xs font-semibold text-white transition hover:bg-(--color-deep-ocean)"
               >
                 <Send className="h-3.5 w-3.5" />
                 Publish
@@ -240,7 +240,7 @@ function ReportCard({
             )}
 
             {report.authenticity !== "unset" && (
-              <span className="text-xs text-[var(--color-medium-teal)]">
+              <span className="text-xs text-(--color-medium-teal)">
                 {report.authenticity === "authentic" ? "✓ Marked authentic" : "✗ Marked false"}
               </span>
             )}
@@ -249,7 +249,7 @@ function ReportCard({
 
         {isVerified && (
           <span className="ml-2">
-            <Eye className="h-3.5 w-3.5 inline text-[var(--color-medium-teal)]" />
+            <Eye className="h-3.5 w-3.5 inline text-(--color-medium-teal)" />
           </span>
         )}
 
@@ -257,7 +257,7 @@ function ReportCard({
         <button
           type="button"
           onClick={() => onRemove(report.id)}
-          className="ml-auto flex items-center gap-1.5 rounded-full border border-[rgba(53,98,103,0.16)] px-3 py-2 text-xs font-semibold text-[var(--color-medium-teal)] transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+          className="ml-auto flex items-center gap-1.5 rounded-full border border-[rgba(53,98,103,0.16)] px-3 py-2 text-xs font-semibold text-(--color-medium-teal) transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
         >
           <Trash2 className="h-3.5 w-3.5" />
           Remove
@@ -318,13 +318,13 @@ export default function VerifyReports() {
     <main>
       {/* Header */}
       <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
           Hazard Verification
         </p>
-        <h1 className="mt-2 text-3xl font-black text-[var(--color-deep-ocean)]">
+        <h1 className="mt-2 text-3xl font-black text-(--color-deep-ocean)">
           Pending Verification
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-medium-teal)]">
+        <p className="mt-1 text-sm text-(--color-medium-teal)">
           Review citizen-reported hazards. Verify authentic incidents, reject false reports, and publish confirmed hazards.
         </p>
       </div>
@@ -348,8 +348,8 @@ export default function VerifyReports() {
             onClick={() => setFilter(f)}
             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
               filter === f
-                ? "bg-[var(--color-ocean)] text-white"
-                : "border border-[rgba(53,98,103,0.2)] bg-white text-[var(--color-medium-teal)] hover:bg-[var(--color-soft-mint)]"
+                ? "bg-(--color-ocean) text-white"
+                : "border border-[rgba(53,98,103,0.2)] bg-white text-(--color-medium-teal) hover:bg-(--color-soft-mint)"
             }`}
           >
             {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -365,7 +365,7 @@ export default function VerifyReports() {
       {/* Report Cards */}
       {filtered.length === 0 ? (
         <div className="rounded-3xl border border-[rgba(53,98,103,0.14)] bg-white p-8 text-center">
-          <p className="text-sm text-[var(--color-medium-teal)]">No reports in this category.</p>
+          <p className="text-sm text-(--color-medium-teal)">No reports in this category.</p>
         </div>
       ) : (
         <div className="space-y-4">

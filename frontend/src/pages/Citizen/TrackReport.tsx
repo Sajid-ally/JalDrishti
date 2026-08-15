@@ -131,30 +131,30 @@ export default function TrackReport() {
   };
 
   return (
-    <main className="min-h-screen space-y-6 text-[var(--color-dark-teal)]">
+    <main className="min-h-screen space-y-6 text-(--color-dark-teal)">
       {/* Top Banner / Header */}
       <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-8 shadow-[0_20px_70px_rgba(15,23,42,0.06)]">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[var(--color-pale-aqua)] text-[var(--color-ocean)]">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-(--color-pale-aqua) text-(--color-ocean)">
                 <Search className="h-3.5 w-3.5" />
               </span>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
                 Live Status Tracker
               </p>
             </div>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-black text-[var(--color-deep-ocean)]">
+            <h1 className="mt-2 text-2xl sm:text-3xl font-black text-(--color-deep-ocean)">
               Track Your Reports
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-[var(--color-medium-teal)]">
+            <p className="mt-1 text-xs sm:text-sm text-(--color-medium-teal)">
               Enter your unique Report ID to check AI analysis, field verification, and resolution progress.
             </p>
           </div>
 
           <Link
             to="/citizen/report"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-sm transition hover:bg-[var(--color-deep-ocean)] active:scale-95 self-start md:self-auto w-full sm:w-auto"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-5 py-3 text-xs sm:text-sm font-bold text-white shadow-sm transition hover:bg-(--color-deep-ocean) active:scale-95 self-start md:self-auto w-full sm:w-auto"
           >
             <Droplets className="h-4 w-4" />
             Submit New Report
@@ -163,16 +163,16 @@ export default function TrackReport() {
 
         {/* Search Box */}
         <form onSubmit={handleSubmit} className="mt-6">
-          <div className="relative flex flex-col sm:flex-row items-stretch gap-2 rounded-2xl sm:rounded-3xl border-2 border-[var(--color-ocean)]/40 bg-[var(--color-soft-mint)] p-2 shadow-sm focus-within:border-[var(--color-ocean)] focus-within:ring-4 focus-within:ring-[var(--color-ocean)]/15 transition-all">
+          <div className="relative flex flex-col sm:flex-row items-stretch gap-2 rounded-2xl sm:rounded-3xl border-2 border-(--color-ocean)/40 bg-(--color-soft-mint) p-2 shadow-sm focus-within:border-(--color-ocean) focus-within:ring-4 focus-within:ring-(--color-ocean)/15 transition-all">
             <div className="relative flex-1 flex items-center">
-              <Search className="absolute left-4 h-5 w-5 text-[var(--color-ocean)] pointer-events-none" />
+              <Search className="absolute left-4 h-5 w-5 text-(--color-ocean) pointer-events-none" />
               <input
                 id={searchInputId}
                 type="text"
                 value={reportIdInput}
                 onChange={(e) => setReportIdInput(e.target.value.toUpperCase())}
                 placeholder="Enter Report ID (e.g. WR-2026-8F4K29)"
-                className="w-full bg-transparent pl-12 pr-4 py-3 text-sm sm:text-base font-mono font-bold tracking-wider text-[var(--color-deep-ocean)] placeholder:font-sans placeholder:font-normal placeholder:text-[var(--color-medium-teal)]/60 focus:outline-none"
+                className="w-full bg-transparent pl-12 pr-4 py-3 text-sm sm:text-base font-mono font-bold tracking-wider text-(--color-deep-ocean) placeholder:font-sans placeholder:font-normal placeholder:text-(--color-medium-teal)/60 focus:outline-none"
               />
               {reportIdInput && (
                 <button
@@ -183,7 +183,7 @@ export default function TrackReport() {
                     setSearched(false);
                     setSearchParams({});
                   }}
-                  className="mr-2 rounded-full p-1 text-xs text-[var(--color-medium-teal)] hover:bg-[var(--color-pale-aqua)]"
+                  className="mr-2 rounded-full p-1 text-xs text-(--color-medium-teal) hover:bg-(--color-pale-aqua)"
                 >
                   Clear
                 </button>
@@ -193,7 +193,7 @@ export default function TrackReport() {
             <button
               type="submit"
               disabled={loading || !reportIdInput.trim()}
-              className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[var(--color-ocean)] px-6 py-3 text-sm font-bold text-white transition hover:bg-[var(--color-deep-ocean)] disabled:opacity-50 active:scale-95"
+              className="flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-(--color-ocean) px-6 py-3 text-sm font-bold text-white transition hover:bg-(--color-deep-ocean) disabled:opacity-50 active:scale-95"
             >
               {loading ? (
                 <>
@@ -211,7 +211,7 @@ export default function TrackReport() {
         </form>
 
         {/* Quick Sample IDs for Easy Testing */}
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[var(--color-medium-teal)]">
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-(--color-medium-teal)">
           <span className="font-semibold">Sample Report IDs:</span>
           {[
             { id: "WR-2026-8F4K29", label: "Urban Flooding (Under Verification)" },
@@ -225,7 +225,7 @@ export default function TrackReport() {
                 setReportIdInput(sample.id);
                 performSearch(sample.id);
               }}
-              className="rounded-full border border-[rgba(53,98,103,0.2)] bg-white px-3 py-1 font-mono font-medium text-[var(--color-deep-ocean)] hover:border-[var(--color-ocean)] hover:bg-[var(--color-pale-aqua)] transition"
+              className="rounded-full border border-[rgba(53,98,103,0.2)] bg-white px-3 py-1 font-mono font-medium text-(--color-deep-ocean) hover:border-(--color-ocean) hover:bg-(--color-pale-aqua) transition"
             >
               {sample.id}
             </button>
@@ -236,11 +236,11 @@ export default function TrackReport() {
       {/* Loading State */}
       {loading && (
         <div className="flex flex-col items-center justify-center rounded-3xl border border-[rgba(53,98,103,0.16)] bg-white p-12 text-center shadow-sm">
-          <Loader2 className="h-10 w-10 animate-spin text-[var(--color-ocean)]" />
-          <h3 className="mt-4 text-base font-bold text-[var(--color-deep-ocean)]">
+          <Loader2 className="h-10 w-10 animate-spin text-(--color-ocean)" />
+          <h3 className="mt-4 text-base font-bold text-(--color-deep-ocean)">
             Fetching Report Details…
           </h3>
-          <p className="text-xs text-[var(--color-medium-teal)]">
+          <p className="text-xs text-(--color-medium-teal)">
             Querying real-time coastal hazard database for {reportIdInput}
           </p>
         </div>
@@ -254,13 +254,13 @@ export default function TrackReport() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[rgba(53,98,103,0.12)]">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-base sm:text-lg font-black tracking-wider text-[var(--color-ocean)] bg-[var(--color-soft-mint)] px-3 py-1 rounded-xl border border-[var(--color-ocean)]/30">
+                  <span className="font-mono text-base sm:text-lg font-black tracking-wider text-(--color-ocean) bg-(--color-soft-mint) px-3 py-1 rounded-xl border border-(--color-ocean)/30">
                     {report.id}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleCopyId(report.id)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--color-medium-teal)] hover:text-[var(--color-deep-ocean)] rounded-lg p-1.5 hover:bg-[var(--color-pale-aqua)] transition"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-(--color-medium-teal) hover:text-(--color-deep-ocean) rounded-lg p-1.5 hover:bg-(--color-pale-aqua) transition"
                     title="Copy Report ID"
                   >
                     {copied ? (
@@ -288,14 +288,14 @@ export default function TrackReport() {
                   )}
                 </div>
 
-                <h2 className="mt-2 text-xl sm:text-2xl font-black text-[var(--color-deep-ocean)]">
+                <h2 className="mt-2 text-xl sm:text-2xl font-black text-(--color-deep-ocean)">
                   {report.categoryLabel} Incident
                 </h2>
               </div>
 
-              <div className="flex sm:flex-col items-center sm:items-end justify-between text-xs text-[var(--color-medium-teal)]">
+              <div className="flex sm:flex-col items-center sm:items-end justify-between text-xs text-(--color-medium-teal)">
                 <span>Submitted</span>
-                <span className="font-bold text-[var(--color-dark-teal)]">
+                <span className="font-bold text-(--color-dark-teal)">
                   {formatDate(report.createdAt)}
                 </span>
               </div>
@@ -304,10 +304,10 @@ export default function TrackReport() {
             {/* Status Timeline / Progress Component */}
             <div className="mt-8">
               <div className="flex items-center justify-between mb-4">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-[var(--color-ocean)]">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-(--color-ocean)">
                   Lifecycle Status Flow
                 </p>
-                <span className="text-xs font-semibold text-[var(--color-deep-ocean)] bg-[var(--color-mint)] px-3 py-1 rounded-full border border-[var(--color-ocean)]/20">
+                <span className="text-xs font-semibold text-(--color-deep-ocean) bg-(--color-mint) px-3 py-1 rounded-full border border-(--color-ocean)/20">
                   Current Stage: {STATUS_LABELS[report.status].title}
                 </span>
               </div>
@@ -324,7 +324,7 @@ export default function TrackReport() {
                       key={stage}
                       className={`relative flex flex-col items-center text-center p-4 rounded-2xl border transition-all ${
                         isCurrent
-                          ? "border-[var(--color-ocean)] bg-[var(--color-mint)]/60 shadow-md ring-2 ring-[var(--color-ocean)]/30 -translate-y-1"
+                          ? "border-(--color-ocean) bg-(--color-mint)/60 shadow-md ring-2 ring-(--color-ocean)/30 -translate-y-1"
                           : isCompleted
                           ? "border-emerald-200 bg-emerald-50/70 text-emerald-950"
                           : "border-slate-200 bg-slate-50/60 opacity-60 text-slate-500"
@@ -333,7 +333,7 @@ export default function TrackReport() {
                       <div
                         className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold mb-3 shadow-sm ${
                           isCurrent
-                            ? "bg-[var(--color-ocean)] text-white ring-4 ring-[var(--color-aqua)]/30 animate-pulse"
+                            ? "bg-(--color-ocean) text-white ring-4 ring-(--color-aqua)/30 animate-pulse"
                             : isCompleted
                             ? "bg-emerald-600 text-white"
                             : "bg-slate-200 text-slate-500"
@@ -346,15 +346,15 @@ export default function TrackReport() {
                         )}
                       </div>
 
-                      <h4 className="text-sm font-bold text-[var(--color-deep-ocean)]">
+                      <h4 className="text-sm font-bold text-(--color-deep-ocean)">
                         {STATUS_LABELS[stage].title}
                       </h4>
-                      <p className="mt-1 text-[11px] text-[var(--color-medium-teal)] leading-snug line-clamp-2">
+                      <p className="mt-1 text-[11px] text-(--color-medium-teal) leading-snug line-clamp-2">
                         {STATUS_LABELS[stage].subtitle}
                       </p>
 
                       {isCurrent && (
-                        <span className="mt-2 text-[10px] font-bold uppercase tracking-wider bg-[var(--color-ocean)] text-white px-2 py-0.5 rounded-full">
+                        <span className="mt-2 text-[10px] font-bold uppercase tracking-wider bg-(--color-ocean) text-white px-2 py-0.5 rounded-full">
                           Active
                         </span>
                       )}
@@ -375,7 +375,7 @@ export default function TrackReport() {
                       key={stage}
                       className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all ${
                         isCurrent
-                          ? "border-[var(--color-ocean)] bg-[var(--color-mint)]/60 shadow-sm"
+                          ? "border-(--color-ocean) bg-(--color-mint)/60 shadow-sm"
                           : isCompleted
                           ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
                           : "border-slate-200 bg-slate-50/60 opacity-60 text-slate-500"
@@ -384,7 +384,7 @@ export default function TrackReport() {
                       <div
                         className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                           isCurrent
-                            ? "bg-[var(--color-ocean)] text-white"
+                            ? "bg-(--color-ocean) text-white"
                             : isCompleted
                             ? "bg-emerald-600 text-white"
                             : "bg-slate-200 text-slate-500"
@@ -398,16 +398,16 @@ export default function TrackReport() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <h4 className="text-xs sm:text-sm font-bold text-[var(--color-deep-ocean)]">
+                          <h4 className="text-xs sm:text-sm font-bold text-(--color-deep-ocean)">
                             {STATUS_LABELS[stage].title}
                           </h4>
                           {isCurrent && (
-                            <span className="text-[10px] font-bold text-[var(--color-ocean)] bg-white px-2 py-0.5 rounded-full border border-[var(--color-ocean)]/30">
+                            <span className="text-[10px] font-bold text-(--color-ocean) bg-white px-2 py-0.5 rounded-full border border-(--color-ocean)/30">
                               Active
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-[var(--color-medium-teal)] mt-0.5">
+                        <p className="text-[11px] text-(--color-medium-teal) mt-0.5">
                           {STATUS_LABELS[stage].subtitle}
                         </p>
                       </div>
@@ -503,39 +503,39 @@ export default function TrackReport() {
               {/* Municipal Verification Card */}
               <div className="rounded-3xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center gap-2 pb-3 border-b border-[rgba(53,98,103,0.12)]">
-                  <ShieldCheck className="h-5 w-5 text-[var(--color-ocean)]" />
-                  <h3 className="text-sm sm:text-base font-bold text-[var(--color-deep-ocean)]">
+                  <ShieldCheck className="h-5 w-5 text-(--color-ocean)" />
+                  <h3 className="text-sm sm:text-base font-bold text-(--color-deep-ocean)">
                     Verification Status
                   </h3>
                 </div>
 
                 <div className="mt-4 space-y-3 text-xs sm:text-sm">
                   <div>
-                    <span className="text-[11px] font-semibold text-[var(--color-medium-teal)]">
+                    <span className="text-[11px] font-semibold text-(--color-medium-teal)">
                       Handling Agency
                     </span>
-                    <p className="font-bold text-[var(--color-deep-ocean)]">
+                    <p className="font-bold text-(--color-deep-ocean)">
                       {report.verification.agency || "Puri Municipal Corporation"}
                     </p>
                   </div>
 
                   {report.verification.verifiedBy && (
                     <div>
-                      <span className="text-[11px] font-semibold text-[var(--color-medium-teal)]">
+                      <span className="text-[11px] font-semibold text-(--color-medium-teal)">
                         Assigned Officer
                       </span>
-                      <p className="font-medium text-[var(--color-dark-teal)]">
+                      <p className="font-medium text-(--color-dark-teal)">
                         {report.verification.verifiedBy}
                       </p>
                     </div>
                   )}
 
                   {report.verification.officerNotes && (
-                    <div className="rounded-2xl bg-[var(--color-pale-aqua)]/30 p-3 border border-[rgba(53,98,103,0.12)]">
-                      <span className="text-[11px] font-bold text-[var(--color-ocean)]">
+                    <div className="rounded-2xl bg-(--color-pale-aqua)/30 p-3 border border-[rgba(53,98,103,0.12)]">
+                      <span className="text-[11px] font-bold text-(--color-ocean)">
                         Officer Notes:
                       </span>
-                      <p className="mt-1 text-xs text-[var(--color-deep-ocean)] leading-relaxed">
+                      <p className="mt-1 text-xs text-(--color-deep-ocean) leading-relaxed">
                         {report.verification.officerNotes}
                       </p>
                     </div>
@@ -549,10 +549,10 @@ export default function TrackReport() {
               {/* Evidence Media Preview */}
               <div className="rounded-3xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center justify-between pb-3 border-b border-[rgba(53,98,103,0.12)]">
-                  <h3 className="text-sm sm:text-base font-bold text-[var(--color-deep-ocean)]">
+                  <h3 className="text-sm sm:text-base font-bold text-(--color-deep-ocean)">
                     Uploaded Evidence ({report.media.length})
                   </h3>
-                  <span className="text-xs text-[var(--color-medium-teal)]">
+                  <span className="text-xs text-(--color-medium-teal)">
                     Photo &amp; Video captures
                   </span>
                 </div>
@@ -597,20 +597,20 @@ export default function TrackReport() {
               {/* Description & Location Card */}
               <div className="rounded-3xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-6 shadow-sm space-y-4">
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--color-medium-teal)]">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-(--color-medium-teal)">
                     Description
                   </h4>
-                  <p className="mt-1 text-sm sm:text-base text-[var(--color-deep-ocean)] leading-relaxed bg-[var(--color-soft-mint)] p-4 rounded-2xl border border-[rgba(53,98,103,0.1)]">
+                  <p className="mt-1 text-sm sm:text-base text-(--color-deep-ocean) leading-relaxed bg-(--color-soft-mint) p-4 rounded-2xl border border-[rgba(53,98,103,0.1)]">
                     {report.description}
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 pt-2">
                   <div className="flex items-start gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
-                    <MapPin className="h-4 w-4 text-[var(--color-ocean)] shrink-0 mt-0.5" />
+                    <MapPin className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <span className="text-[11px] font-semibold text-slate-500">Location</span>
-                      <p className="text-xs font-bold text-[var(--color-deep-ocean)] truncate">
+                      <p className="text-xs font-bold text-(--color-deep-ocean) truncate">
                         {report.location.address || report.location.placeName || "Coordinates Provided"}
                       </p>
                       <p className="text-[10px] font-mono text-slate-500 mt-0.5">
@@ -620,10 +620,10 @@ export default function TrackReport() {
                   </div>
 
                   <div className="flex items-start gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
-                    <Calendar className="h-4 w-4 text-[var(--color-ocean)] shrink-0 mt-0.5" />
+                    <Calendar className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
                     <div>
                       <span className="text-[11px] font-semibold text-slate-500">Reported On</span>
-                      <p className="text-xs font-bold text-[var(--color-deep-ocean)]">
+                      <p className="text-xs font-bold text-(--color-deep-ocean)">
                         {formatDate(report.createdAt)}
                       </p>
                       <p className="text-[10px] text-slate-500 mt-0.5">
@@ -638,14 +638,14 @@ export default function TrackReport() {
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Link
                   to="/citizen/live-map"
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-[var(--color-deep-ocean)] hover:bg-[var(--color-soft-mint)] transition"
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-(--color-deep-ocean) hover:bg-(--color-soft-mint) transition"
                 >
-                  <MapPin className="h-4 w-4 text-[var(--color-ocean)]" />
+                  <MapPin className="h-4 w-4 text-(--color-ocean)" />
                   View On Live Map
                 </Link>
                 <Link
                   to="/citizen/report"
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--color-ocean)] px-5 py-3 text-xs sm:text-sm font-bold text-white hover:bg-[var(--color-deep-ocean)] transition"
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-5 py-3 text-xs sm:text-sm font-bold text-white hover:bg-(--color-deep-ocean) transition"
                 >
                   <Droplets className="h-4 w-4" />
                   Report Another Incident
@@ -684,7 +684,7 @@ export default function TrackReport() {
             </button>
             <Link
               to="/citizen/report"
-              className="rounded-2xl bg-[var(--color-ocean)] px-5 py-2 text-xs font-bold text-white hover:bg-[var(--color-deep-ocean)]"
+              className="rounded-2xl bg-(--color-ocean) px-5 py-2 text-xs font-bold text-white hover:bg-(--color-deep-ocean)"
             >
               Submit a New Report
             </Link>
@@ -695,35 +695,35 @@ export default function TrackReport() {
       {/* Empty Initial State (Before searching) */}
       {!loading && !searched && !report && (
         <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-8 sm:p-12 text-center shadow-sm space-y-6">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--color-pale-aqua)] text-[var(--color-ocean)]">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-(--color-pale-aqua) text-(--color-ocean)">
             <Search className="h-8 w-8" />
           </div>
 
           <div className="max-w-md mx-auto">
-            <h3 className="text-lg sm:text-xl font-black text-[var(--color-deep-ocean)]">
+            <h3 className="text-lg sm:text-xl font-black text-(--color-deep-ocean)">
               Track Any Water Hazard Incident
             </h3>
-            <p className="mt-2 text-xs sm:text-sm text-[var(--color-medium-teal)] leading-relaxed">
+            <p className="mt-2 text-xs sm:text-sm text-(--color-medium-teal) leading-relaxed">
               Every submitted citizen report receives a unique tracking ID. Enter your ID above to inspect AI classification, municipal field assignment, and resolution progress.
             </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3 max-w-3xl mx-auto pt-4 text-left">
-            <div className="p-4 rounded-2xl bg-[var(--color-soft-mint)] border border-[rgba(53,98,103,0.1)]">
-              <span className="font-bold text-xs text-[var(--color-ocean)]">01. Instant AI Scan</span>
-              <p className="text-xs text-[var(--color-medium-teal)] mt-1">
+            <div className="p-4 rounded-2xl bg-(--color-soft-mint) border border-[rgba(53,98,103,0.1)]">
+              <span className="font-bold text-xs text-(--color-ocean)">01. Instant AI Scan</span>
+              <p className="text-xs text-(--color-medium-teal) mt-1">
                 Visual estimation of water depth, severity, and problem category.
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-[var(--color-soft-mint)] border border-[rgba(53,98,103,0.1)]">
-              <span className="font-bold text-xs text-[var(--color-ocean)]">02. Government Review</span>
-              <p className="text-xs text-[var(--color-medium-teal)] mt-1">
+            <div className="p-4 rounded-2xl bg-(--color-soft-mint) border border-[rgba(53,98,103,0.1)]">
+              <span className="font-bold text-xs text-(--color-ocean)">02. Government Review</span>
+              <p className="text-xs text-(--color-medium-teal) mt-1">
                 Dispatch of drainage pumps, rescue units, or repair engineers.
               </p>
             </div>
-            <div className="p-4 rounded-2xl bg-[var(--color-soft-mint)] border border-[rgba(53,98,103,0.1)]">
-              <span className="font-bold text-xs text-[var(--color-ocean)]">03. Real-time Status</span>
-              <p className="text-xs text-[var(--color-medium-teal)] mt-1">
+            <div className="p-4 rounded-2xl bg-(--color-soft-mint) border border-[rgba(53,98,103,0.1)]">
+              <span className="font-bold text-xs text-(--color-ocean)">03. Real-time Status</span>
+              <p className="text-xs text-(--color-medium-teal) mt-1">
                 Live timeline updates until the waterlogged zone is cleared.
               </p>
             </div>

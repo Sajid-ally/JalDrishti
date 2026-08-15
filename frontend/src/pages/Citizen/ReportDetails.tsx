@@ -12,7 +12,7 @@ export default function ReportDetails() {
   }, [id, navigate]);
 
   return (
-    <div className="py-12 text-center text-sm text-[var(--color-medium-teal)]">
+    <div className="py-12 text-center text-sm text-(--color-medium-teal)">
       Redirecting to Track Your Reports…
     </div>
   );

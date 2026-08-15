@@ -14,6 +14,8 @@ import type {
   WaterProblemType,
   WaterReportStatus,
   AIAnalysisReportData,
+  Department,
+  GovReportStatus,
 } from "../types/report";
 import { WATER_PROBLEM_CATEGORIES } from "../types/report";
 import { generateReportId, formatReportId } from "../utils/reportId";
@@ -516,6 +518,68 @@ export async function analyzeMedia(
       "Uploaded media reviewed — hazard type unclear from visuals alone. Please describe what you're seeing.",
     confidence: 0.75 + Math.random() * 0.15,
   };
+}
+
+// ─── Government action functions ─────────────────────────────────────────────
+
+/**
+ * Assigns a department to a report and sets govStatus to "assigned".
+ */
+export async function assignReportDepartment(
+  id: string,
+  department: Department
+): Promise<boolean> {
+  await delay(300);
+  const reports = getStoredReports();
+  const updated = reports.map((r) =>
+    r.id === id
+      ? {
+          ...r,
+          assignedDepartment: department,
+          govStatus: "assigned" as GovReportStatus,
+          assignedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+      : r
+  );
+  saveStoredReports(updated);
+  return true;
+}
+
+/**
+ * Updates the government workflow status of a report.
+ */
+export async function updateGovStatus(
+  id: string,
+  govStatus: GovReportStatus
+): Promise<boolean> {
+  await delay(300);
+  const reports = getStoredReports();
+  const updated = reports.map((r) =>
+    r.id === id
+      ? { ...r, govStatus, updatedAt: new Date().toISOString() }
+      : r
+  );
+  saveStoredReports(updated);
+  return true;
+}
+
+/**
+ * Updates the severity / priority of a report.
+ */
+export async function updateReportSeverity(
+  id: string,
+  severity: Severity
+): Promise<boolean> {
+  await delay(300);
+  const reports = getStoredReports();
+  const updated = reports.map((r) =>
+    r.id === id
+      ? { ...r, severity, updatedAt: new Date().toISOString() }
+      : r
+  );
+  saveStoredReports(updated);
+  return true;
 }
 
 export async function submitReport(

@@ -128,9 +128,9 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => navigate("/citizen/track-report")}
-            className="flex items-center gap-4 rounded-3xl border border-[rgba(53,98,103,0.2)] bg-white p-5 text-left transition hover:border-[var(--color-ocean)] hover:bg-[(--color-soft-mint)] hover:shadow-md active:scale-98"
+            className="flex items-center gap-4 rounded-3xl border border-[rgba(53,98,103,0.2)] bg-white p-5 text-left transition hover:border-(--color-ocean) hover:bg-[(--color-soft-mint)] hover:shadow-md active:scale-98"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-pale-aqua)] text-[var(--color-ocean)] shrink-0">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-pale-aqua) text-(--color-ocean) shrink-0">
               <Search className="h-6 w-6" />
             </div>
             <div>
@@ -145,9 +145,9 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => navigate("/citizen/live-map")}
-            className="flex items-center gap-4 rounded-3xl border border-[rgba(53,98,103,0.2)] bg-white p-5 text-left transition hover:border-[var(--color-ocean)] hover:bg-[(--color-soft-mint)] hover:shadow-md active:scale-98 sm:col-span-2 lg:col-span-1"
+            className="flex items-center gap-4 rounded-3xl border border-[rgba(53,98,103,0.2)] bg-white p-5 text-left transition hover:border-(--color-ocean) hover:bg-[(--color-soft-mint)] hover:shadow-md active:scale-98 sm:col-span-2 lg:col-span-1"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-pale-aqua)] text-[var(--color-ocean)] shrink-0">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-pale-aqua) text-(--color-ocean) shrink-0">
               <Map className="h-6 w-6" />
             </div>
             <div>
