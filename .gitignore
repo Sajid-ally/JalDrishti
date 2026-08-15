@@ -8,7 +8,7 @@ ml-service/venv/
 ml-service/.venv/
 
 # Ignore demo backend completely
-backend_m/
+Backend_m/
 
 # Uploads
 backend/uploads/
