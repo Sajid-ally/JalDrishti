@@ -10,6 +10,8 @@ from app.validation.routes import router as validationRouter
 from app.socialMedia.routes import router as socialMediaRouter
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from app.notifications.routes import router as notificationRouter
+from app.social_reports.routes import router as socialReportsRouter
 
 app = FastAPI(
     title="OceanShield Backend",
@@ -52,8 +54,10 @@ app.include_router(locationRouter)
 app.include_router(reliefRouter)
 app.include_router(missingPersonRouter)
 app.include_router(validationRouter)
-app.include_router(socialMediaRouter
-)
+app.include_router(socialMediaRouter)
+app.include_router(notificationRouter)
+app.include_router(socialReportsRouter)
+
 
 @app.get("/")
 async def home():
