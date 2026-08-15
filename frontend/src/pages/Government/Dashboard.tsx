@@ -24,7 +24,7 @@ function computeStats(reports: typeof MOCK_HAZARD_REPORTS) {
 
 const quickLinks = [
   {
-    to: "/government/verify",
+    to: "/government/review-reports",
     label: "Verify Reports",
     desc: "Review and approve citizen-submitted hazard reports",
     icon: CheckSquare,

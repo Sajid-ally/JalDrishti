@@ -12,6 +12,7 @@ import {
   User,
   Search,
   AlertTriangle,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
@@ -92,14 +93,24 @@ const governmentSections: NavSection[] = [
     title: "Report & Monitor",
     items: [
       {
-        to: "/government/verify",
-        label: "Verify Reports",
+        to: "/government/review",
+        label: "Review Reports",
         icon: CheckSquare,
       },
       {
         to: "/government/live-map",
         label: "Live Map",
         icon: MapPinned,
+      },
+      {
+        to: "/government/department-tracking",
+        label: "Department Tracking",
+        icon: ShieldCheck,
+      },
+      {
+        to: "/government/emergency-operations",
+        label: "Emergency Operations",
+        icon: Siren,
       },
     ],
   },

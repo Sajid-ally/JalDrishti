@@ -22,7 +22,10 @@ import ReportDetails from "../pages/Citizen/ReportDetails";
 import TrackReport from "../pages/Citizen/TrackReport";
 
 import GovernmentDashboard from "../pages/Government/Dashboard";
-import VerifyReports from "../pages/Government/VerifyReports";
+// import VerifyReports from "../pages/Government/VerifyReports"; // removed per project requirements
+import ReviewReports from "../pages/Government/ReviewReports";
+import DepartmentTracking from "../pages/Government/DepartmentTracking";
+import EmergencyOperations from "../pages/Government/EmergencyOperations";
 import GovernmentRescueRequests from "../pages/Government/RescueRequests";
 import DisasterAlerts from "../pages/Government/DisasterAlerts";
 import GovernmentProfile from "../pages/Government/Profile";
@@ -88,14 +91,24 @@ export default function AppRoutes() {
           path="/government/dashboard"
           element={withLayout(<GovernmentDashboard />)}
         />
-        <Route
-          path="/government/verify"
-          element={withLayout(<VerifyReports />)}
-        />
-        <Route
-          path="/government/live-map"
-          element={withLayout(<CitizenLiveMap />)}
-        />
+
+          <Route
+            path="/government/review-reports"
+            element={withLayout(<ReviewReports />)}
+          />
+          <Route
+            path="/government/department-tracking"
+            element={withLayout(<DepartmentTracking />)}
+          />
+          <Route
+            path="/government/emergency-operations"
+            element={withLayout(<EmergencyOperations />)}
+          />
+
+          <Route
+            path="/government/live-map"
+            element={withLayout(<CitizenLiveMap />)}
+          />
         <Route
           path="/government/rescue"
           element={withLayout(<GovernmentRescueRequests />)}

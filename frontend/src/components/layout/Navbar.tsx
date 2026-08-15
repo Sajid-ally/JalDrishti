@@ -127,24 +127,13 @@ export default function Navbar({ onOpenMobileDrawer }: NavbarProps) {
 
         {/* Mobile & Tablet Right Controls */}
         <div className="flex lg:hidden items-center gap-2">
-          {isCitizen && (
-            <button
-              type="button"
-              onClick={() => navigate("/citizen/sos")}
-              className="flex items-center gap-1 rounded-full bg-[#ff4a4a] px-3 py-1.5 text-xs font-black text-white shadow-sm hover:bg-[#7f0505] active:scale-95 transition"
-            >
-              <LifeBuoy className="h-3.5 w-3.5" />
-              SOS
-            </button>
-          )}
-
           <button
             type="button"
-            onClick={onOpenMobileDrawer}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-white hover:bg-white/25 active:scale-95 transition"
-            aria-label="Open mobile navigation menu"
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 rounded-full border border-[#c2f2f2]/30 px-3 py-2 text-sm font-medium text-[#effefb]/80 transition-all duration-200 hover:border-[#c2f2f2]/60 hover:bg-[#c2f2f2]/10"
+            title="Logout"
           >
-            <Menu className="h-5 w-5" />
+            <LogOut className="h-4 w-4" />
           </button>
         </div>
       </div>
