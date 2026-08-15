@@ -5,13 +5,19 @@ def extract_coordinates(reports):
     coordinates = []
 
     for report in reports:
-        latitude = report["latitude"]
-        longitude = report["longitude"]
+        if "location" in report:
+            latitude = report["location"].get("latitude")
+            longitude = report["location"].get("longitude")
+        else:
+            latitude = report.get("latitude")
+            longitude = report.get("longitude")
 
-        coordinates.append([latitude, longitude])
+        if latitude is None or longitude is None:
+            continue
+
+        coordinates.append([float(latitude), float(longitude)])
 
     return np.array(coordinates)
-
 
 def cluster_reports(reports, eps_km=1.0, min_samples=3):
     if not reports:
@@ -19,10 +25,12 @@ def cluster_reports(reports, eps_km=1.0, min_samples=3):
 
     coordinates = extract_coordinates(reports)
 
+    if len(coordinates) == 0:
+        return []
+
     coordinates_radians = np.radians(coordinates)
 
     earth_radius_km = 6371.0
-
     eps = eps_km / earth_radius_km
 
     dbscan = DBSCAN(
@@ -35,7 +43,6 @@ def cluster_reports(reports, eps_km=1.0, min_samples=3):
 
     return labels.tolist()
 
-
 def get_hotspot_level(report_count):
     if report_count >= 10:
         return "CRITICAL"
@@ -44,11 +51,23 @@ def get_hotspot_level(report_count):
     else:
         return "MEDIUM"
 
-
 def build_hotspots(reports, labels):
     hotspots = {}
+    coordinate_index = 0
 
-    for report, label in zip(reports, labels):
+    for report in reports:
+        if "location" in report:
+            latitude = report["location"].get("latitude")
+            longitude = report["location"].get("longitude")
+        else:
+            latitude = report.get("latitude")
+            longitude = report.get("longitude")
+
+        if latitude is None or longitude is None:
+            continue
+
+        label = labels[coordinate_index]
+        coordinate_index += 1
 
         if label == -1:
             continue
@@ -61,40 +80,29 @@ def build_hotspots(reports, labels):
             }
 
         hotspots[label]["reports"].append(report)
-
-        hotspots[label]["latitude_sum"] += (
-            report["latitude"]
-        )
-
-        hotspots[label]["longitude_sum"] += (
-            report["longitude"]
-        )
+        hotspots[label]["latitude_sum"] += float(latitude)
+        hotspots[label]["longitude_sum"] += float(longitude)
 
     result = []
 
     for cluster_id, data in hotspots.items():
-
         count = len(data["reports"])
-
-        center_latitude = data["latitude_sum"] / count
-        center_longitude = data["longitude_sum"] / count
 
         result.append({
             "cluster_id": int(cluster_id),
             "report_count": count,
             "center": {
-                "latitude": center_latitude,
-                "longitude": center_longitude
+                "latitude": data["latitude_sum"] / count,
+                "longitude": data["longitude_sum"] / count
             },
             "report_ids": [
-                report["report_id"]
+                report.get("report_id") or report.get("reportId")
                 for report in data["reports"]
             ],
             "level": get_hotspot_level(count)
         })
 
     return result
-
 
 def detect_hotspots(reports, eps_km=1.0, min_samples=3):
     labels = cluster_reports(

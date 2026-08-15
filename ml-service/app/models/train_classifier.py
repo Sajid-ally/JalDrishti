@@ -1,184 +1,176 @@
-"""
-CoastalEye - Flood vs No-Flood Image Classifier
-
-Algorithm: Transfer Learning with MobileNetV2 (CNN backbone)
-
-Dataset structure:
-datasets/
-└── images/
-    ├── flood/
-    └── no_flood/
-
-This script:
-- Uses MobileNetV2 pretrained on ImageNet
-- Splits the dataset into 80% training and 20% validation
-- Trains only the final classification layer
-- Reports training and validation accuracy
-- Saves the best model based on validation accuracy
-"""
-
+import os
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, WeightedRandomSampler
 from torchvision import datasets, transforms, models
-
-# ---------------------------------------------------
-# STEP 1: CONFIGURATION
-# ---------------------------------------------------
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 DATA_DIR = "datasets/images"
+MODEL_PATH = "trained_models/hazard_classifier.pt"
+
 BATCH_SIZE = 16
-EPOCHS = 10
-LEARNING_RATE = 1e-3
+EPOCHS = 30
+LEARNING_RATE = 1e-4
+PATIENCE = 6
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# ---------------------------------------------------
-# STEP 2: IMAGE PREPROCESSING
-# ---------------------------------------------------
+os.makedirs("trained_models", exist_ok=True)
 
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
+train_transform = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
     transforms.RandomHorizontalFlip(),
+    transforms.RandomRotation(10),
+    transforms.ColorJitter(
+        brightness=0.2,
+        contrast=0.2,
+        saturation=0.2,
+        hue=0.02
+    ),
     transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406],
-                         [0.229, 0.224, 0.225]),
+    transforms.Normalize(
+        [0.485, 0.456, 0.406],
+        [0.229, 0.224, 0.225]
+    ),
 ])
 
-# ---------------------------------------------------
-# STEP 3: LOAD DATASET
-# ---------------------------------------------------
+val_transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        [0.485, 0.456, 0.406],
+        [0.229, 0.224, 0.225]
+    ),
+])
 
-full_dataset = datasets.ImageFolder(DATA_DIR, transform=transform)
+full_dataset = datasets.ImageFolder(DATA_DIR)
 class_names = full_dataset.classes
 
-print("Detected classes:", class_names)
+print(f"Detected classes: {class_names}")
 
-# 80% training, 20% validation split
 train_size = int(0.8 * len(full_dataset))
 val_size = len(full_dataset) - train_size
 
+full_train_dataset = datasets.ImageFolder(DATA_DIR, transform=train_transform)
+full_val_dataset = datasets.ImageFolder(DATA_DIR, transform=val_transform)
+
 train_dataset, val_dataset = random_split(
-    full_dataset,
+    full_train_dataset,
     [train_size, val_size],
     generator=torch.Generator().manual_seed(42)
+)
+
+val_dataset.dataset = full_val_dataset
+
+train_labels = [full_dataset.samples[i][1] for i in train_dataset.indices]
+
+class_counts = torch.bincount(torch.tensor(train_labels))
+class_weights = 1.0 / class_counts.float()
+sample_weights = [class_weights[label] for label in train_labels]
+
+sampler = WeightedRandomSampler(
+    sample_weights,
+    num_samples=len(sample_weights),
+    replacement=True
 )
 
 train_loader = DataLoader(
     train_dataset,
     batch_size=BATCH_SIZE,
-    shuffle=True
+    sampler=sampler,
+    num_workers=0,
+    pin_memory=False
 )
 
 val_loader = DataLoader(
     val_dataset,
     batch_size=BATCH_SIZE,
-    shuffle=False
+    shuffle=False,
+    num_workers=0,
+    pin_memory=False
 )
 
 print(f"Training images: {len(train_dataset)}")
 print(f"Validation images: {len(val_dataset)}")
 
-# ---------------------------------------------------
-# STEP 4: LOAD PRETRAINED MODEL
-# ---------------------------------------------------
-
 model = models.mobilenet_v2(weights="IMAGENET1K_V1")
 
-# Freeze feature extraction layers
 for param in model.features.parameters():
     param.requires_grad = False
 
-# Replace the final classifier
-model.classifier[1] = nn.Linear(
-    model.last_channel,
-    len(class_names)
-)
+for param in model.features[-1].parameters():
+    param.requires_grad = True
 
+model.classifier[1] = nn.Linear(model.last_channel, len(class_names))
 model = model.to(DEVICE)
 
-# ---------------------------------------------------
-# STEP 5: OPTIMIZER AND LOSS FUNCTION
-# ---------------------------------------------------
-
 optimizer = torch.optim.Adam(
-    model.classifier.parameters(),
+    filter(lambda p: p.requires_grad, model.parameters()),
     lr=LEARNING_RATE
 )
 
 criterion = nn.CrossEntropyLoss()
 
-# ---------------------------------------------------
-# STEP 6: TRAINING + VALIDATION LOOP
-# ---------------------------------------------------
+scheduler = ReduceLROnPlateau(
+    optimizer,
+    mode="max",
+    factor=0.5,
+    patience=2
+)
+
+scaler = torch.amp.GradScaler("cuda", enabled=torch.cuda.is_available())
 
 best_val_acc = 0.0
+epochs_without_improvement = 0
 
 for epoch in range(EPOCHS):
 
-    # ---------------- TRAIN ----------------
     model.train()
-
     train_loss = 0.0
     train_correct = 0
 
-    for batch_idx, (images, labels) in enumerate(train_loader):
-
+    for images, labels in train_loader:
         images = images.to(DEVICE)
         labels = labels.to(DEVICE)
 
         optimizer.zero_grad()
 
-        outputs = model(images)
+        with torch.amp.autocast("cuda", enabled=torch.cuda.is_available()):
+            outputs = model(images)
+            loss = criterion(outputs, labels)
 
-        loss = criterion(outputs, labels)
-
-        loss.backward()
-
-        optimizer.step()
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
 
         train_loss += loss.item()
-
-        train_correct += (
-            outputs.argmax(1) == labels
-        ).sum().item()
-
-        print(
-            f"Epoch {epoch+1} | Batch {batch_idx+1}/{len(train_loader)} | Loss: {loss.item():.4f}"
-        )
+        train_correct += (outputs.argmax(1) == labels).sum().item()
 
     train_acc = train_correct / len(train_dataset)
 
-    # ---------------- VALIDATION ----------------
     model.eval()
-
     val_correct = 0
 
     with torch.no_grad():
-
         for images, labels in val_loader:
-
             images = images.to(DEVICE)
             labels = labels.to(DEVICE)
-
             outputs = model(images)
-
-            val_correct += (
-                outputs.argmax(1) == labels
-            ).sum().item()
+            val_correct += (outputs.argmax(1) == labels).sum().item()
 
     val_acc = val_correct / len(val_dataset)
+    scheduler.step(val_acc)
 
     print(
-        f"Epoch {epoch+1}/{EPOCHS} | "
+        f"Epoch {epoch+1:02d}/{EPOCHS} | "
         f"Train Loss: {train_loss:.4f} | "
         f"Train Acc: {train_acc:.2%} | "
         f"Val Acc: {val_acc:.2%}"
     )
 
-    # Save the best model
     if val_acc > best_val_acc:
-
         best_val_acc = val_acc
+        epochs_without_improvement = 0
 
         torch.save(
             {
@@ -186,17 +178,17 @@ for epoch in range(EPOCHS):
                 "classes": class_names,
                 "best_val_accuracy": best_val_acc,
             },
-            "trained_models/hazard_classifier.pt"
+            MODEL_PATH
         )
 
-        print(
-            f"New best model saved! Validation Accuracy: {best_val_acc:.2%}"
-        )
+        print(f"New best model saved! Validation Accuracy: {best_val_acc:.2%}")
+    else:
+        epochs_without_improvement += 1
 
-# ---------------------------------------------------
-# STEP 7: FINAL SUMMARY
-# ---------------------------------------------------
+    if epochs_without_improvement >= PATIENCE:
+        print("Early stopping triggered.")
+        break
 
 print("Training complete!")
 print(f"Best Validation Accuracy: {best_val_acc:.2%}")
-print("Best model saved to app/models/hazard_classifier.pt")
+print(f"Best model saved to {MODEL_PATH}")

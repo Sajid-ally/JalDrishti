@@ -7,7 +7,6 @@ from app.database import database
 from sklearn.cluster import DBSCAN
 
 import math
-from app.database import database
 
 # =========================================================
 # CREATE REPORT
@@ -39,7 +38,7 @@ async def createReport(reportData: dict):
             "category": reportData["mlAnalysis"]["category"],
             "severity": reportData["mlAnalysis"]["severity"],
             "confidence": reportData["mlAnalysis"]["confidence"],
-            "priority": reportData["mlAnalysis"]["priority"],
+            "priority": reportData["mlAnalysis"].get("priority", "normal"),
             "source": reportData["mlAnalysis"].get("source")
         },
 

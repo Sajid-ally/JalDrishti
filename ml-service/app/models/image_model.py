@@ -1,52 +1,68 @@
-"""
-Loads the trained flood classifier and runs predictions on new images.
-This file is imported by the FastAPI route (detect.py) — it does NOT
-run training again, it just loads the already-saved model and uses it.
-"""
-
+import io
 import torch
 import torch.nn.functional as F
 from torchvision import transforms, models
 from PIL import Image
-import io
 
-DEVICE = "cpu"   # inference is light enough to run on CPU even without a GPU
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# Load the saved checkpoint (weights + class names) from training
-checkpoint = torch.load("trained_models/hazard_classifier.pt", map_location=DEVICE)
-class_names = checkpoint["classes"]   # e.g. ['flood', 'no_flood']
+checkpoint = torch.load(
+"trained_models/hazard_classifier.pt",
+map_location=DEVICE
+)
 
-# Rebuild the same model architecture used during training,
-# then load our trained weights into it
+class_names = checkpoint["classes"]
+
 model = models.mobilenet_v2()
-model.classifier[1] = torch.nn.Linear(model.last_channel, len(class_names))
-model.load_state_dict(checkpoint["model_state"])
-model.eval()   # inference mode — disables things like dropout used only during training
 
-# Must match EXACTLY the preprocessing used during training,
-# otherwise the model will get confused by differently-formatted input
+model.classifier[1] = torch.nn.Linear(
+model.last_channel,
+len(class_names)
+)
+
+model.load_state_dict(checkpoint["model_state"])
+model.to(DEVICE)
+model.eval()
+
 transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+transforms.Resize((224, 224)),
+transforms.ToTensor(),
+transforms.Normalize(
+[0.485, 0.456, 0.406],
+[0.229, 0.224, 0.225]
+),
 ])
 
+SEVERITY_MAP = {
+"flooding": 5,
+"drainage_problem": 3,
+"pond_lake_problem": 3,
+"normal": 0,
+}
 
 def classify_image(image_bytes: bytes) -> dict:
-    """
-    Takes raw image bytes (e.g. from an uploaded file),
-    returns the predicted hazard type and confidence score.
-    """
-    # Convert raw bytes into a PIL image, then apply the same preprocessing
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    tensor = transform(image).unsqueeze(0)  # add a "batch" dimension (model expects batches)
 
-    with torch.no_grad():   # disables gradient tracking — we're not training, just predicting
-        outputs = model(tensor)             # raw prediction scores
-        probs = F.softmax(outputs, dim=1)[0]  # convert scores into probabilities (0-100%)
-        confidence, pred_idx = torch.max(probs, dim=0)  # pick the highest-probability class
+    tensor = transform(image).unsqueeze(0).to(DEVICE)
+
+    with torch.no_grad():
+        outputs = model(tensor)
+        probabilities = F.softmax(outputs, dim=1)[0]
+        top2_conf, top2_idx = torch.topk(probabilities, 2)
+
+    predicted = class_names[top2_idx[0].item()]
+    confidence = float(top2_conf[0].item())
+
+    second_prediction = class_names[top2_idx[1].item()]
+    second_confidence = float(top2_conf[1].item())
+
+    severity = SEVERITY_MAP.get(predicted, 0)
 
     return {
-        "hazard_type": class_names[pred_idx.item()],
-        "confidence": round(confidence.item(), 2),
+        "hazard_type": predicted,
+        "confidence": round(confidence, 4),
+        "second_prediction": second_prediction,
+        "second_confidence": round(second_confidence, 4),
+        "severity": severity,
     }
+

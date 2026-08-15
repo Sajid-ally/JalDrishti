@@ -8,9 +8,10 @@ domain judgment instead, same approach as the priority ranker.
 
 # Base severity per hazard type (0 = none, 5 = most severe)
 SEVERITY_MAP = {
-    "flood": 5,
-    "landslide": 5,
-    "no_flood": 0,
+    "flooding": 5,
+    "drainage_problem": 3,
+    "pond_lake_problem": 3,
+    "normal": 0,
 }
 
 def predict_severity(hazard_type: str, confidence: float) -> int:

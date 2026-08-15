@@ -2,41 +2,53 @@ import json
 from datetime import datetime, timezone
 from app.models.hotspot_clustering import detect_hotspots
 
+# =======================================================
+
+# Priority ranking configuration
+
+# =======================================================
 
 SEVERITY_SCORE = {
-    "low": 25,
-    "medium": 50,
-    "high": 75,
-    "critical": 100
+"low": 25,
+"medium": 50,
+"high": 75,
+"critical": 100,
 }
 
-
-# -------------------------------------------------------
-# Converts our ML pipeline's numeric severity (0-5) into
-# the string labels this ranker understands.
-# -------------------------------------------------------
 SEVERITY_NUMBER_TO_LABEL = {
-    0: "low",
-    1: "low",
-    2: "medium",
-    3: "medium",
-    4: "high",
-    5: "critical"
+0: "low",
+1: "low",
+2: "medium",
+3: "medium",
+4: "high",
+5: "critical",
 }
 
+HAZARD_SCORE = {
+"flooding": 100,
+"drainage_problem": 70,
+"pond_lake_problem": 60,
+}
+
+# =======================================================
+
+# Helper functions
+
+# =======================================================
 
 def normalize_severity(severity):
     if isinstance(severity, str):
-        return severity
+        return severity.lower().strip()
+
     if isinstance(severity, (int, float)):
         return SEVERITY_NUMBER_TO_LABEL.get(round(severity), "low")
+
     return "low"
 
 
 def get_severity_score(severity):
     severity = normalize_severity(severity)
-    return SEVERITY_SCORE.get(severity.lower(), 0)
-
+    return SEVERITY_SCORE.get(severity, 0)
 
 def get_affected_people_score(affected_people):
     try:
@@ -57,27 +69,11 @@ def get_affected_people_score(affected_people):
     else:
         return 100
 
-
-HAZARD_SCORE = {
-    "flood": 100,
-    "cyclone": 100,
-    "storm_surge": 95,
-    "landslide": 90,
-    "road_damage": 60,
-    "erosion": 50,
-    "no_flood": 0,
-    "other": 30
-}
-
-
 def get_hazard_score(hazard_type):
     if not isinstance(hazard_type, str):
-        return HAZARD_SCORE["other"]
+        return 0
 
-    return HAZARD_SCORE.get(
-        hazard_type.lower(),
-        HAZARD_SCORE["other"]
-    )
+    return HAZARD_SCORE.get(hazard_type.lower().strip(), 0)
 
 
 def get_confidence_score(confidence):
@@ -87,28 +83,28 @@ def get_confidence_score(confidence):
         return 0
 
     confidence = max(0.0, min(1.0, confidence))
-
     return confidence * 100
 
 
 def get_recency_score(report_time):
-    try:
-        report_datetime = datetime.fromisoformat(report_time)
-    except (TypeError, ValueError):
-        return 0
-
-    current_time = datetime.now(timezone.utc)
+    if isinstance(report_time, datetime):
+        report_datetime = report_time
+    else:
+        try:
+            report_datetime = datetime.fromisoformat(
+                str(report_time).replace("Z", "+00:00")
+            )
+        except (TypeError, ValueError):
+            return 0
 
     if report_datetime.tzinfo is None:
         report_datetime = report_datetime.replace(tzinfo=timezone.utc)
 
+    current_time = datetime.now(timezone.utc)
     age = current_time - report_datetime.astimezone(timezone.utc)
-
     hours = age.total_seconds() / 3600
 
-    if hours < 0:
-        return 100
-    elif hours <= 1:
+    if hours <= 1:
         return 100
     elif hours <= 6:
         return 80
@@ -142,12 +138,7 @@ def get_area_report_score(report_count):
         return 100
 
 
-def get_reliability_score(validation: dict) -> float:
-    """
-    Fraud/trust signal — separate from area clustering.
-    Government confirmation and duplicate-image detection
-    aren't captured by geographic clustering alone.
-    """
+def get_reliability_score(validation):
     if not validation:
         return 0
 
@@ -159,12 +150,29 @@ def get_reliability_score(validation: dict) -> float:
     social_count = validation.get("socialMediaEvidence", {}).get("reportCount", 0)
     score += min(20, social_count * 4)
 
-    image_sim_score = validation.get("imageSimilarity", {}).get("score")
-    if image_sim_score is not None and image_sim_score > 0.9:
-        score -= 30  # likely duplicate/reused image — red flag
+    image_similarity = validation.get("imageSimilarity")
+
+    if isinstance(image_similarity, dict):
+        similarity = image_similarity.get("score")
+    else:
+        similarity = image_similarity
+
+    if similarity is not None:
+        try:
+            similarity = float(similarity)
+            if similarity > 0.9:
+                score -= 30
+        except (TypeError, ValueError):
+            pass
 
     return max(0, min(100, score))
 
+
+# =======================================================
+
+# Priority calculation
+
+# =======================================================
 
 def calculate_priority_score(
     severity,
@@ -173,7 +181,7 @@ def calculate_priority_score(
     confidence,
     report_time,
     area_report_count,
-    validation=None
+    validation=None,
 ):
     severity_score = get_severity_score(severity)
     people_score = get_affected_people_score(affected_people)
@@ -206,6 +214,11 @@ def get_priority_level(priority_score):
     else:
         return "LOW"
 
+# =======================================================
+
+# Validation
+
+# =======================================================
 
 def validate_report(report):
     required_fields = [
@@ -218,35 +231,33 @@ def validate_report(report):
         "location",
         "latitude",
         "longitude",
-        "description"
-    ]
-    missing_fields = [
-        field for field in required_fields
-        if field not in report
+        "description",
     ]
 
-    return missing_fields
+    return [field for field in required_fields if field not in report]
 
+
+# =======================================================
+
+# Single report ranking
+
+# =======================================================
 
 def rank_report(report, area_report_count=1):
-    missing_fields = validate_report(report)
+    missing = validate_report(report)
 
-    if missing_fields:
-        raise ValueError(
-            f"Missing required fields: {missing_fields}"
-        )
+    if missing:
+        raise ValueError(f"Missing required fields: {missing}")
 
-    priority_score = calculate_priority_score(
+    score = calculate_priority_score(
         severity=report["severity"],
         affected_people=report["affected_people"],
         hazard_type=report["hazard_type"],
         confidence=report["confidence"],
         report_time=report["time"],
         area_report_count=area_report_count,
-        validation=report.get("validation")
+        validation=report.get("validation"),
     )
-
-    priority_level = get_priority_level(priority_score)
 
     return {
         "report_id": report["report_id"],
@@ -259,49 +270,52 @@ def rank_report(report, area_report_count=1):
         "description": report["description"],
         "confidence": report["confidence"],
         "time": report["time"],
-        "priority_score": priority_score,
-        "priority": priority_level
+        "priority_score": score,
+        "priority": get_priority_level(score),
     }
 
 
-def load_reports(file_path):
-    with open(file_path, "r", encoding="utf-8") as file:
-        return json.load(file)
+# =======================================================
 
+# Bulk ranking
+
+# =======================================================
 
 def rank_reports(reports):
+    if not reports:
+        return []
+
     hotspots = detect_hotspots(
         reports,
         eps_km=1.0,
-        min_samples=3
+        min_samples=3,
     )
 
-    report_area_counts = {}
+    area_counts = {}
 
     for hotspot in hotspots:
         count = hotspot["report_count"]
 
         for report_id in hotspot["report_ids"]:
-            report_area_counts[report_id] = count
+            area_counts[report_id] = count
 
-    ranked_reports = []
+    ranked = []
 
     for report in reports:
-        area_report_count = report_area_counts.get(
-            report["report_id"],
-            1
-        )
+        area_count = area_counts.get(report["report_id"], 1)
+        ranked.append(rank_report(report, area_count))
 
-        ranked_report = rank_report(
-            report,
-            area_report_count
-        )
+    ranked.sort(key=lambda item: item["priority_score"], reverse=True)
 
-        ranked_reports.append(ranked_report)
+    return ranked
 
-    ranked_reports.sort(
-        key=lambda report: report["priority_score"],
-        reverse=True
-    )
 
-    return ranked_reports
+# =======================================================
+
+# Optional JSON loader
+
+# =======================================================
+
+def load_reports(file_path):
+    with open(file_path, "r", encoding="utf-8") as file:
+        return json.load(file)

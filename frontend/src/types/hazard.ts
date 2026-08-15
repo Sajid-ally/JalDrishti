@@ -107,6 +107,7 @@ export interface HazardReportDraft {
   longitude?: number;
   hazardType?: HazardType;
   file?: File | null;
+  cachedAnalysis?: Record<string, unknown> | null;
 }
 
 /** Result of the (mocked, prototype-stage) AI analysis run over an uploaded photo/video. */
@@ -116,7 +117,8 @@ export interface AIAnalysisResult {
   suggestedSeverity: Severity;
   suggestedType: HazardType;
   confidence: number;
-}
+  raw?: Record<string, unknown>;
+}             
 
 export const HAZARD_LABELS: Record<HazardType, string> = {
   flood: "Flood",

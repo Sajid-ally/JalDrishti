@@ -1,53 +1,59 @@
 import json
 from PIL import Image
 from google import genai
-from app.config import settings
-from app.gemini.prompt import ANALYSIS_PROMPT
 
-print("SERVICE.PY LOADED")
-print(
-    "Gemini key loaded:",
-    settings.GEMINI_API_KEY[:8] + "..." if settings.GEMINI_API_KEY else None,
-)
+from app.config import settings
+from app.gemini.prompt import TEXT_PROMPT, VERIFY_PROMPT
+
+# =====================================================
+# CoastalEye Gemini Client
+# =====================================================
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
+print(
+    "CoastalEye Gemini key loaded:",
+    settings.GEMINI_API_KEY[:8] if settings.GEMINI_API_KEY else "None",
+)
 
-async def analyzeImage(imagePath: str):
-    print("Opening image...")
+MODEL_NAME = "gemini-3.5-flash"
 
+# =====================================================
+# Gemini: verify hazard only (fallback when ML confidence is low)
+# =====================================================
+
+async def verifyHazard(imagePath: str):
     image = Image.open(imagePath)
 
-    print("Sending request to Gemini...")
+    response = await client.aio.models.generate_content(
+        model=MODEL_NAME,
+        contents=[VERIFY_PROMPT, image],
+    )
 
-    try:
-        response = await client.aio.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[ANALYSIS_PROMPT, image],
-        )
+    text = (
+        response.text.replace("```json", "")
+        .replace("```", "")
+        .strip()
+    )
 
-        print("Gemini responded.")
+    return json.loads(text)
 
-        responseText = response.text.strip()
+# =====================================================
+# Gemini: generate title + description only
+# =====================================================
 
-        print("Gemini raw response:")
-        print(responseText)
+async def generateReportText(imagePath: str):
+    image = Image.open(imagePath)
 
-        responseText = (
-            responseText.replace("```json", "")
-            .replace("```", "")
-            .strip()
-        )
+    response = await client.aio.models.generate_content(
+        model=MODEL_NAME,
+        contents=[TEXT_PROMPT, image],
+    )
 
-        return json.loads(responseText)
+    text = (
+        response.text.replace("```json", "")
+        .replace("```", "")
+        .strip()
+    )
 
-    except Exception as e:
-        print("========================================")
-        print("GEMINI ERROR:")
-        print(repr(e))
-        print("========================================")
-
-        return {
-            "title": None,
-            "description": None,
-        }
+    return json.loads(text)

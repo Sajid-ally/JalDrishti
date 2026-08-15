@@ -1,80 +1,127 @@
-import type { RescueRequestItem, RescueRequestStatus } from "../types/rescue";
+import { API_BASE } from "./api";
+import type { RescueRequestItem } from "../types/rescue";
 
-const MOCK_RESCUE_REQUESTS: RescueRequestItem[] = [
-  {
-    id: "REQ1024",
-    type: "Flood Evacuation",
-    location: "Puri Beach Road, Sector 4",
-    description: "Water level rising rapidly near residential complex. Family trapped on second floor.",
-    peopleCount: 4,
-    urgency: "Critical",
-    status: "Rescue Team Dispatched",
-    assignedTeam: "NDRF Unit 7",
-    submittedAt: "2026-08-09 12:45",
-    lastUpdate: "2026-08-09 13:10",
-    estimatedResponse: "15-20 minutes",
-  },
-  {
-    id: "REQ1018",
-    type: "Medical Emergency",
-    location: "East Point Shelter Zone",
-    description: "Elderly person requiring immediate oxygen and medical evacuation.",
-    peopleCount: 1,
-    urgency: "High",
-    status: "Government Assigned",
-    assignedTeam: "Coastal Rescue Response Alpha",
-    submittedAt: "2026-08-09 11:20",
-    lastUpdate: "2026-08-09 12:00",
-    estimatedResponse: "30 minutes",
-  },
-];
-
-let rescueRequestsStore: RescueRequestItem[] = [...MOCK_RESCUE_REQUESTS];
+// =========================================================
+// GET ALL RESCUE REQUESTS
+// =========================================================
 
 export async function getRescueRequests(): Promise<RescueRequestItem[]> {
-  return [...rescueRequestsStore];
+const res = await fetch(`${API_BASE}/relief/`);
+
+if (!res.ok) {
+throw new Error("Failed to fetch rescue requests");
 }
 
-export async function submitRescueRequest(
-  request: Omit<
-    RescueRequestItem,
-    "id" | "status" | "submittedAt" | "lastUpdate" | "assignedTeam" | "estimatedResponse"
-  >
-): Promise<RescueRequestItem> {
-  const newReq: RescueRequestItem = {
-    ...request,
-    id: `REQ${Math.floor(1000 + Math.random() * 9000)}`,
-    status: "Submitted",
-    submittedAt: new Date().toLocaleString([], {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    lastUpdate: "Just now",
-    estimatedResponse: "Under initial assessment by dispatch center",
-  };
-  rescueRequestsStore = [newReq, ...rescueRequestsStore];
-  return newReq;
+const data = await res.json();
+return data.requests ?? [];
 }
 
-export async function updateRequestStatus(
-  id: string,
-  status: RescueRequestStatus,
-  assignedTeam?: string,
-  estimatedResponse?: string
-): Promise<boolean> {
-  rescueRequestsStore = rescueRequestsStore.map((req) =>
-    req.id === id
-      ? {
-          ...req,
-          status,
-          assignedTeam: assignedTeam ?? req.assignedTeam,
-          estimatedResponse: estimatedResponse ?? req.estimatedResponse,
-          lastUpdate: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        }
-      : req
-  );
-  return true;
+// =========================================================
+// SUBMIT RESCUE REQUEST
+// =========================================================
+
+export async function submitRescueRequest(data: {
+disasterType: string;
+description: string;
+latitude: number;
+longitude: number;
+locationName?: string;
+peopleAffected: number;
+assistanceRequired: string[];
+urgency: string;
+}) {
+const formData = new FormData();
+
+formData.append("disasterType", data.disasterType);
+formData.append("description", data.description);
+formData.append("latitude", String(data.latitude));
+formData.append("longitude", String(data.longitude));
+
+if (data.locationName) {
+formData.append("locationName", data.locationName);
+}
+
+formData.append("peopleAffected", String(data.peopleAffected));
+
+data.assistanceRequired.forEach((item) => {
+formData.append("assistanceRequired", item);
+});
+
+formData.append("urgency", data.urgency);
+
+const res = await fetch(`${API_BASE}/relief/`, {
+method: "POST",
+body: formData,
+});
+
+if (!res.ok) {
+throw new Error("Failed to submit rescue request");
+}
+
+return res.json();
+}
+
+// =========================================================
+// UPDATE RELIEF STATUS (Government)
+// =========================================================
+
+export async function updateReliefStatus(
+requestId: string,
+status: "Pending" | "Assigned" | "Completed" | "Rejected",
+governmentNote?: string
+) {
+const formData = new FormData();
+
+formData.append("status", status);
+
+if (governmentNote) {
+formData.append("governmentNote", governmentNote);
+}
+
+const res = await fetch(`${API_BASE}/relief/${requestId}/status`, {
+method: "PATCH",
+body: formData,
+});
+
+if (!res.ok) {
+throw new Error("Failed to update relief status");
+}
+
+return res.json();
+}
+
+// =========================================================
+// ASSIGN RESCUE TEAM (Government)
+// =========================================================
+
+export async function assignRescueTeam(data: {
+requestId: string;
+organization: string;
+teamName: string;
+resources: string[];
+governmentNote?: string;
+}) {
+const formData = new FormData();
+
+formData.append("organization", data.organization);
+formData.append("teamName", data.teamName);
+
+data.resources.forEach((resource) => {
+formData.append("resources", resource);
+});
+
+if (data.governmentNote) {
+formData.append("governmentNote", data.governmentNote);
+}
+
+const res = await fetch(`${API_BASE}/relief/${data.requestId}/assign`, {
+method: "PATCH",
+body: formData,
+});
+
+if (!res.ok) {
+throw new Error("Failed to assign rescue team");
+}
+
+return res.json();
 }

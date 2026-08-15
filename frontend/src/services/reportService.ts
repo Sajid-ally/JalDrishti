@@ -5,7 +5,7 @@ import type {
   HazardReportDraft,
 } from "../types/hazard";
 
-const API_BASE = "http://192.168.1.2:8000";
+const API_BASE = "http://localhost:8000";
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -23,6 +23,17 @@ const HAZARD_KEYWORDS: Array<{
   { match: /erosion|receding shore/i, type: "coastal_erosion", severity: "moderate" },
   { match: /damage|debris|collapsed|broken/i, type: "coastal_damage", severity: "moderate" },
 ];
+const HAZARD_TYPE_MAP: Record<string, HazardType> = {
+  flood: "flood",
+  landslide: "coastal_damage",
+  tsunami: "tsunami",
+  storm_surge: "storm_surge",
+  high_waves: "high_waves",
+  coastal_erosion: "coastal_erosion",
+  coastal_damage: "coastal_damage",
+  other: "other",
+  no_flood: "other",
+};
 
 export async function analyzeMedia(
   file: File,
@@ -44,7 +55,7 @@ export async function analyzeMedia(
     const data = await res.json();
 return {
   title: data.title,
-  suggestedType: data.hazard_type ,
+  suggestedType: HAZARD_TYPE_MAP[data.hazard_type] || "other",
   suggestedSeverity:
     data.severity >= 5
       ? "critical"
@@ -58,6 +69,7 @@ return {
     captionHint ??
     "Uploaded media reviewed. Please verify before submitting.",
   confidence: data.confidence,
+   raw: data,
 };
   } catch (error) {
     console.error("Error analyzing media:", error);

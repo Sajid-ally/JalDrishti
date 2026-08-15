@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 
-from app.gemini.service import analyzeImage
+from app.gemini.service import verifyHazard, generateReportText
 from app.ml_client import getOwnModelPrediction
 from app.reports.validation import checkDuplicateImage, checkNearbyReports
 

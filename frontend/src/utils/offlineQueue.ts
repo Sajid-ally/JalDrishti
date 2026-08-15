@@ -14,7 +14,7 @@ const QUEUE_KEY = "hazard_report_offline_queue";
 export interface QueuedReport {
   localId: string;
   // File objects aren't JSON-serializable; keep a serializable draft shape.
-  draft: Record<string, any>;
+  draft: Record<string, unknown>;
   mediaDataUrl?: string; // base64 preview kept so media isn't lost offline
   queuedAt: string;
 }
@@ -72,16 +72,18 @@ export async function flushQueue(
   let synced = 0;
 
   for (const item of queue) {
-    try {
-      const ok = await submitFn(item);
-      if (ok) {
-        removeFromQueue(item.localId);
-        synced += 1;
-      }
-    } catch {
-      // Leave it queued — likely still offline.
+  try {
+    const ok = await submitFn(item);
+    if (ok) {
+      removeFromQueue(item.localId);
+      synced += 1;
+    } else {
+      removeFromQueue(item.localId);
     }
+  } catch {
+    // Leave it queued — likely still offline (network error).
   }
+}
 
   return { synced, remaining: queueLength() };
 }

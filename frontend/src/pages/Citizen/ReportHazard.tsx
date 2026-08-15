@@ -69,31 +69,24 @@ const ReportHazard: React.FC = () => {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<AIAnalysisResult | null>(null);
   const [aiApplied, setAiApplied] = useState(false);
-
+  const [cachedAiResult, setCachedAiResult] = useState<Record<string, unknown> | null>(null);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [submittedId, setSubmittedId] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(queueLength());
-
+  const [locationError, setLocationError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { coords, loading: locLoading, error: locError, request: requestLocation } =
-  useGeolocation();
+ const { coords, loading: locLoading, request: requestLocation } = useGeolocation(); 
+  
   
   // Track connectivity and flush any queued offline reports once we're back online.
   useEffect(() => {
     const handleOnline = async () => {
       setIsOnline(true);
-      const { remaining } = await flushQueue(async (item) => {
-        const draft = {
-          type: item.draft.type ?? "other",
-          description: item.draft.description ?? "",
-          location: item.draft.location ?? { lat: 0, lng: 0 },
-          severity: item.draft.severity ?? "moderate",
-          mediaFile: null,
-        };
-        const res = await submitReport(draft);
-        return res.success;
-      });
+  const { remaining } = await flushQueue(async (item) => {
+  const res = await submitReport(item.draft as unknown as HazardReportDraft);
+  return res.success;
+});
       setPendingCount(remaining);
     };
     const handleOffline = () => setIsOnline(false);
@@ -116,13 +109,16 @@ const ReportHazard: React.FC = () => {
     setAiResult(null);
     setAiApplied(false);
     setAiLoading(true);
+    
 
-    try {
+  try {
   const result = await analyzeMedia(file, description);
   setTitle(result.title || "");
-setDescription(result.suggestedDescription);
-setHazardType(result.suggestedType);
-setSeverity(result.suggestedSeverity);
+  setDescription((prev) => prev.trim() ? prev : result.suggestedDescription);
+  setHazardType(result.suggestedType);
+  setSeverity(result.suggestedSeverity);
+  setAiResult(result);
+  setCachedAiResult(result.raw ?? null);
 } finally {
   setAiLoading(false);
 }}
@@ -153,19 +149,24 @@ async function handleSubmit(e: React.FormEvent) {
 
   setSubmitState("submitting");
 
+  let draft: HazardReportDraft | null = null;
+
   try {
-    // Use GPS from your existing hook
     let location = coords;
 
     if (!location) {
       await requestLocation();
-      if (!coords) {
-        throw new Error("Location not available");
-      }
-      location = coords;
-    }
+      if (!location) {
+  try {
+    location = await requestLocation();
+    setLocationError("");
+  } catch {
+    setLocationError("Unable to get your current location.");
+    throw new Error("Location not available");
+  }
+}
 
-    const draft: HazardReportDraft = {
+    draft = {
       type: hazardType,
       hazardType: hazardType,
       title: title.trim() || HAZARD_LABELS[hazardType],
@@ -177,36 +178,40 @@ async function handleSubmit(e: React.FormEvent) {
       severity,
       mediaFile,
       file: mediaFile,
+       cachedAnalysis: cachedAiResult,
     };
 
     const result = await submitReport(draft);
 
-if (!result.success) {
-  setSubmitError(result.error || "Failed to submit report.");
-  return;
-}
+    if (!result.success) {
+      setSubmitError(result.error || "Failed to submit report.");
+      setSubmitState("idle");
+      return;
+    }
 
-setSubmitError(null);
-setSubmitState("success");
-
-    // Offline fallback
-    const mediaDataUrl = mediaFile ? await fileToDataUrl(mediaFile) : undefined;
-
-    enqueueReport({
-      localId: `local-${Date.now()}`,
-      draft: { ...draft, mediaFile: undefined, file: undefined },
-      mediaDataUrl,
-      queuedAt: new Date().toISOString(),
-    });
-
-    setPendingCount(queueLength());
-    setSubmitState("queued");
+    setSubmitError(null);
+    setSubmittedId(result.reportId ?? null);
+    setSubmitState("success");
   } catch (error) {
     console.error("Submit error:", error);
-    setSubmitState("error");
+
+    if (draft) {
+      const mediaDataUrl = mediaFile ? await fileToDataUrl(mediaFile) : undefined;
+
+      enqueueReport({
+        localId: `local-${Date.now()}`,
+        draft: { ...draft, mediaFile: undefined, file: undefined },
+        mediaDataUrl,
+        queuedAt: new Date().toISOString(),
+      });
+
+      setPendingCount(queueLength());
+      setSubmitState("queued");
+    } else {
+      setSubmitState("error");
+    }
   }
 }
-
   function resetForm() {
     setHazardType(null);
     setDescription("");
@@ -471,7 +476,11 @@ setSubmitState("success");
               {locLoading ? "Getting your location…" : "Use my current location"}
             </button>
           )}
-          {locError && <p className="mt-1.5 text-xs text-red-500">{locError}</p>}
+          {locationError && (
+  <p className="mt-1.5 text-xs text-red-500">
+    {locationError}
+  </p>
+)}
 
           <input
             type="text"

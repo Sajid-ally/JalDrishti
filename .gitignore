@@ -1,13 +1,20 @@
 # Environment
-Backend/.env
+backend/.env
 
-# Virtual Environment
-Backend/venv/
+# Virtual environments
+backend/venv/
+backend/.venv/
+ml-service/venv/
+ml-service/.venv/
+
+# Ignore demo backend completely
+backend_m/
 
 # Uploads
-Backend/uploads/
+backend/uploads/
+ml-service/uploads/
 
-# Python Cache
+# Python cache
 **/__pycache__/
 *.pyc
 

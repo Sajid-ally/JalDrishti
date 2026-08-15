@@ -1,4 +1,4 @@
-const API_BASE = "http://192.168.1.2:8000"; // your backend IP
+const API_BASE = "http://localhost:8000";
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const res = await fetch(`${API_BASE}${path}`, options);
