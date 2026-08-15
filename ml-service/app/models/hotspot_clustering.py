@@ -97,12 +97,43 @@ def build_hotspots(reports, labels):
 
 
 def detect_hotspots(reports, eps_km=1.0, min_samples=3):
-    labels = cluster_reports(
-        reports,
-        eps_km=eps_km,
-        min_samples=min_samples
-    )
 
-    return build_hotspots(reports, labels)
+    hazard_types = [
+        "flooding",
+        "drainage_problem",
+        "pond_lake_problem"
+    ]
+
+    all_hotspots = []
+
+    for hazard_type in hazard_types:
+
+        hazard_reports = [
+            report
+            for report in reports
+            if report["hazard_type"] == hazard_type
+        ]
+
+        if not hazard_reports:
+            continue
+
+        labels = cluster_reports(
+            hazard_reports,
+            eps_km=eps_km,
+            min_samples=min_samples
+        )
+
+        hotspots = build_hotspots(
+            hazard_reports,
+            labels
+        )
+
+        for hotspot in hotspots:
+            hotspot["hazard_type"] = hazard_type
+
+        all_hotspots.extend(hotspots)
+
+    return all_hotspots
+
 
 
