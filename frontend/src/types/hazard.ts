@@ -1,7 +1,6 @@
 // src/types/hazard.ts
 // Shared domain types for the coastal hazard platform.
-// Keep this as the single source of truth for hazard-related shapes so
-// map, alert, and dashboard components never drift out of sync.
+// Keep this as the single source of truth for hazard-related shapes.
 
 export type HazardType =
   | "flood"
@@ -9,7 +8,7 @@ export type HazardType =
   | "storm_surge"
   | "high_waves"
   | "coastal_erosion"
-  | "coastal_damage"
+  | "coastal_damage" 
   | "other";
 
 export type Severity = "low" | "moderate" | "high" | "critical";
@@ -21,23 +20,30 @@ export interface GeoPoint {
   lng: number;
 }
 
-/** A citizen-submitted or AI-detected hazard report, used as a map marker / heatmap point. */
+/** A citizen-submitted or AI-detected hazard report. */
 export interface HazardReport {
   id: string;
   type: HazardType;
   severity: Severity;
   status: ReportStatus;
+
   location: GeoPoint;
+
+  // Geographic information used by the Live Map filters
+  city?: string;
+  state?: string;
+  area?: string;
   placeName?: string;
+
   description: string;
   mediaUrl?: string;
-  reportedAt: string; // ISO timestamp
+  reportedAt: string;
   reportedBy?: string;
-  aiConfidence?: number; // 0-1, AI severity/authenticity confidence score
+  aiConfidence?: number;
   verifiedBy?: string;
 }
 
-/** An official advisory/alert issued by a government official, shown via AlertCard. */
+/** Official advisory/alert issued by a government official. */
 export interface Alert {
   id: string;
   type: HazardType;
@@ -46,16 +52,22 @@ export interface Alert {
   description: string;
   areaName: string;
   issuedBy: string;
-  issuedAt: string; // ISO timestamp
-  expiresAt?: string; // ISO timestamp
+  issuedAt: string;
+  expiresAt?: string;
   isActive: boolean;
 }
 
-/** Visual tokens keyed by severity, shared across AlertCard, LiveMap and Heatmap
- * so the color language means the same thing everywhere in the app. */
+/** Visual tokens keyed by severity. */
 export const SEVERITY_STYLES: Record<
   Severity,
-  { label: string; text: string; bg: string; border: string; dot: string; hex: string }
+  {
+    label: string;
+    text: string;
+    bg: string;
+    border: string;
+    dot: string;
+    hex: string;
+  }
 > = {
   low: {
     label: "Low",
@@ -65,6 +77,7 @@ export const SEVERITY_STYLES: Record<
     dot: "bg-emerald-500",
     hex: "#10b981",
   },
+
   moderate: {
     label: "Moderate",
     text: "text-amber-700",
@@ -73,6 +86,7 @@ export const SEVERITY_STYLES: Record<
     dot: "bg-amber-500",
     hex: "#f59e0b",
   },
+
   high: {
     label: "High",
     text: "text-orange-700",
@@ -81,6 +95,7 @@ export const SEVERITY_STYLES: Record<
     dot: "bg-orange-500",
     hex: "#ea580c",
   },
+
   critical: {
     label: "Critical",
     text: "text-red-700",
@@ -91,34 +106,23 @@ export const SEVERITY_STYLES: Record<
   },
 };
 
-/** Shape of a report as it's being composed on the citizen ReportHazard form,
- * before it has a server-assigned id / status. */
+/** Shape of a report while being composed. */
 export interface HazardReportDraft {
- type: HazardType | null;
+  type: HazardType | null;
   description: string;
   location: GeoPoint | null;
   placeName?: string;
   severity: Severity | null;
   mediaFile?: File | null;
-
-  // Backend fields
-  title?: string;
-  latitude?: number;
-  longitude?: number;
-  hazardType?: HazardType;
-  file?: File | null;
-  cachedAnalysis?: Record<string, unknown> | null;
 }
 
-/** Result of the (mocked, prototype-stage) AI analysis run over an uploaded photo/video. */
+/** Result of the mocked AI analysis. */
 export interface AIAnalysisResult {
-  title?: string;
   suggestedDescription: string;
   suggestedSeverity: Severity;
   suggestedType: HazardType;
   confidence: number;
-  raw?: Record<string, unknown>;
-}             
+}
 
 export const HAZARD_LABELS: Record<HazardType, string> = {
   flood: "Flood",

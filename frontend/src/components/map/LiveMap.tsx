@@ -6,9 +6,11 @@
 //
 // Map center: Puri, Odisha, India (19.8135°N, 85.8312°E)
 
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
+import { useEffect, type ReactNode } from "react";
 import "leaflet/dist/leaflet.css";
-import type { HazardType, Severity } from "../../types/hazard";
+import type { Severity } from "../../types/hazard";
+import type { MapIssueType } from "../../services/hazardService";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -16,10 +18,13 @@ export interface HazardLocation {
   id: string;
   latitude: number;
   longitude: number;
-  hazardType: HazardType;
+  hazardType: MapIssueType;
   severity: Severity;
   status: string;
   placeName?: string;
+  state: string;
+  district: string;
+  locality: string;
 }
 
 interface LiveMapProps {
@@ -27,6 +32,9 @@ interface LiveMapProps {
    *  TODO: Parent should fetch this from GET /api/map/hazards */
   hazards: HazardLocation[];
   height?: string;
+  selectedArea?: { latitude: number; longitude: number; zoom: number } | null;
+  /** Optional page-specific popup content; default hazard popup remains unchanged. */
+  renderPopup?: (hazard: HazardLocation) => ReactNode | undefined;
 }
 
 // ─── Severity → marker color ─────────────────────────────────────────────────
@@ -38,7 +46,7 @@ const SEVERITY_COLOR: Record<Severity, string> = {
   critical: "#dc2626",
 };
 
-const HAZARD_LABELS: Record<HazardType, string> = {
+const HAZARD_LABELS: Record<MapIssueType, string> = {
   flood: "Flood",
   tsunami: "Tsunami",
   storm_surge: "Storm Surge",
@@ -46,23 +54,40 @@ const HAZARD_LABELS: Record<HazardType, string> = {
   coastal_erosion: "Coastal Erosion",
   coastal_damage: "Coastal Damage",
   other: "Other Hazard",
+  waterlogging: "Waterlogging",
+  sewage: "Sewage",
+  water_quality: "Water Quality",
+  pond: "Pond",
+  lake: "Lake",
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-const PURI_CENTER: [number, number] = [19.8135, 85.8312];
-const DEFAULT_ZOOM = 13;
+const INDIA_CENTER: [number, number] = [22.5937, 78.9629];
+const DEFAULT_ZOOM = 5;
 
-export default function LiveMap({ hazards, height = "480px" }: LiveMapProps) {
+function MapViewport({ selectedArea }: Pick<LiveMapProps, "selectedArea">) {
+  const map = useMap();
+  useEffect(() => {
+    if (selectedArea) {
+      map.flyTo([selectedArea.latitude, selectedArea.longitude], selectedArea.zoom, { duration: 0.8 });
+    }
+  }, [map, selectedArea]);
+  return null;
+}
+
+export default function LiveMap({ hazards, height = "480px", selectedArea, renderPopup }: LiveMapProps) {
   return (
-    <div style={{ height, borderRadius: "1.5rem", overflow: "hidden" }}>
+    <div style={{ height, borderRadius: "1.5rem", overflow: "hidden", position: "relative", zIndex: 0, isolation: "isolate" }}>
       <MapContainer
-        center={PURI_CENTER}
+        center={INDIA_CENTER}
         zoom={DEFAULT_ZOOM}
+        minZoom={4}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom
         attributionControl
-      >
+        >
+        <MapViewport selectedArea={selectedArea} />
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -70,6 +95,7 @@ export default function LiveMap({ hazards, height = "480px" }: LiveMapProps) {
 
         {hazards.map((hazard) => {
           const color = SEVERITY_COLOR[hazard.severity];
+          const popupContent = renderPopup?.(hazard);
           return (
             <CircleMarker
               key={hazard.id}
@@ -83,7 +109,7 @@ export default function LiveMap({ hazards, height = "480px" }: LiveMapProps) {
               }}
             >
               <Popup>
-                <div style={{ minWidth: "160px", fontFamily: "inherit" }}>
+                {popupContent ?? <div style={{ minWidth: "160px", fontFamily: "inherit" }}>
                   <p style={{ fontWeight: 700, fontSize: "0.85rem", marginBottom: "0.25rem" }}>
                     {HAZARD_LABELS[hazard.hazardType]}
                   </p>
@@ -101,7 +127,10 @@ export default function LiveMap({ hazards, height = "480px" }: LiveMapProps) {
                   <p style={{ fontSize: "0.78rem", color: "#64748b" }}>
                     Status: {hazard.status}
                   </p>
-                </div>
+                  <p style={{ fontSize: "0.78rem", color: "#64748b", marginTop: "0.2rem" }}>
+                    {hazard.locality}, {hazard.district}, {hazard.state}
+                  </p>
+                </div>}
               </Popup>
             </CircleMarker>
           );

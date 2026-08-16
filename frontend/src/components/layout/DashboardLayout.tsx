@@ -12,7 +12,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="dashboard-layout min-h-screen bg-[var(--color-soft-mint)]">
+    <div className="dashboard-layout min-h-screen bg-(--color-soft-mint)">
       <Navbar />
 
       <div className="dashboard-body mx-auto flex max-w-7xl">

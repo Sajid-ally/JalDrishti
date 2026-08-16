@@ -13,7 +13,7 @@ Backend_m/
 # Uploads
 backend/uploads/
 ml-service/uploads/
-
+Coastal_social/
 # Python cache
 **/__pycache__/
 *.pyc

@@ -1,6 +1,5 @@
 export type AlertType =
   | "New hazard report"
-  | "New missing-person report"
   | "Rescue request"
   | "High-priority incident"
   | "Verification required"

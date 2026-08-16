@@ -8,6 +8,7 @@ import {
   Wind,
   Waves,
   Megaphone,
+  Search,
 } from "lucide-react";
 import Card, { DashboardCards } from "../../components/common/Card";
 import Badge from "../../components/common/Badge";
@@ -81,44 +82,61 @@ export default function Dashboard() {
   const { user } = useAuth();
 
   return (
-    <main>
+    <main className="space-y-8">
       {/* Header */}
-      <div className="mb-8">
+      <div>
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
           Citizen Dashboard
         </p>
-        <h1 className="mt-2 text-3xl font-black text-(--color-deep-ocean)">
+        <h1 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-black text-(--color-deep-ocean)">
           Welcome{user?.name ? `, ${user.name}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-(--color-medium-teal)">
+        <p className="mt-1 text-xs sm:text-sm text-(--color-medium-teal)">
           Your coastal overview — alerts, reports, and live hazard status.
         </p>
       </div>
 
       {/* Stats */}
-      <section className="mb-8">
+      <section>
         <DashboardCards />
       </section>
 
       {/* Quick Actions */}
-      <section className="mb-8">
-        <h2 className="mb-4 text-base font-bold text-(--color-dark-teal) uppercase tracking-[0.15em]">
+      <section>
+        <h2 className="mb-4 text-sm sm:text-base font-bold text-(--color-dark-teal) uppercase tracking-[0.15em]">
           Quick Actions
         </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* Report Hazard */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Submit Report */}
           <button
             type="button"
             onClick={() => navigate("/citizen/report")}
-            className="flex items-center gap-4 rounded-3xl border-2 border-(--color-ocean) bg-(--color-soft-mint) px-6 py-5 text-left transition hover:bg-[(--color-mint)] hover:shadow-md"
+            className="flex items-center gap-4 rounded-3xl border-2 border-(--color-ocean) bg-(--color-soft-mint) p-5 text-left transition hover:bg-[(--color-mint)] hover:shadow-md active:scale-98"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-ocean) text-white shrink-0">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-ocean) text-white shrink-0 shadow-sm">
               <ShieldAlert className="h-6 w-6" />
             </div>
             <div>
-              <p className="font-bold text-(--color-deep-ocean)">Report Hazard</p>
-              <p className="text-sm text-(--color-medium-teal)">
-                Submit a coastal hazard report
+              <p className="font-bold text-sm sm:text-base text-(--color-deep-ocean)">Submit Report</p>
+              <p className="text-xs text-(--color-medium-teal)">
+                Report water problem with photo/GPS
+              </p>
+            </div>
+          </button>
+
+          {/* Track Report */}
+          <button
+            type="button"
+            onClick={() => navigate("/citizen/track-report")}
+            className="flex items-center gap-4 rounded-3xl border border-[rgba(53,98,103,0.2)] bg-white p-5 text-left transition hover:border-(--color-ocean) hover:bg-[(--color-soft-mint)] hover:shadow-md active:scale-98"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-pale-aqua) text-(--color-ocean) shrink-0">
+              <Search className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-bold text-sm sm:text-base text-(--color-deep-ocean)">Track Your Reports</p>
+              <p className="text-xs text-(--color-medium-teal)">
+                Search live status via Report ID
               </p>
             </div>
           </button>
@@ -127,15 +145,15 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={() => navigate("/citizen/live-map")}
-            className="flex items-center gap-4 rounded-3xl border border-[rgba(53,98,103,0.2)] bg-white px-6 py-5 text-left transition hover:bg-[(--color-soft-mint)] hover:shadow-md"
+            className="flex items-center gap-4 rounded-3xl border border-[rgba(53,98,103,0.2)] bg-white p-5 text-left transition hover:border-(--color-ocean) hover:bg-[(--color-soft-mint)] hover:shadow-md active:scale-98 sm:col-span-2 lg:col-span-1"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-pale-aqua) text-[(--color-ocean)] shrink-0">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-pale-aqua) text-(--color-ocean) shrink-0">
               <Map className="h-6 w-6" />
             </div>
             <div>
-              <p className="font-bold text-(--color-deep-ocean)">Live Map</p>
-              <p className="text-sm text-(--color-medium-teal)">
-                View Puri coastal hazard map
+              <p className="font-bold text-sm sm:text-base text-(--color-deep-ocean)">Live Map</p>
+              <p className="text-xs text-(--color-medium-teal)">
+                View live nationwide hazard map
               </p>
             </div>
           </button>
@@ -146,7 +164,7 @@ export default function Dashboard() {
       <section>
         <div className="mb-4 flex items-center gap-2">
           <Newspaper className="h-5 w-5 text-(--color-ocean)" />
-          <h2 className="text-base font-bold text-(--color-dark-teal) uppercase tracking-[0.15em]">
+          <h2 className="text-sm sm:text-base font-bold text-(--color-dark-teal) uppercase tracking-[0.15em]">
             Advisories &amp; Announcements
           </h2>
         </div>
