@@ -17,10 +17,12 @@ Coastal_social/
 # Python cache
 **/__pycache__/
 *.pyc
-
+.env
 # VS Code
 .vscode/
-
+.env
+**/.env
 # OS
 .DS_Store
 Thumbs.db
+**/.env

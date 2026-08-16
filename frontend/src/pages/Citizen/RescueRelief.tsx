@@ -1,5 +1,12 @@
-import { useState, useEffect, useCallback, type ChangeEvent } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  type ChangeEvent,
+} from "react";
+
 import { useSearchParams } from "react-router-dom";
+
 import {
   Send,
   MapPin,
@@ -14,16 +21,27 @@ import {
   ShieldCheck,
   ClipboardList,
 } from "lucide-react";
+
 import toast from "react-hot-toast";
+
 import Badge from "../../components/common/Badge";
+
 import {
   getRescueRequests,
   submitRescueRequest,
 } from "../../services/rescueService";
+
 import type {
   RescueRequestItem,
   RescueRequestStatus,
+  RescueUrgency,
+  SubmitRescueRequestData,
 } from "../../types/rescue";
+
+
+/* ============================================================
+   STATUS FLOW
+   ============================================================ */
 
 const STATUS_STEPS: RescueRequestStatus[] = [
   "Submitted",
@@ -34,512 +52,1700 @@ const STATUS_STEPS: RescueRequestStatus[] = [
   "Resolved",
 ];
 
+
+/* ============================================================
+   COMPONENT
+   ============================================================ */
+
 export default function RescueRelief() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") === "status" ? "status" : "request";
+  const [
+    searchParams,
+    setSearchParams,
+  ] = useSearchParams();
 
-  // ─── Form State ─────────────────────────────────────────────────────────────
-  const [requestType, setRequestType] = useState("Flood Evacuation");
-  const [location, setLocation] = useState("");
-  const [description, setDescription] = useState("");
-  const [peopleCount, setPeopleCount] = useState<number>(1);
-  const [urgency, setUrgency] = useState<"Low" | "Medium" | "High" | "Critical">("High");
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const activeTab =
+    searchParams.get("tab") === "status"
+      ? "status"
+      : "request";
 
-  // ─── Tracking State ─────────────────────────────────────────────────────────
-  const [requests, setRequests] = useState<RescueRequestItem[]>([]);
-  const [selectedReq, setSelectedReq] = useState<RescueRequestItem | null>(null);
-  const [loadingTracking, setLoadingTracking] = useState(true);
 
-  const fetchRequests = useCallback(async () => {
-    setLoadingTracking(true);
-    try {
-      const data = await getRescueRequests();
-      setRequests(data);
-      if (data.length > 0) {
-        setSelectedReq((prev) => prev ?? data[0]);
+  /* ==========================================================
+     FORM STATE
+     ========================================================== */
+
+  const [
+    requestType,
+    setRequestType,
+  ] = useState("Flood Evacuation");
+
+  const [
+    locationName,
+    setLocationName,
+  ] = useState("");
+
+  const [
+    latitude,
+    setLatitude,
+  ] = useState("");
+
+  const [
+    longitude,
+    setLongitude,
+  ] = useState("");
+
+  const [
+    description,
+    setDescription,
+  ] = useState("");
+
+  const [
+    peopleCount,
+    setPeopleCount,
+  ] = useState<number>(1);
+
+  const [
+    urgency,
+    setUrgency,
+  ] = useState<RescueUrgency>("High");
+
+  const [
+    assistanceRequired,
+    setAssistanceRequired,
+  ] = useState<string[]>([
+    "Evacuation",
+  ]);
+
+  const [
+    photoFile,
+    setPhotoFile,
+  ] = useState<File | undefined>();
+
+  const [
+    photoPreview,
+    setPhotoPreview,
+  ] = useState<string | null>(null);
+
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
+
+
+  /* ==========================================================
+     TRACKING STATE
+     ========================================================== */
+
+  const [
+    requests,
+    setRequests,
+  ] = useState<RescueRequestItem[]>([]);
+
+  const [
+    selectedReq,
+    setSelectedReq,
+  ] = useState<RescueRequestItem | null>(null);
+
+  const [
+    loadingTracking,
+    setLoadingTracking,
+  ] = useState(true);
+
+
+  /* ==========================================================
+     FETCH REQUESTS
+     ========================================================== */
+
+  const fetchRequests =
+    useCallback(async () => {
+      setLoadingTracking(true);
+
+      try {
+        const data =
+          await getRescueRequests();
+
+        setRequests(data);
+
+        setSelectedReq(
+          (previous) => {
+            if (previous) {
+              return (
+                data.find(
+                  (item) =>
+                    item.id ===
+                    previous.id
+                ) ?? previous
+              );
+            }
+
+            return data.length > 0
+              ? data[0]
+              : null;
+          }
+        );
+      } catch (error) {
+        console.error(
+          "Failed to fetch rescue requests:",
+          error
+        );
+
+        toast.error(
+          "Unable to load rescue requests."
+        );
+      } finally {
+        setLoadingTracking(false);
       }
-    } finally {
-      setLoadingTracking(false);
-    }
-  }, []);
+    }, []);
+
+
+  /* ==========================================================
+     INITIAL LOAD
+     ========================================================== */
 
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
 
-  const switchTab = (tab: "request" | "status") => {
+
+  /* ==========================================================
+     TAB
+     ========================================================== */
+
+  const switchTab = (
+    tab: "request" | "status"
+  ) => {
     setSearchParams({ tab });
   };
 
-  const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("File size must be under 5MB");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
-  const handleRemovePhoto = () => {
-    setPhotoPreview(null);
-  };
+  /* ==========================================================
+     PHOTO UPLOAD
+     ========================================================== */
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!location || !description) {
-      toast.error("Please enter location and description details.");
+  const handlePhotoUpload = (
+    event: ChangeEvent<HTMLInputElement>
+  ) => {
+    const file =
+      event.target.files?.[0];
+
+    if (!file) {
       return;
     }
 
-    setSubmitting(true);
-    try {
-      const created = await submitRescueRequest({
-        type: requestType,
-        location,
-        description,
-        peopleCount: Number(peopleCount) || 1,
-        urgency,
-        photoUrl: photoPreview || undefined,
-      });
 
-      toast.success(`Rescue Request #${created.id} submitted!`);
-      // Reset form
-      setLocation("");
+    if (
+      !file.type.startsWith(
+        "image/"
+      )
+    ) {
+      toast.error(
+        "Please select an image file."
+      );
+
+      return;
+    }
+
+
+    if (
+      file.size >
+      5 * 1024 * 1024
+    ) {
+      toast.error(
+        "File size must be under 5MB."
+      );
+
+      return;
+    }
+
+
+    setPhotoFile(file);
+
+
+    const reader =
+      new FileReader();
+
+    reader.onloadend = () => {
+      setPhotoPreview(
+        reader.result as string
+      );
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+
+  /* ==========================================================
+     REMOVE PHOTO
+     ========================================================== */
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(undefined);
+    setPhotoPreview(null);
+  };
+
+
+  /* ==========================================================
+     ASSISTANCE TOGGLE
+     ========================================================== */
+
+  const toggleAssistance = (
+    option: string
+  ) => {
+    setAssistanceRequired(
+      (current) => {
+        if (
+          current.includes(option)
+        ) {
+          return current.filter(
+            (item) =>
+              item !== option
+          );
+        }
+
+        return [
+          ...current,
+          option,
+        ];
+      }
+    );
+  };
+
+
+  /* ==========================================================
+     GET CURRENT LOCATION
+     ========================================================== */
+
+  const handleUseCurrentLocation = () => {
+    if (
+      !navigator.geolocation
+    ) {
+      toast.error(
+        "Geolocation is not supported by this browser."
+      );
+
+      return;
+    }
+
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(
+          String(
+            position.coords.latitude
+          )
+        );
+
+        setLongitude(
+          String(
+            position.coords.longitude
+          )
+        );
+
+        toast.success(
+          "Current location detected."
+        );
+      },
+      () => {
+        toast.error(
+          "Unable to get your current location."
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000,
+      }
+    );
+  };
+
+
+  /* ==========================================================
+     VALIDATE LOCATION
+     ========================================================== */
+
+  const getCoordinates = () => {
+    const lat =
+      Number(latitude);
+
+    const lng =
+      Number(longitude);
+
+
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng)
+    ) {
+      return null;
+    }
+
+
+    if (
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) {
+      return null;
+    }
+
+
+    return {
+      latitude: lat,
+      longitude: lng,
+    };
+  };
+
+
+  /* ==========================================================
+     SUBMIT
+     ========================================================== */
+
+  const handleSubmit = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+
+    if (
+      !locationName.trim()
+    ) {
+      toast.error(
+        "Please enter the emergency location."
+      );
+
+      return;
+    }
+
+
+    if (
+      !description.trim()
+    ) {
+      toast.error(
+        "Please describe the emergency."
+      );
+
+      return;
+    }
+
+
+    if (
+      peopleCount < 1 ||
+      peopleCount > 100
+    ) {
+      toast.error(
+        "People affected must be between 1 and 100."
+      );
+
+      return;
+    }
+
+
+    if (
+      assistanceRequired.length ===
+      0
+    ) {
+      toast.error(
+        "Please select at least one assistance type."
+      );
+
+      return;
+    }
+
+
+    const coordinates =
+      getCoordinates();
+
+
+    if (!coordinates) {
+      toast.error(
+        "Please provide valid latitude and longitude, or use current location."
+      );
+
+      return;
+    }
+
+
+    const payload: SubmitRescueRequestData = {
+      disasterType:
+        requestType,
+
+      description:
+        description.trim(),
+
+      latitude:
+        coordinates.latitude,
+
+      longitude:
+        coordinates.longitude,
+
+      locationName:
+        locationName.trim(),
+
+      peopleAffected:
+        peopleCount,
+
+      assistanceRequired:
+        assistanceRequired,
+
+      urgency,
+
+      photo:
+        photoFile,
+    };
+
+
+    setSubmitting(true);
+
+
+    try {
+      const created =
+        await submitRescueRequest(
+          payload
+        );
+
+
+      toast.success(
+        `Rescue Request #${created.id} submitted successfully.`
+      );
+
+
+      /* Reset form */
+
+      setLocationName("");
+
+      setLatitude("");
+
+      setLongitude("");
+
       setDescription("");
-      setPhotoPreview(null);
+
       setPeopleCount(1);
+
       setUrgency("High");
 
-      // Refresh list & switch to status tab
+      setAssistanceRequired([
+        "Evacuation",
+      ]);
+
+      setPhotoFile(undefined);
+
+      setPhotoPreview(null);
+
+
+      /* Refresh requests */
+
       await fetchRequests();
-      setSelectedReq(created);
-      switchTab("status");
-    } catch {
-      toast.error("Failed to submit rescue request.");
+
+
+      setSelectedReq(
+        created
+      );
+
+
+      switchTab(
+        "status"
+      );
+
+    } catch (error) {
+      console.error(
+        "Rescue request submission failed:",
+        error
+      );
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to submit rescue request."
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  const getStepIndex = (status: RescueRequestStatus) => {
-    return STATUS_STEPS.indexOf(status);
+
+  /* ==========================================================
+     STATUS INDEX
+     ========================================================== */
+
+  const getStepIndex = (
+    status: RescueRequestStatus
+  ) => {
+    if (
+      status ===
+      "Rejected"
+    ) {
+      return -1;
+    }
+
+    return STATUS_STEPS.indexOf(
+      status
+    );
   };
+
+
+  /* ==========================================================
+     LOCATION LABEL
+     ========================================================== */
+
+  const getLocationLabel = (
+    request: RescueRequestItem
+  ) => {
+    if (
+      request.locationName
+    ) {
+      return request.locationName;
+    }
+
+    return `${request.location.latitude.toFixed(
+      4
+    )}, ${request.location.longitude.toFixed(
+      4
+    )}`;
+  };
+
+
+  /* ==========================================================
+     ASSIGNED TEAM LABEL
+     ========================================================== */
+
+  const getAssignedTeamLabel = (
+    request: RescueRequestItem
+  ) => {
+    if (
+      !request.assignedTeam
+    ) {
+      return "Awaiting Assignment";
+    }
+
+    return request
+      .assignedTeam
+      .teamName;
+  };
+
+
+  /* ==========================================================
+     STATUS BADGE
+     ========================================================== */
+
+  const getStatusVariant = (
+    status: RescueRequestStatus
+  ) => {
+    switch (status) {
+      case "Resolved":
+        return "success" as const;
+
+      case "Rejected":
+        return "danger" as const;
+
+      case "Government Assigned":
+      case "Rescue Team Dispatched":
+      case "Help Arriving":
+        return "info" as const;
+
+      case "Under Review":
+        return "warning" as const;
+
+      case "Submitted":
+      default:
+        return "warning" as const;
+    }
+  };
+
+
+  /* ==========================================================
+     RENDER
+     ========================================================== */
 
   return (
     <main className="min-h-screen text-(--color-dark-teal) space-y-6">
+
       <div className="rounded-3xl sm:rounded-4xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-8 shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
-        {/* Header */}
+
+        {/* ==================================================
+            HEADER
+            ================================================== */}
+
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-[rgba(53,98,103,0.12)]">
+
           <div>
+
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
               Emergency Services
             </p>
+
             <h1 className="mt-1 text-2xl sm:text-3xl font-black text-(--color-deep-ocean)">
               Rescue &amp; Relief
             </h1>
+
             <p className="mt-1 text-xs sm:text-sm text-(--color-medium-teal)">
-              Request emergency rescue assistance and track real-time operational status of ongoing relief efforts.
+              Request emergency rescue assistance and track real-time operational status.
             </p>
+
           </div>
 
-          {/* Tab Selector Buttons */}
+
+          {/* TAB BUTTONS */}
+
           <div className="flex items-center gap-1.5 rounded-2xl bg-(--color-soft-mint) p-1.5 border border-[rgba(53,98,103,0.15)] self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => switchTab("request")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-                activeTab === "request"
-                  ? "bg-(--color-ocean) text-white shadow-sm"
-                  : "text-(--color-dark-teal) hover:bg-(--color-pale-aqua)/50"
-              }`}
-            >
-              <Send className="h-4 w-4" />
-              Request Rescue
-            </button>
 
             <button
               type="button"
-              onClick={() => switchTab("status")}
+              onClick={() =>
+                switchTab(
+                  "request"
+                )
+              }
               className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-                activeTab === "status"
+                activeTab ===
+                "request"
                   ? "bg-(--color-ocean) text-white shadow-sm"
                   : "text-(--color-dark-teal) hover:bg-(--color-pale-aqua)/50"
               }`}
             >
-              <ClipboardList className="h-4 w-4" />
-              Track Status {requests.length > 0 && `(${requests.length})`}
+
+              <Send className="h-4 w-4" />
+
+              Request Rescue
+
             </button>
+
+
+            <button
+              type="button"
+              onClick={() =>
+                switchTab(
+                  "status"
+                )
+              }
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
+                activeTab ===
+                "status"
+                  ? "bg-(--color-ocean) text-white shadow-sm"
+                  : "text-(--color-dark-teal) hover:bg-(--color-pale-aqua)/50"
+              }`}
+            >
+
+              <ClipboardList className="h-4 w-4" />
+
+              Track Status
+
+              {requests.length >
+                0 &&
+                ` (${requests.length})`}
+
+            </button>
+
           </div>
+
         </div>
 
-        {/* ================= TAB 1: REQUEST RESCUE FORM ================= */}
-        {activeTab === "request" && (
+
+        {/* ==================================================
+            REQUEST TAB
+            ================================================== */}
+
+        {activeTab ===
+          "request" && (
+
           <div className="pt-6">
-            <form onSubmit={handleSubmit} className="space-y-6 max-w-3xl">
+
+            <form
+              onSubmit={
+                handleSubmit
+              }
+              className="space-y-6 max-w-3xl"
+            >
+
               <div className="rounded-3xl border border-[rgba(53,98,103,0.16)] bg-(--color-soft-mint)/20 p-5 sm:p-6 space-y-5">
-                {/* Request Type */}
+
+
+                {/* REQUEST TYPE */}
+
                 <div>
+
                   <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
                     Request Type *
                   </label>
+
                   <select
-                    value={requestType}
-                    onChange={(e) => setRequestType(e.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean) font-medium"
+                    value={
+                      requestType
+                    }
+                    onChange={(event) =>
+                      setRequestType(
+                        event.target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm font-medium outline-none focus:border-(--color-ocean)"
                   >
-                    <option value="Flood Evacuation">Flood Evacuation</option>
-                    <option value="Medical Emergency">Medical Emergency</option>
-                    <option value="Food & Water Relief">Food &amp; Water Relief</option>
-                    <option value="Structural Collapse">Structural Collapse</option>
-                    <option value="Other Assistance">Other Emergency Assistance</option>
+
+                    <option value="Flood Evacuation">
+                      Flood Evacuation
+                    </option>
+
+                    <option value="Medical Emergency">
+                      Medical Emergency
+                    </option>
+
+                    <option value="Food & Water Relief">
+                      Food &amp; Water Relief
+                    </option>
+
+                    <option value="Structural Collapse">
+                      Structural Collapse
+                    </option>
+
+                    <option value="Other Assistance">
+                      Other Emergency Assistance
+                    </option>
+
                   </select>
+
                 </div>
 
-                {/* Location */}
+
+                {/* LOCATION */}
+
                 <div>
+
                   <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
                     Exact Location / Landmark *
                   </label>
+
                   <div className="relative">
+
                     <MapPin className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--color-medium-teal)" />
+
                     <input
                       type="text"
                       required
                       placeholder="e.g. House #42, Beach Road Sector 4"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean)"
+                      value={
+                        locationName
+                      }
+                      onChange={(event) =>
+                        setLocationName(
+                          event.target
+                            .value
+                        )
+                      }
+                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-(--color-ocean)"
                     />
+
                   </div>
+
                 </div>
 
-                {/* Grid for People Count & Urgency */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
-                      Number of People Needing Help *
+
+                {/* GPS */}
+
+                <div>
+
+                  <div className="flex items-center justify-between mb-1">
+
+                    <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
+                      GPS Location *
                     </label>
+
+                    <button
+                      type="button"
+                      onClick={
+                        handleUseCurrentLocation
+                      }
+                      className="text-xs font-bold text-(--color-ocean) hover:underline"
+                    >
+                      Use Current Location
+                    </button>
+
+                  </div>
+
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Latitude"
+                      value={
+                        latitude
+                      }
+                      onChange={(event) =>
+                        setLatitude(
+                          event.target
+                            .value
+                        )
+                      }
+                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm outline-none focus:border-(--color-ocean)"
+                    />
+
+
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="Longitude"
+                      value={
+                        longitude
+                      }
+                      onChange={(event) =>
+                        setLongitude(
+                          event.target
+                            .value
+                        )
+                      }
+                      className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm outline-none focus:border-(--color-ocean)"
+                    />
+
+                  </div>
+
+                </div>
+
+
+                {/* PEOPLE + URGENCY */}
+
+                <div className="grid gap-4 sm:grid-cols-2">
+
+                  <div>
+
+                    <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
+                      People Needing Help *
+                    </label>
+
                     <div className="relative">
+
                       <Users className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--color-medium-teal)" />
+
                       <input
                         type="number"
                         min={1}
                         max={100}
                         required
-                        value={peopleCount}
-                        onChange={(e) => setPeopleCount(parseInt(e.target.value) || 1)}
-                        className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean) font-medium"
+                        value={
+                          peopleCount
+                        }
+                        onChange={(event) =>
+                          setPeopleCount(
+                            Number(
+                              event.target
+                                .value
+                            ) || 1
+                          )
+                        }
+                        className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-(--color-ocean)"
                       />
+
                     </div>
+
                   </div>
+
 
                   <div>
+
                     <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
-                      Severity / Urgency *
+                      Urgency *
                     </label>
+
                     <div className="relative">
+
                       <AlertTriangle className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-(--color-medium-teal)" />
+
                       <select
-                        value={urgency}
-                        onChange={(e) =>
-                          setUrgency(e.target.value as "Low" | "Medium" | "High" | "Critical")
+                        value={
+                          urgency
                         }
-                        className="w-full appearance-none rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean) font-bold cursor-pointer"
+                        onChange={(event) =>
+                          setUrgency(
+                            event.target
+                              .value as RescueUrgency
+                          )
+                        }
+                        className="w-full appearance-none rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white py-2.5 pl-10 pr-4 text-sm font-bold outline-none focus:border-(--color-ocean)"
                       >
-                        <option value="Low">Low - Non Immediate</option>
-                        <option value="Medium">Medium - Standard Request</option>
-                        <option value="High">High - Urgent Response Needed</option>
-                        <option value="Critical">Critical - Immediate Life Threat</option>
+
+                        <option value="Low">
+                          Low
+                        </option>
+
+                        <option value="Medium">
+                          Medium
+                        </option>
+
+                        <option value="High">
+                          High
+                        </option>
+
+                        <option value="Critical">
+                          Critical
+                        </option>
+
                       </select>
+
                     </div>
+
                   </div>
+
                 </div>
 
-                {/* Description */}
+
+                {/* ASSISTANCE */}
+
                 <div>
+
+                  <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-2">
+                    Assistance Required *
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+
+                    {[
+                      "Evacuation",
+                      "Medical",
+                      "Food",
+                      "Water",
+                      "Shelter",
+                      "Rescue Boat",
+                    ].map(
+                      (
+                        option
+                      ) => {
+
+                        const selected =
+                          assistanceRequired.includes(
+                            option
+                          );
+
+                        return (
+                          <button
+                            key={
+                              option
+                            }
+                            type="button"
+                            onClick={() =>
+                              toggleAssistance(
+                                option
+                              )
+                            }
+                            className={`rounded-full px-4 py-2 text-xs font-bold border transition ${
+                              selected
+                                ? "border-(--color-ocean) bg-(--color-ocean) text-white"
+                                : "border-[rgba(53,98,103,0.2)] bg-white text-(--color-dark-teal) hover:border-(--color-ocean)"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        );
+                      }
+                    )}
+
+                  </div>
+
+                </div>
+
+
+                {/* DESCRIPTION */}
+
+                <div>
+
                   <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-1">
                     Description of Emergency *
                   </label>
+
                   <textarea
                     rows={4}
                     required
-                    placeholder="Describe current situation, water levels, medical conditions, or hazards..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm text-(--color-dark-teal) outline-none focus:border-(--color-ocean)"
+                    placeholder="Describe the current situation..."
+                    value={
+                      description
+                    }
+                    onChange={(event) =>
+                      setDescription(
+                        event.target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm outline-none focus:border-(--color-ocean)"
                   />
+
                 </div>
 
-                {/* Optional Image Upload with Preview */}
+
+                {/* PHOTO */}
+
                 <div>
+
                   <label className="block text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal) mb-2">
-                    Optional Site Photo / Evidence
+                    Optional Site Photo
                   </label>
 
+
                   {photoPreview ? (
+
                     <div className="relative inline-block overflow-hidden rounded-3xl border-2 border-(--color-ocean) bg-white p-2">
+
                       <img
-                        src={photoPreview}
-                        alt="Rescue preview"
+                        src={
+                          photoPreview
+                        }
+                        alt="Rescue evidence preview"
                         className="h-44 w-44 object-cover rounded-2xl"
                       />
+
                       <div className="mt-2 flex items-center justify-between gap-2 px-1">
+
                         <label className="cursor-pointer text-xs font-bold text-(--color-ocean) hover:underline">
+
                           Change Image
+
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={handlePhotoUpload}
+                            onChange={
+                              handlePhotoUpload
+                            }
                             className="hidden"
                           />
+
                         </label>
+
+
                         <button
                           type="button"
-                          onClick={handleRemovePhoto}
+                          onClick={
+                            handleRemovePhoto
+                          }
                           className="flex items-center gap-1 text-xs font-bold text-rose-600 hover:underline"
                         >
-                          <X className="h-3.5 w-3.5" /> Remove
+
+                          <X className="h-3.5 w-3.5" />
+
+                          Remove
+
                         </button>
+
                       </div>
+
                     </div>
+
                   ) : (
-                    <label className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[rgba(53,98,103,0.25)] bg-white p-5 text-center cursor-pointer transition hover:border-(--color-ocean) hover:bg-(--color-pale-aqua)/20">
+
+                    <label className="flex flex-col items-center justify-center rounded-3xl border-2 border-dashed border-[rgba(53,98,103,0.25)] bg-white p-5 text-center cursor-pointer hover:border-(--color-ocean)">
+
                       <Upload className="h-7 w-7 text-(--color-ocean) mb-1" />
-                      <span className="text-sm font-bold text-(--color-dark-teal)">
-                        Upload image of site or hazard
+
+                      <span className="text-sm font-bold">
+                        Upload image
                       </span>
-                      <span className="text-xs text-(--color-medium-teal)">PNG, JPG up to 5MB</span>
+
+                      <span className="text-xs text-(--color-medium-teal)">
+                        PNG/JPG up to 5MB
+                      </span>
+
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={handlePhotoUpload}
+                        onChange={
+                          handlePhotoUpload
+                        }
                         className="hidden"
                       />
+
                     </label>
+
                   )}
+
                 </div>
+
               </div>
 
-              <div className="flex items-center gap-4">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white transition hover:bg-(--color-deep-ocean) disabled:opacity-50"
-                >
-                  <Send className="h-4 w-4" />
-                  {submitting ? "Submitting Request..." : "Submit Rescue Request"}
-                </button>
-              </div>
+
+              {/* SUBMIT */}
+
+              <button
+                type="submit"
+                disabled={
+                  submitting
+                }
+                className="flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white transition hover:bg-(--color-deep-ocean) disabled:opacity-50"
+              >
+
+                <Send className="h-4 w-4" />
+
+                {submitting
+                  ? "Submitting..."
+                  : "Submit Rescue Request"}
+
+              </button>
+
             </form>
+
           </div>
         )}
 
-        {/* ================= TAB 2: RELIEF & RESCUE STATUS TRACKING ================= */}
-        {activeTab === "status" && (
+
+        {/* ==================================================
+            STATUS TAB
+            ================================================== */}
+
+        {activeTab ===
+          "status" && (
+
           <div className="pt-6">
+
             {loadingTracking ? (
+
               <div className="py-12 text-center text-sm text-(--color-medium-teal)">
-                Loading your relief tracking records...
+                Loading your rescue requests...
               </div>
-            ) : requests.length === 0 ? (
-              <div className="rounded-3xl border border-[rgba(53,98,103,0.14)] bg-(--color-soft-mint)/20 p-8 text-center space-y-4">
-                <AlertCircle className="h-10 w-10 text-(--color-ocean) mx-auto opacity-70" />
-                <div>
-                  <p className="text-base font-bold text-(--color-deep-ocean)">No Active Relief Requests</p>
-                  <p className="text-xs text-(--color-medium-teal) mt-1">
-                    You currently have no active rescue or relief tracking tickets on file.
-                  </p>
-                </div>
+
+            ) : requests.length ===
+              0 ? (
+
+              <div className="rounded-3xl border border-[rgba(53,98,103,0.14)] bg-(--color-soft-mint)/20 p-8 text-center">
+
+                <AlertCircle className="h-10 w-10 text-(--color-ocean) mx-auto" />
+
+                <p className="mt-3 text-base font-bold">
+                  No Rescue Requests
+                </p>
+
+                <p className="mt-1 text-xs text-(--color-medium-teal)">
+                  You currently have no rescue requests.
+                </p>
+
                 <button
                   type="button"
-                  onClick={() => switchTab("request")}
-                  className="inline-block rounded-2xl bg-(--color-ocean) px-6 py-2.5 text-xs font-bold text-white hover:bg-(--color-deep-ocean) transition"
+                  onClick={() =>
+                    switchTab(
+                      "request"
+                    )
+                  }
+                  className="mt-4 rounded-2xl bg-(--color-ocean) px-6 py-2.5 text-xs font-bold text-white"
                 >
                   Submit Rescue Request
                 </button>
+
               </div>
+
             ) : (
+
               <div className="grid gap-8 lg:grid-cols-12">
-                {/* Request Selector List */}
+
+
+                {/* REQUEST LIST */}
+
                 <div className="lg:col-span-4 space-y-3">
-                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-(--color-medium-teal) px-1">
-                    Your Submitted Requests ({requests.length})
+
+                  <p className="text-xs font-bold uppercase tracking-[0.15em] text-(--color-medium-teal)">
+                    Submitted Requests ({requests.length})
                   </p>
-                  <div className="space-y-3">
-                    {requests.map((req) => (
+
+
+                  {requests.map(
+                    (request) => (
+
                       <button
-                        key={req.id}
+                        key={
+                          request.id
+                        }
                         type="button"
-                        onClick={() => setSelectedReq(req)}
-                        className={`w-full rounded-3xl border p-4 text-left transition-all ${
-                          selectedReq?.id === req.id
-                            ? "border-(--color-ocean) bg-(--color-mint)/40 shadow-sm ring-2 ring-(--color-ocean)/20"
-                            : "border-[rgba(53,98,103,0.16)] bg-white hover:bg-(--color-soft-mint)/40"
+                        onClick={() =>
+                          setSelectedReq(
+                            request
+                          )
+                        }
+                        className={`w-full rounded-3xl border p-4 text-left transition ${
+                          selectedReq?.id ===
+                          request.id
+                            ? "border-(--color-ocean) bg-(--color-soft-mint)"
+                            : "border-[rgba(53,98,103,0.16)] bg-white hover:border-(--color-ocean)"
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs font-bold text-(--color-deep-ocean)">
-                            #{req.id}
+
+                        <div className="flex items-center justify-between gap-2">
+
+                          <span className="font-mono text-xs font-bold">
+                            #{request.id}
                           </span>
+
                           <Badge
-                            variant={
-                              req.status === "Resolved"
-                                ? "success"
-                                : req.urgency === "Critical"
-                                ? "danger"
-                                : "warning"
-                            }
+                            variant={getStatusVariant(
+                              request.status
+                            )}
                           >
-                            {req.status}
+                            {request.status}
                           </Badge>
+
                         </div>
-                        <p className="mt-2 text-sm font-bold text-(--color-deep-ocean)">
-                          {req.type}
+
+
+                        <p className="mt-2 text-sm font-bold">
+                          {request.title}
                         </p>
+
+
                         <p className="mt-1 text-xs text-(--color-medium-teal) truncate">
-                          {req.location}
+                          {getLocationLabel(
+                            request
+                          )}
                         </p>
+
                       </button>
-                    ))}
-                  </div>
+
+                    )
+                  )}
+
                 </div>
 
-                {/* Step Tracker Detail View */}
+
+                {/* DETAIL */}
+
                 {selectedReq && (
+
                   <div className="lg:col-span-8 rounded-3xl border border-[rgba(53,98,103,0.16)] bg-(--color-soft-mint)/20 p-6 space-y-6">
-                    {/* Details Header */}
+
+
+                    {/* HEADER */}
+
                     <div className="flex flex-wrap items-start justify-between gap-4 pb-4 border-b border-[rgba(53,98,103,0.12)]">
+
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm font-bold text-(--color-ocean)">
-                            Request ID: #{selectedReq.id}
-                          </span>
-                          <Badge variant="info">{selectedReq.type}</Badge>
-                        </div>
-                        <h2 className="mt-1 text-xl font-bold text-(--color-deep-ocean)">
-                          Relief Request Progress
+
+                        <span className="font-mono text-sm font-bold text-(--color-ocean)">
+                          Request ID: #
+                          {
+                            selectedReq.id
+                          }
+                        </span>
+
+                        <h2 className="mt-1 text-xl font-bold">
+                          {
+                            selectedReq.title
+                          }
                         </h2>
+
                       </div>
-                      <div className="text-right text-xs text-(--color-medium-teal)">
-                        <p>Submitted: <strong>{selectedReq.submittedAt}</strong></p>
-                        <p className="mt-0.5">Last Update: <strong>{selectedReq.lastUpdate}</strong></p>
-                      </div>
+
+
+                      <Badge
+                        variant={getStatusVariant(
+                          selectedReq.status
+                        )}
+                      >
+                        {
+                          selectedReq.status
+                        }
+                      </Badge>
+
                     </div>
 
-                    {/* Information Chips */}
-                    <div className="grid gap-4 sm:grid-cols-3 text-xs bg-white p-4 rounded-2xl border border-[rgba(53,98,103,0.12)]">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
-                        <div>
-                          <span className="font-semibold text-(--color-medium-teal)">Location</span>
-                          <p className="font-bold text-(--color-dark-teal)">{selectedReq.location}</p>
+
+                    {/* INFO */}
+
+                    <div className="grid gap-4 sm:grid-cols-3 bg-white p-4 rounded-2xl border border-[rgba(53,98,103,0.12)]">
+
+                      <div>
+
+                        <div className="flex items-center gap-2 text-xs font-semibold text-(--color-medium-teal)">
+
+                          <MapPin className="h-4 w-4" />
+
+                          Location
+
                         </div>
+
+                        <p className="mt-1 text-sm font-bold">
+                          {getLocationLabel(
+                            selectedReq
+                          )}
+                        </p>
+
                       </div>
 
-                      <div className="flex items-start gap-2">
-                        <LifeBuoy className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
-                        <div>
-                          <span className="font-semibold text-(--color-medium-teal)">Assigned Team</span>
-                          <p className="font-bold text-(--color-dark-teal)">
-                            {selectedReq.assignedTeam || "Awaiting Assignment"}
-                          </p>
+
+                      <div>
+
+                        <div className="flex items-center gap-2 text-xs font-semibold text-(--color-medium-teal)">
+
+                          <LifeBuoy className="h-4 w-4" />
+
+                          Assigned Team
+
                         </div>
+
+                        <p className="mt-1 text-sm font-bold">
+                          {getAssignedTeamLabel(
+                            selectedReq
+                          )}
+                        </p>
+
                       </div>
 
-                      <div className="flex items-start gap-2">
-                        <Clock className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
-                        <div>
-                          <span className="font-semibold text-(--color-medium-teal)">Est. Response</span>
-                          <p className="font-bold text-(--color-dark-teal)">
-                            {selectedReq.estimatedResponse || "N/A"}
-                          </p>
+
+                      <div>
+
+                        <div className="flex items-center gap-2 text-xs font-semibold text-(--color-medium-teal)">
+
+                          <Clock className="h-4 w-4" />
+
+                          Response
+
                         </div>
+
+                        <p className="mt-1 text-sm font-bold">
+                          {
+                            selectedReq.estimatedResponse ||
+                            "Awaiting assessment"
+                          }
+                        </p>
+
                       </div>
+
                     </div>
 
-                    {/* Flow Diagram Tracker */}
-                    <div className="bg-white p-6 rounded-3xl border border-[rgba(53,98,103,0.14)] space-y-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.15em] text-(--color-medium-teal)">
-                        Live Status Flow
-                      </p>
 
-                      <div className="relative py-2">
-                        {STATUS_STEPS.map((step, idx) => {
-                          const currentIdx = getStepIndex(selectedReq.status);
-                          const isCompleted = idx <= currentIdx;
-                          const isCurrent = idx === currentIdx;
+                    {/* STATUS FLOW */}
 
-                          return (
-                            <div key={step} className="flex flex-col items-center">
-                              {/* Step Node */}
-                              <div
-                                className={`flex w-full items-center justify-between rounded-2xl px-5 py-3 border transition-all ${
-                                  isCurrent
-                                    ? "border-(--color-ocean) bg-(--color-mint)/50 shadow-sm"
-                                    : isCompleted
-                                    ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
-                                    : "border-[rgba(53,98,103,0.1)] bg-slate-50 text-slate-400 opacity-60"
-                                }`}
-                              >
-                                <div className="flex items-center gap-3">
+                    {selectedReq.status ===
+                      "Rejected" ? (
+
+                      <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+
+                        <div className="flex items-start gap-3">
+
+                          <AlertCircle className="h-5 w-5 text-red-600" />
+
+                          <div>
+
+                            <p className="font-bold text-red-800">
+                              Request Rejected
+                            </p>
+
+                            <p className="mt-1 text-sm text-red-700">
+                              {
+                                selectedReq.governmentNote ||
+                                "The request was rejected during government review."
+                              }
+                            </p>
+
+                          </div>
+
+                        </div>
+
+                      </div>
+
+                    ) : (
+
+                      <div className="bg-white p-6 rounded-3xl border border-[rgba(53,98,103,0.14)]">
+
+                        <p className="text-xs font-bold uppercase tracking-[0.15em] text-(--color-medium-teal)">
+                          Live Status Flow
+                        </p>
+
+
+                        <div className="mt-4 space-y-2">
+
+                          {STATUS_STEPS.map(
+                            (
+                              step,
+                              index
+                            ) => {
+
+                              const currentIndex =
+                                getStepIndex(
+                                  selectedReq.status
+                                );
+
+                              const completed =
+                                index <=
+                                currentIndex;
+
+                              const current =
+                                index ===
+                                currentIndex;
+
+
+                              return (
+                                <div
+                                  key={
+                                    step
+                                  }
+                                  className={`flex items-center gap-3 rounded-2xl px-4 py-3 border ${
+                                    current
+                                      ? "border-(--color-ocean) bg-(--color-soft-mint)"
+                                      : completed
+                                      ? "border-emerald-200 bg-emerald-50"
+                                      : "border-[rgba(53,98,103,0.1)] bg-slate-50"
+                                  }`}
+                                >
+
                                   <div
-                                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                                      isCurrent
-                                        ? "bg-(--color-ocean) text-white"
-                                        : isCompleted
+                                    className={`flex h-7 w-7 items-center justify-center rounded-full ${
+                                      completed
                                         ? "bg-emerald-600 text-white"
                                         : "bg-slate-200 text-slate-500"
                                     }`}
                                   >
-                                    {isCompleted ? (
+
+                                    {completed ? (
+
                                       <CheckCircle2 className="h-4 w-4" />
+
                                     ) : (
-                                      idx + 1
+
+                                      <span className="text-xs font-bold">
+                                        {
+                                          index +
+                                          1
+                                        }
+                                      </span>
+
                                     )}
+
                                   </div>
-                                  <span className="text-sm font-bold">{step}</span>
-                                </div>
 
-                                {isCurrent && (
-                                  <span className="text-xs font-semibold uppercase tracking-wider text-(--color-ocean) bg-white px-3 py-1 rounded-full border border-(--color-ocean)/30">
-                                    Current Status
+
+                                  <span className="text-sm font-bold">
+                                    {
+                                      step
+                                    }
                                   </span>
-                                )}
-                              </div>
 
-                              {/* Connector Arrow */}
-                              {idx < STATUS_STEPS.length - 1 && (
-                                <div className="my-1.5 flex justify-center text-(--color-medium-teal)/40">
-                                  <span className="text-lg font-bold">↓</span>
+
+                                  {current && (
+
+                                    <span className="ml-auto rounded-full bg-white px-3 py-1 text-[10px] font-bold uppercase text-(--color-ocean)">
+                                      Current
+                                    </span>
+
+                                  )}
+
                                 </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                              );
+                            }
+                          )}
+
+                        </div>
+
                       </div>
+
+                    )}
+
+
+                    {/* DESCRIPTION */}
+
+                    <div className="rounded-2xl border border-[rgba(53,98,103,0.12)] bg-white p-5">
+
+                      <h3 className="font-bold">
+                        Emergency Description
+                      </h3>
+
+                      <p className="mt-2 text-sm leading-6 text-(--color-medium-teal)">
+                        {
+                          selectedReq.description
+                        }
+                      </p>
+
                     </div>
 
-                    <div className="rounded-2xl bg-(--color-pale-aqua)/30 p-4 text-xs text-(--color-dark-teal) flex items-start gap-2">
-                      <ShieldCheck className="h-4 w-4 text-(--color-ocean) shrink-0 mt-0.5" />
-                      <span>
-                        Emergency dispatch units update status automatically as field teams communicate with central control. If severity increases, submit an updated report or call emergency helpline.
-                      </span>
+
+                    {/* ASSISTANCE */}
+
+                    <div className="rounded-2xl border border-[rgba(53,98,103,0.12)] bg-white p-5">
+
+                      <h3 className="font-bold">
+                        Assistance Required
+                      </h3>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+
+                        {selectedReq.assistanceRequired.map(
+                          (
+                            item: string
+                          ) => (
+
+                            <span
+                              key={
+                                item
+                              }
+                              className="rounded-full bg-(--color-soft-mint) px-3 py-1 text-xs font-bold"
+                            >
+                              {
+                                item
+                              }
+                            </span>
+
+                          )
+                        )}
+
+                      </div>
+
                     </div>
+
+
+                    {/* TEAM */}
+
+                    {selectedReq.assignedTeam && (
+
+                      <div className="rounded-2xl border border-[rgba(53,98,103,0.12)] bg-white p-5">
+
+                        <div className="flex items-center gap-2">
+
+                          <ShieldCheck className="h-5 w-5 text-(--color-ocean)" />
+
+                          <h3 className="font-bold">
+                            Assigned Rescue Team
+                          </h3>
+
+                        </div>
+
+
+                        <p className="mt-3 text-xs text-(--color-medium-teal)">
+                          Organization
+                        </p>
+
+                        <p className="font-bold">
+                          {
+                            selectedReq
+                              .assignedTeam
+                              .organization
+                          }
+                        </p>
+
+
+                        <p className="mt-3 text-xs text-(--color-medium-teal)">
+                          Team
+                        </p>
+
+                        <p className="font-bold">
+                          {
+                            selectedReq
+                              .assignedTeam
+                              .teamName
+                          }
+                        </p>
+
+
+                        {selectedReq
+                          .assignedTeam
+                          .resources
+                          .length >
+                          0 && (
+
+                          <div className="mt-3">
+
+                            <p className="text-xs text-(--color-medium-teal)">
+                              Resources
+                            </p>
+
+                            <div className="mt-2 flex flex-wrap gap-2">
+
+                              {selectedReq
+                                .assignedTeam
+                                .resources
+                                .map(
+                                  (
+                                    resource: string
+                                  ) => (
+
+                                    <span
+                                      key={
+                                        resource
+                                      }
+                                      className="rounded-full bg-(--color-soft-mint) px-3 py-1 text-xs font-bold"
+                                    >
+                                      {
+                                        resource
+                                      }
+                                    </span>
+
+                                  )
+                                )}
+
+                            </div>
+
+                          </div>
+
+                        )}
+
+                      </div>
+
+                    )}
+
+
+                    {/* GOVERNMENT NOTE */}
+
+                    {selectedReq.governmentNote && (
+
+                      <div className="rounded-2xl bg-(--color-pale-aqua)/30 p-4 text-sm">
+
+                        <div className="flex items-center gap-2 font-bold">
+
+                          <ShieldCheck className="h-4 w-4 text-(--color-ocean)" />
+
+                          Government Update
+
+                        </div>
+
+                        <p className="mt-2 text-(--color-medium-teal)">
+                          {
+                            selectedReq.governmentNote
+                          }
+                        </p>
+
+                      </div>
+
+                    )}
+
+
+                    {/* LAST UPDATE */}
+
+                    <div className="flex flex-wrap justify-between gap-3 rounded-2xl bg-(--color-soft-mint) p-4 text-xs">
+
+                      <div>
+
+                        <p className="text-(--color-medium-teal)">
+                          Submitted
+                        </p>
+
+                        <p className="font-bold">
+                          {
+                            selectedReq.submittedAt ||
+                            selectedReq.createdAt
+                          }
+                        </p>
+
+                      </div>
+
+
+                      <div>
+
+                        <p className="text-(--color-medium-teal)">
+                          Last Update
+                        </p>
+
+                        <p className="font-bold">
+                          {
+                            selectedReq.lastUpdate
+                          }
+                        </p>
+
+                      </div>
+
+                    </div>
+
                   </div>
+
                 )}
+
               </div>
+
             )}
+
           </div>
+
         )}
+
       </div>
+
     </main>
   );
 }

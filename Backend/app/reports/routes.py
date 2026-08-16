@@ -1,14 +1,34 @@
+# Backend/app/reports/routes.py
+
 from datetime import datetime
-
-
-from app.utils.geocode import reverseGeocode
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from app.gemini.service import verifyHazard, generateReportText
-from app.ml_client import getOwnModelPrediction
-from app.reports.validation import checkDuplicateImage, checkNearbyReports
 import asyncio
+
+from fastapi import (
+    APIRouter,
+    UploadFile,
+    File,
+    Form,
+    HTTPException,
+    BackgroundTasks,
+)
+
 from app.database import database
-from app.models.report_ranker import rank_reports
+
+from app.gemini.service import (
+    verifyHazard,
+    generateReportText,
+)
+
+from app.ml_client import (
+    getOwnModelPrediction,
+    sendCorrectionToML,
+)
+
+from app.reports.validation import (
+    checkDuplicateImage,
+    checkNearbyReports,
+)
+
 from app.reports.service import (
     createReport,
     getReports,
@@ -16,27 +36,39 @@ from app.reports.service import (
     getMapReports,
     getNearbyReports,
     getReportById,
-    
     updateReportStatus,
-    getReportsForRanking
 )
 
 from app.utils.fileHandler import saveImage
-from app.ml_client import sendCorrectionToML
+from app.utils.geocode import reverseGeocode
+
+from app.models.report_ranker import rank_reports
 
 
 router = APIRouter(
     prefix="/reports",
-    tags=["Reports"]
+    tags=["Reports"],
 )
 
+
+# =========================================================
+# CONFIGURATION
+# =========================================================
+
 MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
+
 CONFIDENCE_THRESHOLD = 0.70
+
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg",
     "image/png",
-    "image/webp"
+    "image/webp",
 }
+
+
+# =========================================================
+# HAZARD / SEVERITY CONFIGURATION
+# =========================================================
 
 SEVERITY_MAP = {
     "flooding": 5,
@@ -46,59 +78,286 @@ SEVERITY_MAP = {
 }
 
 
-HAZARD_CATEGORIES = {"flooding", "drainage_problem", "pond_lake_problem"}  # this set = real hazard, goes to gov review
+HAZARD_CATEGORIES = {
+    "flooding",
+    "drainage_problem",
+    "pond_lake_problem",
+}
+
+
 # =========================================================
-# ANALYZE IMAGE (ML first, Gemini fallback)
+# COMMON HELPERS
+# =========================================================
+
+async def validate_image(image: UploadFile):
+    """
+    Validate image type and size before saving it.
+    """
+
+    if not image:
+        raise HTTPException(
+            status_code=400,
+            detail="Image is required",
+        )
+
+    if image.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPG, PNG and WEBP images are allowed",
+        )
+
+    image_bytes = await image.read()
+
+    if not image_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded image is empty",
+        )
+
+    if len(image_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="Image must be under 8MB",
+        )
+
+    await image.seek(0)
+
+    return image_bytes
+
+
+def clean_text(value) -> str:
+    """
+    Safely convert optional values into clean strings.
+    """
+
+    if value is None:
+        return ""
+
+    return str(value).strip()
+
+
+def normalize_confidence(value) -> float:
+    """
+    Keep confidence safely between 0 and 1.
+    """
+
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+    return max(0.0, min(1.0, value))
+
+
+def normalize_severity(value, category: str) -> int:
+    """
+    Convert severity into integer 0-5.
+
+    If ML does not provide a valid severity,
+    use the category mapping.
+    """
+
+    try:
+        severity = int(value)
+    except (TypeError, ValueError):
+        severity = SEVERITY_MAP.get(category, 0)
+
+    if severity < 0:
+        severity = 0
+
+    if severity > 5:
+        severity = 5
+
+    return severity
+
+
+# =========================================================
+# ANALYZE IMAGE
+# ML FIRST -> GEMINI FALLBACK -> AI TEXT
 # =========================================================
 
 @router.post("/analyze")
-async def analyzeReport(image: UploadFile = File(...)):
-    imagePath = saveImage(image, "uploads/temp")
-    print("ANALYZE ENDPOINT: calling ML model first")
+async def analyzeReport(
+    image: UploadFile = File(...)
+):
+    """
+    Analyze an image before final report submission.
 
-    mlResult = await getOwnModelPrediction(imagePath)
+    Flow:
 
-    category = mlResult.get("hazard_type", "normal")
-    severity = mlResult.get("severity", 0)
-    confidence = mlResult.get("confidence", 0)
+    1. Validate image
+    2. Save temporary image
+    3. ML prediction
+    4. Gemini fallback if confidence is low
+    5. Gemini relevance verification if necessary
+    6. Generate title/description
+    7. Return analysis to frontend
+    """
+
+    print("ANALYZE: request received")
+
+    # -----------------------------------------------------
+    # STEP 1: VALIDATE IMAGE
+    # -----------------------------------------------------
+
+    await validate_image(image)
+
+    # -----------------------------------------------------
+    # STEP 2: SAVE TEMP IMAGE
+    # -----------------------------------------------------
+
+    image_path = saveImage(
+        image,
+        "uploads/temp",
+    )
+
+    print("ANALYZE: image saved:", image_path)
+
+    # -----------------------------------------------------
+    # STEP 3: ML FIRST
+    # -----------------------------------------------------
+
+    print("ANALYZE: calling ML model")
+
+    ml_result = await getOwnModelPrediction(
+        image_path
+    )
+
+    category = clean_text(
+        ml_result.get("hazard_type")
+    ) or "normal"
+
+    confidence = normalize_confidence(
+        ml_result.get("confidence")
+    )
+
+    severity = normalize_severity(
+        ml_result.get("severity"),
+        category,
+    )
+
     source = "ml"
 
-    print("ML RESULT:", mlResult)
+    print(
+        f"[ANALYZE ML] "
+        f"{category} @ {confidence:.4f}"
+    )
+
+    # -----------------------------------------------------
+    # STEP 4: GEMINI FALLBACK
+    # -----------------------------------------------------
 
     if confidence < CONFIDENCE_THRESHOLD:
-        print("ML confidence low - verifying with Gemini")
 
-        verify = await verifyHazard(imagePath)
+        print(
+            "[ANALYZE FALLBACK] "
+            "ML confidence below threshold"
+        )
+
+        verify = await verifyHazard(
+            image_path
+        )
 
         if not verify.get("is_relevant", False):
+
             raise HTTPException(
                 status_code=400,
-                detail="NOT_RELEVANT_IMAGE"
+                detail="NOT_RELEVANT_IMAGE",
             )
 
-        geminiGuess = verify.get("hazard_type")
-        geminiConfidence = verify.get("confidence")
+        gemini_category = clean_text(
+            verify.get("hazard_type")
+        )
+
+        gemini_confidence = normalize_confidence(
+            verify.get("confidence")
+        )
 
         if (
-            geminiGuess
-            and geminiConfidence is not None
-            and geminiConfidence > confidence
+            gemini_category
+            and gemini_confidence > confidence
         ):
-            category = geminiGuess
-            confidence = geminiConfidence
-            severity = SEVERITY_MAP.get(category, severity)
-            source = "gemini"
+            category = gemini_category
+            confidence = gemini_confidence
 
-    text = await generateReportText(imagePath)
+            severity = normalize_severity(
+                verify.get("severity"),
+                category,
+            )
+
+            source = "gemini_fallback"
+
+    # -----------------------------------------------------
+    # STEP 5: NORMAL / NON-HAZARD CHECK
+    # -----------------------------------------------------
+
+    if category == "normal":
+
+        print(
+            "[ANALYZE] ML classified image as normal"
+        )
+
+        verify = await verifyHazard(
+            image_path
+        )
+
+        if not verify.get("is_relevant", False):
+
+            raise HTTPException(
+                status_code=400,
+                detail="NOT_RELEVANT_IMAGE",
+            )
+
+        gemini_category = clean_text(
+            verify.get("hazard_type")
+        ) or "normal"
+
+        category = gemini_category
+
+        confidence = normalize_confidence(
+            verify.get("confidence")
+        )
+
+        severity = normalize_severity(
+            verify.get("severity"),
+            category,
+        )
+
+        source = "gemini_fallback"
+
+    # -----------------------------------------------------
+    # STEP 6: GENERATE REPORT TEXT
+    # -----------------------------------------------------
+
+    print(
+        "[ANALYZE] generating title and description"
+    )
+
+    text_result = await generateReportText(
+        image_path
+    )
+
+    generated_title = clean_text(
+        text_result.get("title")
+    )
+
+    generated_description = clean_text(
+        text_result.get("description")
+    )
+
+    # -----------------------------------------------------
+    # FINAL RESPONSE
+    # -----------------------------------------------------
 
     return {
+        "success": True,
         "hazard_type": category,
         "severity": severity,
         "confidence": confidence,
         "source": source,
-        "title": text.get("title"),
-        "description": text.get("description"),
-        "is_relevant": True
+        "title": generated_title,
+        "description": generated_description,
+        "is_relevant": category != "normal",
     }
 
 
@@ -108,219 +367,628 @@ async def analyzeReport(image: UploadFile = File(...)):
 
 @router.post("/")
 async def addReport(
-    title: str = Form(...),
-    description: str = Form(...),
+    title: str = Form(""),
+    description: str = Form(""),
     latitude: float = Form(...),
     longitude: float = Form(...),
-    claimedHazard: str = Form(...),
-    image: UploadFile = File(...)
+    claimedHazard: str = Form(""),
+    image: UploadFile = File(...),
 ):
+    """
+    Final report submission pipeline.
+
+    Flow:
+
+    Upload
+      ↓
+    Validate
+      ↓
+    Save image
+      ↓
+    ML
+      ↓
+    Gemini fallback
+      ↓
+    Relevance validation
+      ↓
+    Generate missing text
+      ↓
+    Duplicate image check
+      ↓
+    Nearby report check
+      ↓
+    Claim correction
+      ↓
+    Reverse geocoding
+      ↓
+    Save MongoDB
+    """
+
+    print("")
+    print("==========================================")
     print("STEP 1: Report request received")
+    print("==========================================")
 
-    # -----------------------------------------------------
-    # VALIDATE FILE SIZE
-    # -----------------------------------------------------
-    imageBytes = await image.read()
+    # =====================================================
+    # CLEAN USER INPUT
+    # =====================================================
 
-    # file size check
-    if len(imageBytes) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="Image must be under 8MB")
+    title = clean_text(title)
+    description = clean_text(description)
+    claimedHazard = clean_text(claimedHazard)
 
-    # file type check
-    if image.content_type not in ALLOWED_IMAGE_TYPES:
+    # =====================================================
+    # VALIDATE LOCATION
+    # =====================================================
+
+    if not (-90 <= latitude <= 90):
         raise HTTPException(
             status_code=400,
-            detail="Only JPG, PNG and WEBP images are allowed"
+            detail="Invalid latitude",
         )
 
-    await image.seek(0)
+    if not (-180 <= longitude <= 180):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid longitude",
+        )
 
-    # -----------------------------------------------------
-    # SAVE IMAGE
-    # -----------------------------------------------------
-    imagePath = saveImage(image, "uploads/reports")
-    print("STEP 2: Image saved:", imagePath)
+    # =====================================================
+    # STEP 2: VALIDATE IMAGE
+    # =====================================================
 
-    # -----------------------------------------------------
-    # STEP 3: ML FIRST
-    # -----------------------------------------------------
-    print("STEP 3: Sending image to ML service")
+    print("STEP 2: Validating uploaded image")
 
-    mlResult = await getOwnModelPrediction(imagePath)
+    await validate_image(image)
 
-    category = mlResult.get("hazard_type", "normal")
-    severity = mlResult.get("severity", 0)
-    confidence = mlResult.get("confidence", 0)
+    # =====================================================
+    # STEP 3: SAVE IMAGE
+    # =====================================================
+
+    imagePath = saveImage(
+        image,
+        "uploads/reports",
+    )
+
+    print(
+        "STEP 3: Image saved:",
+        imagePath,
+    )
+
+    # =====================================================
+    # STEP 4: ML FIRST
+    # =====================================================
+
+    print(
+        "STEP 4: Sending image to ML service"
+    )
+
+    mlResult = await getOwnModelPrediction(
+        imagePath
+    )
+
+    category = clean_text(
+        mlResult.get("hazard_type")
+    ) or "normal"
+
+    confidence = normalize_confidence(
+        mlResult.get("confidence")
+    )
+
+    severity = normalize_severity(
+        mlResult.get("severity"),
+        category,
+    )
+
     source = "ml"
 
-    print(f"[ML] {category} @ {confidence}")
+    print(
+        f"[ML] {category} @ {confidence:.4f}"
+    )
 
-    # -----------------------------------------------------
-    # STEP 4: GEMINI FALLBACK
-    # -----------------------------------------------------
+    # =====================================================
+    # STEP 5: GEMINI FALLBACK
+    # =====================================================
+
     if confidence < CONFIDENCE_THRESHOLD:
-        print("[FALLBACK] ML confidence low, verifying with Gemini")
 
-        verify = await verifyHazard(imagePath)
+        print(
+            "[FALLBACK] "
+            "ML confidence below 70%, "
+            "verifying with Gemini"
+        )
 
-        geminiGuess = verify.get("hazard_type")
-        geminiConfidence = verify.get("confidence")
+        verify = await verifyHazard(
+            imagePath
+        )
+
+        if not verify.get("is_relevant", False):
+
+            raise HTTPException(
+                status_code=400,
+                detail="NOT_RELEVANT_IMAGE",
+            )
+
+        geminiCategory = clean_text(
+            verify.get("hazard_type")
+        )
+
+        geminiConfidence = normalize_confidence(
+            verify.get("confidence")
+        )
 
         if (
-            geminiGuess
-            and geminiConfidence is not None
+            geminiCategory
             and geminiConfidence > confidence
         ):
-            category = geminiGuess
+            category = geminiCategory
+
             confidence = geminiConfidence
-            severity = SEVERITY_MAP.get(category, severity)
+
+            severity = normalize_severity(
+                verify.get("severity"),
+                category,
+            )
+
             source = "gemini_fallback"
+
+    # =====================================================
+    # STEP 6: NON-HAZARD VALIDATION
+    # =====================================================
+
+    if category == "normal":
+
+        print(
+            "[VALIDATION] "
+            "ML result is normal. "
+            "Checking with Gemini."
+        )
+
+        verify = await verifyHazard(
+            imagePath
+        )
+
+        if not verify.get("is_relevant", False):
+
+            raise HTTPException(
+                status_code=400,
+                detail="NOT_RELEVANT_IMAGE",
+            )
+
+        category = (
+            clean_text(
+                verify.get("hazard_type")
+            )
+            or "normal"
+        )
+
+        confidence = normalize_confidence(
+            verify.get("confidence")
+        )
+
+        severity = normalize_severity(
+            verify.get("severity"),
+            category,
+        )
+
+        source = "gemini_fallback"
+
+    # Still normal after Gemini = reject
+    if category == "normal":
+
+        raise HTTPException(
+            status_code=400,
+            detail="NOT_RELEVANT_IMAGE",
+        )
 
     verifiedHazard = category
 
     print(
-        f"[FINAL DECISION] category={verifiedHazard}, severity={severity}, confidence={confidence}, source={source}"
+        "[FINAL DECISION]",
+        f"category={verifiedHazard},",
+        f"severity={severity},",
+        f"confidence={confidence:.4f},",
+        f"source={source}",
     )
 
-    # -----------------------------------------------------
-    # REJECT NON-HAZARD
-    # -----------------------------------------------------
-    if verifiedHazard == "normal" :
-        verify = await verifyHazard(imagePath)
+    # =====================================================
+    # STEP 7: TITLE / DESCRIPTION
+    # =====================================================
 
-        if not verify.get("is_relevant", False):
-          raise HTTPException(
-            status_code=400,
-            detail="NOT_RELEVANT_IMAGE"
+    print(
+        "[TEXT] Checking title and description"
+    )
+
+    # We generate text only when something is missing.
+    needsGeneratedText = (
+        not title
+        or not description
+    )
+
+    if needsGeneratedText:
+
+        print(
+            "[TEXT] Missing title/description."
+            " Generating with Gemini."
         )
 
-        verifiedHazard = str(verify.get("hazard_type", "normal"))
-        confidence = float(verify.get("confidence", confidence))
-        severity = int(SEVERITY_MAP.get(verifiedHazard, 0))
-        source = "gemini_fallback"
-    # -----------------------------------------------------
-    # STEP 5: PARALLEL TASKS
-    # -----------------------------------------------------
-    if title.strip() and description.strip():
-        textTask = asyncio.sleep(
-            0,
-            result={
-                "title": title,
-                "description": description
-            }
+        textResult = await generateReportText(
+            imagePath
         )
+
     else:
-        textTask = generateReportText(imagePath)
 
-    duplicateTask = checkDuplicateImage(imagePath)
-    nearbyTask = checkNearbyReports(latitude, longitude, verifiedHazard)
+        print(
+            "[TEXT] User provided title "
+            "and description. Keeping them."
+        )
 
-    textResult, duplicateCheck, nearbyCount = await asyncio.gather(
-        textTask,
-        duplicateTask,
-        nearbyTask
+        textResult = {
+            "title": "",
+            "description": "",
+        }
+
+    generatedTitle = clean_text(
+        textResult.get("title")
     )
 
-    if duplicateCheck["isDuplicate"]:
-        raise HTTPException(status_code=400, detail="DUPLICATE_IMAGE")
+    generatedDescription = clean_text(
+        textResult.get("description")
+    )
 
-    imageHash = duplicateCheck["hash"]
+    # IMPORTANT:
+    # User input wins.
+    finalTitle = (
+        title
+        if title
+        else generatedTitle
+    )
 
-    aiTitle = textResult.get("title")
-    aiDescription = textResult.get("description")
+    finalDescription = (
+        description
+        if description
+        else generatedDescription
+    )
 
-    print(f"Nearby similar reports found: {nearbyCount}")
+    # Safety fallback
+    if not finalTitle:
 
-    # -----------------------------------------------------
-    # STEP 6: CLAIM VERIFICATION
-    # -----------------------------------------------------
-    claimVerified = claimedHazard.lower() == verifiedHazard.lower()
+        finalTitle = (
+            f"{verifiedHazard.replace('_', ' ').title()} "
+            "Reported"
+        )
+
+    if not finalDescription:
+
+        finalDescription = (
+            f"Water-related hazard detected: "
+            f"{verifiedHazard.replace('_', ' ')}."
+        )
+
+    print(
+        "[TEXT FINAL]",
+        f"title={finalTitle}",
+    )
+
+    # =====================================================
+    # STEP 8: PARALLEL VALIDATION
+    # =====================================================
+
+    print(
+        "[VALIDATION] "
+        "Checking duplicate image and nearby reports"
+    )
+
+    duplicateTask = checkDuplicateImage(
+        imagePath
+    )
+
+    nearbyTask = checkNearbyReports(
+        latitude,
+        longitude,
+        verifiedHazard,
+    )
+
+    duplicateCheck, nearbyCount = await asyncio.gather(
+        duplicateTask,
+        nearbyTask,
+    )
+
+    # =====================================================
+    # DUPLICATE VALIDATION
+    # =====================================================
+
+    if duplicateCheck.get("isDuplicate", False):
+
+        print(
+            "[VALIDATION] Duplicate image detected"
+        )
+
+        raise HTTPException(
+            status_code=400,
+            detail="DUPLICATE_IMAGE",
+        )
+
+    imageHash = duplicateCheck.get(
+        "hash",
+        "",
+    )
+
+    imageSimilarity = float(
+        duplicateCheck.get(
+            "maxSimilarity",
+            0,
+        )
+    )
+
+    nearbyCount = int(
+        nearbyCount or 0
+    )
+
+    print(
+        "[VALIDATION]",
+        f"nearbyReports={nearbyCount}",
+        f"imageSimilarity={imageSimilarity}",
+    )
+
+    # =====================================================
+    # STEP 9: CLAIM VERIFICATION
+    # =====================================================
+
+    claimVerified = (
+        claimedHazard.lower()
+        == verifiedHazard.lower()
+    )
 
     if not claimVerified:
+
         print(
-            f"[CLAIM CORRECTION] User claimed '{claimedHazard}', AI verified '{verifiedHazard}'"
+            "[CLAIM CORRECTION]",
+            f"User claimed '{claimedHazard}',",
+            f"AI verified '{verifiedHazard}'",
         )
 
-    # -----------------------------------------------------
-    # STEP 7: LOCATION
-    # -----------------------------------------------------
-    locationInfo = await reverseGeocode(latitude, longitude)
+    # =====================================================
+    # STEP 10: REVERSE GEOCODING
+    # =====================================================
 
-# -----------------------------------------------------
-# STEP 8: SAVE TO MONGODB
-# -----------------------------------------------------
+    print(
+        "[LOCATION] Reverse geocoding"
+    )
+    print(
+    "[LOCATION INPUT]",
+    f"latitude={latitude}",
+    f"longitude={longitude}",
+)
+    locationInfo = await reverseGeocode(
+        latitude,
+        longitude,
+    )
 
-# Convert ML values to native Python types
-    verifiedHazard = str(verifiedHazard)
-    confidence = float(confidence)
-    severity = int(severity)
-    source = str(source)
+    # =====================================================
+    # STEP 11: NORMALIZE VALUES
+    # =====================================================
 
-    claimVerified = bool(claimedHazard.lower() == verifiedHazard.lower())
+    verifiedHazard = str(
+        verifiedHazard
+    )
 
-    duplicateImage = bool(duplicateCheck["isDuplicate"])
-    imageSimilarity = float(duplicateCheck["maxSimilarity"])
-    nearbyCount = int(nearbyCount)
+    confidence = float(
+        confidence
+    )
+
+    severity = int(
+        severity
+    )
+
+    source = str(
+        source
+    )
+
+    claimVerified = bool(
+        claimVerified
+    )
+
+    # =====================================================
+    # STEP 12: REPORT DATA
+    # =====================================================
+
+    now = datetime.utcnow()
 
     reportData = {
-    "title": aiTitle if aiTitle else title,
-    "description": aiDescription if aiDescription else description,
 
-    "hazardTypeClaimed": claimedHazard,
-    "hazardTypeVerified": verifiedHazard,
-    "claimVerified": claimVerified,
+        # -----------------------------------------------
+        # Citizen / generated content
+        # -----------------------------------------------
 
-    "severity": severity,
-    "priority": severity,
+        "title": finalTitle,
 
-    "city": locationInfo.get("city"),
-    "state": locationInfo.get("state"),
+        "description": finalDescription,
 
-    "location": {
-        "latitude": latitude,
-        "longitude": longitude
-    },
+        # -----------------------------------------------
+        # Hazard classification
+        # -----------------------------------------------
 
-    "imageUrl": imagePath,
-    "imageHash": imageHash,
+        "hazardTypeClaimed": claimedHazard,
 
-    "aiAnalysis": {
-        "title": aiTitle,
-        "description": aiDescription
-    },
+        "hazardTypeVerified": verifiedHazard,
 
-    "mlAnalysis": {
-        "category": verifiedHazard,
+        "claimVerified": claimVerified,
+
+        # -----------------------------------------------
+        # Priority
+        # -----------------------------------------------
+
         "severity": severity,
-        "confidence": confidence,
-        "source": source
-    },
 
-    "validation": {
-        "duplicateImage": duplicateImage,
-        "imageSimilarity": imageSimilarity,
-        "nearbySimilarReports": nearbyCount,
-        "confidence": confidence,
-        "isRelevant": bool(verifiedHazard != "normal")
-    },
+        "priority": severity,
 
-    "reportStatus": "Open",
+        # -----------------------------------------------
+        # Location
+        # -----------------------------------------------
 
-    "createdAt": datetime.utcnow(),
-    "updatedAt": datetime.utcnow()
-}
-    insertedId = await createReport(reportData)
+        "city": locationInfo.get(
+            "city"
+        ),
 
-    print("STEP 9: Report saved successfully")
+        "state": locationInfo.get(
+            "state"
+        ),
+
+        "location": {
+            "latitude": latitude,
+            "longitude": longitude,
+        },
+
+        # -----------------------------------------------
+        # Media
+        # -----------------------------------------------
+
+        "imageUrl": imagePath,
+
+        "imageHash": imageHash,
+
+        # -----------------------------------------------
+        # AI text
+        # -----------------------------------------------
+
+        "aiAnalysis": {
+
+            "title": generatedTitle,
+
+            "description": generatedDescription,
+        },
+
+        # -----------------------------------------------
+        # ML analysis
+        # -----------------------------------------------
+
+        "mlAnalysis": {
+
+            "category": verifiedHazard,
+
+            "severity": severity,
+
+            "confidence": confidence,
+
+            "source": source,
+        },
+
+        # -----------------------------------------------
+        # Validation
+        # -----------------------------------------------
+
+        "validation": {
+
+            "duplicateImage": False,
+
+            "imageSimilarity": imageSimilarity,
+
+            "nearbySimilarReports": nearbyCount,
+
+            "confidence": confidence,
+
+            "isRelevant": True,
+
+            "claimVerified": claimVerified,
+        },
+
+        # -----------------------------------------------
+        # Status
+        # -----------------------------------------------
+
+        "reportStatus": "Open",
+
+        # -----------------------------------------------
+        # Timestamps
+        # -----------------------------------------------
+
+        "createdAt": now,
+
+        "updatedAt": now,
+    }
+
+    # =====================================================
+    # STEP 13: SAVE
+    # =====================================================
+
+    print(
+        "STEP 13: Saving report to MongoDB"
+    )
+
+    insertedId = await createReport(
+        reportData
+    )
+
+    print(
+        "STEP 14: Report saved successfully"
+    )
+
+    # =====================================================
+    # FINAL RESPONSE
+    # =====================================================
 
     return {
-    "message": "Report submitted successfully",
-        "reportId": str(insertedId),
-        "aiAnalysis": reportData["aiAnalysis"],
-        "mlAnalysis": reportData["mlAnalysis"],
-        "validation": reportData["validation"]
+
+        "success": True,
+
+        "message": "Report submitted successfully",
+
+        "reportId": str(
+            insertedId
+        ),
+
+        # Frontend can use this to update
+        # its processing screen.
+
+        "processing": {
+            "imageUploaded": True,
+            "mlAnalyzed": True,
+            "geminiFallbackUsed": (
+                source == "gemini_fallback"
+            ),
+            "textGenerated": (
+                bool(generatedTitle)
+                or bool(generatedDescription)
+            ),
+            "duplicateChecked": True,
+            "nearbyReportsChecked": True,
+            "locationVerified": True,
+        },
+
+        "report": {
+
+            "title": finalTitle,
+
+            "description": finalDescription,
+
+            "hazardType": verifiedHazard,
+
+            "severity": severity,
+
+            "confidence": confidence,
+
+            "source": source,
+
+            "priority": severity,
+
+            "nearbySimilarReports": nearbyCount,
+
+            "claimVerified": claimVerified,
+        },
+
+        "aiAnalysis": reportData[
+            "aiAnalysis"
+        ],
+
+        "mlAnalysis": reportData[
+            "mlAnalysis"
+        ],
+
+        "validation": reportData[
+            "validation"
+        ],
     }
-    
 
 
 # =========================================================
@@ -329,11 +997,13 @@ async def addReport(
 
 @router.get("/")
 async def fetchReports():
+
     reports = await getReports()
-    return {"count": len(reports), "reports": reports}
 
-
-
+    return {
+        "count": len(reports),
+        "reports": reports,
+    }
 
 
 # =========================================================
@@ -341,9 +1011,18 @@ async def fetchReports():
 # =========================================================
 
 @router.get("/hotspots")
-async def fetchHotspots(category: str = None):
-    hotspots = await getHotspots(category)
-    return {"count": len(hotspots), "hotspots": hotspots}
+async def fetchHotspots(
+    category: str | None = None,
+):
+
+    hotspots = await getHotspots(
+        category
+    )
+
+    return {
+        "count": len(hotspots),
+        "hotspots": hotspots,
+    }
 
 
 # =========================================================
@@ -351,19 +1030,48 @@ async def fetchHotspots(category: str = None):
 # =========================================================
 
 @router.get("/map")
-async def fetchMapReports(category: str = None):
-    reports = await getMapReports(category)
-    return {"count": len(reports), "reports": reports}
+async def fetchMapReports(
+    category: str | None = None,
+):
+
+    reports = await getMapReports(
+        category
+    )
+
+    return {
+        "count": len(reports),
+        "reports": reports,
+    }
 
 
 # =========================================================
-# SEARCH NEARBY REPORTS
+# GET NEARBY REPORTS
 # =========================================================
 
 @router.get("/nearby")
-async def fetchNearbyReports(latitude: float, longitude: float, radiusKm: float = 5):
-    reports = await getNearbyReports(latitude, longitude, radiusKm)
-    return {"count": len(reports), "radiusKm": radiusKm, "reports": reports}
+async def fetchNearbyReports(
+    latitude: float,
+    longitude: float,
+    radiusKm: float = 5,
+):
+
+    if radiusKm <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="radiusKm must be greater than 0",
+        )
+
+    reports = await getNearbyReports(
+        latitude,
+        longitude,
+        radiusKm,
+    )
+
+    return {
+        "count": len(reports),
+        "radiusKm": radiusKm,
+        "reports": reports,
+    }
 
 
 # =========================================================
@@ -372,96 +1080,189 @@ async def fetchNearbyReports(latitude: float, longitude: float, radiusKm: float 
 
 @router.get("/ranked")
 async def getRankedReports():
-    docs = await database.reports.find({}).to_list(length=500)
 
-    print("TOTAL DOCS FROM MONGODB:", len(docs))
+    docs = await database.reports.find(
+        {}
+    ).to_list(
+        length=500
+    )
+
+    print(
+        "TOTAL DOCS FROM MONGODB:",
+        len(docs),
+    )
 
     reports = []
 
     for doc in docs:
-        print("DOC:", doc.get("_id"))
-        loc = doc.get("location", {})
-        ml = doc.get("mlAnalysis", {})
+
+        loc = doc.get(
+            "location",
+            {},
+        )
+
+        ml = doc.get(
+            "mlAnalysis",
+            {},
+        )
 
         reports.append({
-            "report_id": str(doc["_id"]),
-            "severity": ml.get("severity", doc.get("severity", 0)),
-            "affected_people": doc.get("affectedPeople", 0),
-            "hazard_type": doc.get("hazardTypeVerified") or ml.get("category"),
-            "confidence": ml.get("confidence", 0),
-            "time": doc.get("createdAt"),
+
+            "report_id": str(
+                doc["_id"]
+            ),
+
+            "severity": ml.get(
+                "severity",
+                doc.get(
+                    "severity",
+                    0,
+                ),
+            ),
+
+            "affected_people": doc.get(
+                "affectedPeople",
+                0,
+            ),
+
+            "hazard_type": (
+                doc.get(
+                    "hazardTypeVerified"
+                )
+                or ml.get(
+                    "category"
+                )
+            ),
+
+            "confidence": ml.get(
+                "confidence",
+                0,
+            ),
+
+            "time": doc.get(
+                "createdAt"
+            ),
+
             "location": loc,
-            "latitude": loc.get("latitude"),
-            "longitude": loc.get("longitude"),
-            "description": doc.get("description", ""),
-            "validation": doc.get("validation", {}),
+
+            "latitude": loc.get(
+                "latitude"
+            ),
+
+            "longitude": loc.get(
+                "longitude"
+            ),
+
+            "description": doc.get(
+                "description",
+                "",
+            ),
+
+            "validation": doc.get(
+                "validation",
+                {},
+            ),
         })
 
-    print("REPORTS BEFORE RANKING:", len(reports))
+    print(
+        "REPORTS BEFORE RANKING:",
+        len(reports),
+    )
 
-    ranked = rank_reports(reports)
+    ranked = rank_reports(
+        reports
+    )
 
-    print("RANKED REPORTS:", len(ranked))
+    print(
+        "RANKED REPORTS:",
+        len(ranked),
+    )
 
     return {
         "count": len(ranked),
-        "reports": ranked
+        "reports": ranked,
     }
-
-    ranked = rank_reports(reports)
-
-    return {
-        "count": len(ranked),
-        "reports": ranked
-    }
-
 
 
 # =========================================================
 # UPDATE REPORT STATUS
 # =========================================================
 
-from fastapi import BackgroundTasks
-
 RETRAIN_THRESHOLD = 30
+
 
 @router.put("/{reportId}/status")
 async def changeReportStatus(
     reportId: str,
     status: str,
     background_tasks: BackgroundTasks,
-    correctedHazard: str = None
+    correctedHazard: str | None = None,
 ):
-    ALLOWED_STATUS = {"Open", "Accepted", "Rejected", "Resolved"}
+
+    ALLOWED_STATUS = {
+        "Open",
+        "Accepted",
+        "Rejected",
+        "Resolved",
+    }
 
     if status not in ALLOWED_STATUS:
-      raise HTTPException(status_code=400, detail="Invalid status")
-    report = await getReportById(reportId)
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid status",
+        )
+
+    report = await getReportById(
+        reportId
+    )
 
     if report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
 
-    # Officer accepted and corrected ML prediction
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found",
+        )
+
+    # -----------------------------------------------------
+    # OFFICER CORRECTED ML RESULT
+    # -----------------------------------------------------
+
     if (
         status.lower() == "accepted"
         and correctedHazard
         and report.get("imageUrl")
     ):
+
         background_tasks.add_task(
             sendCorrectionToML,
             report["imageUrl"],
-            correctedHazard
+            correctedHazard,
         )
 
-    updated = await updateReportStatus(reportId, status)
+    updated = await updateReportStatus(
+        reportId,
+        status,
+    )
 
     if not updated:
-        raise HTTPException(status_code=404, detail="Report not found")
+
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found",
+        )
 
     return {
-        "message": "Report status updated successfully",
+
+        "success": True,
+
+        "message": (
+            "Report status updated successfully"
+        ),
+
         "reportId": reportId,
-        "status": status
+
+        "status": status,
     }
 
 
@@ -470,11 +1271,19 @@ async def changeReportStatus(
 # =========================================================
 
 @router.get("/{reportId}")
-async def fetchReport(reportId: str):
-    report = await getReportById(reportId)
+async def fetchReport(
+    reportId: str,
+):
+
+    report = await getReportById(
+        reportId
+    )
 
     if report is None:
-        return {"message": "Report not found"}
+
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found",
+        )
 
     return report
-
