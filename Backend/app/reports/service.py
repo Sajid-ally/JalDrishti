@@ -835,19 +835,16 @@ async def getReportById(
         reportId
     )
 
-    try:
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {
+            "$or": [
+                {"publicReportId": reportId},
+                {"_id": ObjectId(reportId)}
+            ]
+        }
 
-        objectId = ObjectId(
-            reportId
-        )
-
-    except Exception:
-
-        return None
-
-    report = await database.reports.find_one({
-        "_id": objectId
-    })
+    report = await database.reports.find_one(query)
 
     if report is None:
 
@@ -871,26 +868,19 @@ async def getReportTracking(reportId: str):
     print("REPORT ID:", reportId)
 
     # -----------------------------------------------------
-    # CONVERT REPORT ID
-    # -----------------------------------------------------
-
-    try:
-
-        objectId = ObjectId(reportId)
-
-    except Exception:
-
-        return None
-
-    # -----------------------------------------------------
     # FIND REPORT
     # -----------------------------------------------------
 
-    report = await database.reports.find_one(
-        {
-            "_id": objectId
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {
+            "$or": [
+                {"publicReportId": reportId},
+                {"_id": ObjectId(reportId)}
+            ]
         }
-    )
+
+    report = await database.reports.find_one(query)
 
     if report is None:
 
@@ -1002,25 +992,43 @@ async def updateReportStatus(
     allowedTransitions = {
 
         "submitted": [
-            "under_review"
+            "under_review", "verified", "rejected", "action_in_progress", "resolved"
         ],
 
         "under_review": [
             "verified",
-            "rejected"
-        ],
-
-        "verified": [
-            "action_in_progress"
-        ],
-
-        "action_in_progress": [
+            "rejected",
+            "action_in_progress",
             "resolved"
         ],
 
-        "rejected": [],
+        "verified": [
+            "under_review",
+            "action_in_progress",
+            "resolved",
+            "rejected"
+        ],
 
-        "resolved": []
+        "action_in_progress": [
+            "under_review",
+            "verified",
+            "resolved",
+            "rejected"
+        ],
+
+        "rejected": [
+            "under_review",
+            "verified",
+            "action_in_progress",
+            "resolved"
+        ],
+
+        "resolved": [
+            "under_review",
+            "verified",
+            "action_in_progress",
+            "rejected"
+        ]
     }
 
     # -----------------------------------------------------
@@ -1045,29 +1053,19 @@ async def updateReportStatus(
         }
 
     # -----------------------------------------------------
-    # CONVERT REPORT ID
-    # -----------------------------------------------------
-
-    try:
-
-        objectId = ObjectId(reportId)
-
-    except Exception:
-
-        return {
-            "success": False,
-            "error": "invalid_report_id"
-        }
-
-    # -----------------------------------------------------
     # FIND REPORT
     # -----------------------------------------------------
 
-    report = await database.reports.find_one(
-        {
-            "_id": objectId
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {
+            "$or": [
+                {"publicReportId": reportId},
+                {"_id": ObjectId(reportId)}
+            ]
         }
-    )
+
+    report = await database.reports.find_one(query)
 
     if report is None:
 
@@ -1075,6 +1073,8 @@ async def updateReportStatus(
             "success": False,
             "error": "report_not_found"
         }
+
+    objectId = report["_id"]
 
     # -----------------------------------------------------
     # CURRENT STATUS
@@ -1258,21 +1258,24 @@ async def updateReportVerification(
             "error": "invalid_verification_status"
         }
 
-    try:
-        objectId = ObjectId(reportId)
-    except Exception:
-        return {
-            "success": False,
-            "error": "invalid_report_id"
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {
+            "$or": [
+                {"publicReportId": reportId},
+                {"_id": ObjectId(reportId)}
+            ]
         }
 
-    report = await database.reports.find_one({"_id": objectId})
+    report = await database.reports.find_one(query)
 
     if report is None:
         return {
             "success": False,
             "error": "report_not_found"
         }
+
+    objectId = report["_id"]
 
     now = datetime.utcnow()
 
@@ -1860,29 +1863,19 @@ async def assignReport(
     print("ASSIGNED BY:", assignedBy)
 
     # -----------------------------------------------------
-    # CONVERT REPORT ID
-    # -----------------------------------------------------
-
-    try:
-
-        objectId = ObjectId(reportId)
-
-    except Exception:
-
-        return {
-            "success": False,
-            "error": "invalid_report_id"
-        }
-
-    # -----------------------------------------------------
     # FIND REPORT
     # -----------------------------------------------------
 
-    report = await database.reports.find_one(
-        {
-            "_id": objectId
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {
+            "$or": [
+                {"publicReportId": reportId},
+                {"_id": ObjectId(reportId)}
+            ]
         }
-    )
+
+    report = await database.reports.find_one(query)
 
     if report is None:
 
@@ -1890,6 +1883,8 @@ async def assignReport(
             "success": False,
             "error": "report_not_found"
         }
+
+    objectId = report["_id"]
 
     # -----------------------------------------------------
     # CHECK REPORT STATUS
@@ -1900,7 +1895,14 @@ async def assignReport(
         "submitted"
     )
 
-    if currentStatus != "verified":
+    allowed_assign_statuses = {
+        "submitted",
+        "under_review",
+        "verified",
+        "action_in_progress"
+    }
+
+    if currentStatus not in allowed_assign_statuses:
 
         return {
             "success": False,
@@ -1933,25 +1935,31 @@ async def assignReport(
     # UPDATE REPORT
     # -----------------------------------------------------
 
-    result = await database.reports.update_one(
+    setFields = {
+        "assignment": assignmentData,
+        "updatedAt": now
+    }
 
+    updateOps = {
+        "$set": setFields,
+        "$push": {
+            "assignmentHistory": assignmentData
+        }
+    }
+
+    if currentStatus in {"submitted", "under_review"}:
+        setFields["status"] = "verified"
+        updateOps["$push"]["timeline"] = {
+            "status": "verified",
+            "timestamp": now,
+            "description": f"Report verified and assigned to {department}."
+        }
+
+    result = await database.reports.update_one(
         {
             "_id": objectId
         },
-
-        {
-            "$set": {
-
-                "assignment": assignmentData,
-
-                "updatedAt": now
-            },
-
-            "$push": {
-
-                "assignmentHistory": assignmentData
-            }
-        }
+        updateOps
     )
 
     # -----------------------------------------------------
@@ -2289,4 +2297,127 @@ async def getGovernmentDashboard(
         "categories": categoryCounts,
 
         "departments": departmentCounts
+    }
+
+
+# =========================================================
+# UPDATE REPORT PRIORITY
+# =========================================================
+
+async def updateReportPriority(
+    reportId: str,
+    priority: str
+):
+    print("UPDATING REPORT PRIORITY")
+    print("REPORT ID:", reportId)
+    print("NEW PRIORITY:", priority)
+
+    validPriorities = {
+        "low",
+        "medium",
+        "high",
+        "critical"
+    }
+
+    if priority not in validPriorities:
+        return {
+            "success": False,
+            "error": "invalid_priority"
+        }
+
+    # FIND REPORT
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {
+            "$or": [
+                {"publicReportId": reportId},
+                {"_id": ObjectId(reportId)}
+            ]
+        }
+
+    report = await database.reports.find_one(query)
+
+    if report is None:
+        return {
+            "success": False,
+            "error": "report_not_found"
+        }
+
+    objectId = report["_id"]
+    now = datetime.utcnow()
+
+    timelineEntry = {
+        "status": report.get("status", "submitted"),
+        "timestamp": now,
+        "description": f"Report priority updated to {priority}."
+    }
+
+    await database.reports.update_one(
+        {"_id": objectId},
+        {
+            "$set": {
+                "priority": priority,
+                "updatedAt": now
+            },
+            "$push": {
+                "timeline": timelineEntry
+            }
+        }
+    )
+
+    return {
+        "success": True,
+        "reportId": reportId,
+        "priority": priority
+    }
+
+
+# =========================================================
+# DELETE REPORT
+# =========================================================
+
+async def deleteReport(
+    reportId: str
+):
+    print("DELETING REPORT")
+    print("REPORT ID:", reportId)
+
+    # FIND REPORT
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {
+            "$or": [
+                {"publicReportId": reportId},
+                {"_id": ObjectId(reportId)}
+            ]
+        }
+
+    report = await database.reports.find_one(query)
+
+    if report is None:
+        return {
+            "success": False,
+            "error": "report_not_found"
+        }
+
+    objectId = report["_id"]
+    publicId = report.get("publicReportId", reportId)
+
+    # Delete the report document
+    await database.reports.delete_one({"_id": objectId})
+
+    # Cascading cleanup of notifications referencing this report
+    try:
+        await database.notifications.delete_many({
+            "$or": [
+                {"reportId": publicId},
+                {"reportId": str(objectId)}
+            ]
+        })
+    except Exception as e:
+        print("Error clearing notifications:", str(e))
+
+    return {
+        "success": True,
+        "reportId": reportId
     }

@@ -1,8 +1,6 @@
 from fastapi import APIRouter
 
 from app.validation.service import (
-    createGovernmentAlert,
-    getGovernmentAlerts,
     findGovernmentAlert,
     findNearbyReportEvidence,
     findSocialMediaEvidence,
@@ -22,44 +20,6 @@ router = APIRouter(
     prefix="/government-alerts",
     tags=["Government Alerts"]
 )
-
-
-# =========================================================
-# CREATE GOVERNMENT ALERT
-# =========================================================
-
-@router.post("/")
-async def addGovernmentAlert(
-    alertData: dict
-):
-
-    print("CREATING GOVERNMENT ALERT")
-
-    insertedId = await createGovernmentAlert(
-        alertData
-    )
-
-    return {
-        "message": "Government alert created successfully",
-        "alertId": str(insertedId)
-    }
-
-
-# =========================================================
-# GET GOVERNMENT ALERTS
-# =========================================================
-
-@router.get("/")
-async def fetchGovernmentAlerts():
-
-    print("FETCHING GOVERNMENT ALERTS")
-
-    alerts = await getGovernmentAlerts()
-
-    return {
-        "count": len(alerts),
-        "alerts": alerts
-    }
 
 
 # =========================================================

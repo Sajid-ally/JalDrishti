@@ -20,7 +20,8 @@ from app.reports.service import (
     getAdministrativeHotspots,
     getHotspotDetails,
     assignReport,
-    getGovernmentDashboard
+    getGovernmentDashboard,
+    deleteReport
 )
 
 from app.utils.fileHandler import saveImage
@@ -714,24 +715,18 @@ async def changeReportStatus(
         status
     )
 
-    if not updated:
+    if not updated or not updated.get("success", False):
 
         return {
-
-            "message":
-                "Report not found"
+            "success": False,
+            "message": updated.get("error", "Status update failed") if updated else "Report not found"
         }
 
     return {
-
-        "message":
-            "Report status updated successfully",
-
-        "reportId":
-            reportId,
-
-        "status":
-            status
+        "success": True,
+        "message": "Report status updated successfully",
+        "reportId": reportId,
+        "status": status
     }
 
 
@@ -856,3 +851,35 @@ async def fetchReport(
         }
 
     return report
+
+
+# =========================================================
+# DELETE REPORT
+# =========================================================
+
+@router.delete("/{reportId}")
+async def removeReport(
+    reportId: str
+):
+
+    print(
+        "DELETING REPORT:",
+        reportId
+    )
+
+    result = await deleteReport(
+        reportId=reportId
+    )
+
+    if not result.get("success", False):
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=404,
+            detail=result.get("error", "Report not found")
+        )
+
+    return {
+        "success": True,
+        "message": "Report deleted successfully",
+        "reportId": reportId
+    }

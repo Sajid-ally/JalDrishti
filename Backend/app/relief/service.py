@@ -1,12 +1,17 @@
-from app.database import database
-from bson import ObjectId
 from datetime import datetime
+
+from bson import ObjectId
+
+from app.database import database
+
 
 # =========================================================
 # CREATE RELIEF REQUEST
 # =========================================================
 
 async def createReliefRequest(reliefData: dict):
+
+    locationData = reliefData["location"]
 
     reliefDocument = {
 
@@ -15,8 +20,10 @@ async def createReliefRequest(reliefData: dict):
         "description": reliefData["description"],
 
         "location": {
-            "latitude": reliefData["location"]["latitude"],
-            "longitude": reliefData["location"]["longitude"]
+            "latitude": locationData["latitude"],
+            "longitude": locationData["longitude"],
+            "address": locationData.get("address"),
+            "landmark": locationData.get("landmark")
         },
 
         "peopleAffected": reliefData["peopleAffected"],
@@ -25,11 +32,13 @@ async def createReliefRequest(reliefData: dict):
 
         "urgency": reliefData["urgency"],
 
+        "username": reliefData.get("username"),
+
         "status": "Pending",
 
-        "createdAt": reliefData["createdAt"],
+        "createdAt": datetime.utcnow(),
 
-        "updatedAt": reliefData["updatedAt"]
+        "updatedAt": datetime.utcnow()
     }
 
     result = await database.reliefRequests.insert_one(
@@ -87,8 +96,10 @@ async def getReliefRequestById(requestId: str):
 
     return request
 
-    # =========================================================
+
+# =========================================================
 # ASSIGN RESCUE TEAM
+# GOVERNMENT PORTAL
 # =========================================================
 
 async def assignReliefRequest(

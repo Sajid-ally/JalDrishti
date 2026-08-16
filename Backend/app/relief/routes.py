@@ -1,6 +1,9 @@
-from datetime import datetime
-
 from fastapi import APIRouter
+
+from app.relief.schemas import (
+    ReliefRequestCreate,
+    ReliefAssignment
+)
 
 from app.relief.service import (
     createReliefRequest,
@@ -22,62 +25,17 @@ router = APIRouter(
 
 @router.post("/")
 async def addReliefRequest(
-
-    title: str,
-
-    description: str,
-
-    latitude: float,
-
-    longitude: float,
-
-    peopleAffected: int,
-
-    assistanceRequired: list[str],
-
-    urgency: str
-
+    reliefData: ReliefRequestCreate
 ):
 
-    print("CREATING RELIEF REQUEST")
-
-    reliefData = {
-
-        "title": title,
-
-        "description": description,
-
-        "location": {
-            "latitude": latitude,
-            "longitude": longitude
-        },
-
-        "peopleAffected": peopleAffected,
-
-        "assistanceRequired": assistanceRequired,
-
-        "urgency": urgency,
-
-        "createdAt": datetime.utcnow(),
-
-        "updatedAt": datetime.utcnow()
-    }
-
     requestId = await createReliefRequest(
-        reliefData
-    )
-
-    print(
-        "RELIEF REQUEST CREATED:",
-        requestId
+        reliefData.model_dump()
     )
 
     return {
-
+        "success": True,
         "message": "Relief request submitted successfully",
-
         "requestId": str(requestId),
-
         "status": "Pending"
     }
 
@@ -89,14 +47,11 @@ async def addReliefRequest(
 @router.get("/")
 async def fetchReliefRequests():
 
-    print("FETCHING RELIEF REQUESTS")
-
     requests = await getReliefRequests()
 
     return {
-
+        "success": True,
         "count": len(requests),
-
         "requests": requests
     }
 
@@ -110,22 +65,21 @@ async def fetchReliefRequest(
     requestId: str
 ):
 
-    print(
-        "FETCHING RELIEF REQUEST:",
-        requestId
-    )
-
     request = await getReliefRequestById(
         requestId
     )
 
     if request is None:
-
         return {
+            "success": False,
             "message": "Relief request not found"
         }
 
-    return request
+    return {
+        "success": True,
+        "request": request
+    }
+
 
 # =========================================================
 # ASSIGN RESCUE TEAM
@@ -134,51 +88,23 @@ async def fetchReliefRequest(
 
 @router.patch("/{requestId}/assign")
 async def assignRescueTeam(
-
     requestId: str,
-
-    organization: str,
-
-    teamName: str,
-
-    resources: list[str],
-
-    governmentNote: str = None
-
+    assignmentData: ReliefAssignment
 ):
 
-    print(
-        "ASSIGNING RESCUE TEAM:",
-        requestId
-    )
-
-    assignmentData = {
-
-        "organization": organization,
-
-        "teamName": teamName,
-
-        "resources": resources,
-
-        "governmentNote": governmentNote
-    }
-
     updatedRequest = await assignReliefRequest(
-
         requestId,
-
-        assignmentData
+        assignmentData.model_dump()
     )
 
     if updatedRequest is None:
-
         return {
+            "success": False,
             "message": "Relief request not found"
         }
 
     return {
-
+        "success": True,
         "message": "Rescue team assigned successfully",
-
         "request": updatedRequest
     }
