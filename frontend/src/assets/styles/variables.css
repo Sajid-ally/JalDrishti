@@ -1,0 +1,123 @@
+:root {
+    /* ================================
+     JALDRISHTI - BRAND COLORS
+  ================================= */
+
+    --color-primary: #355267;
+    --color-primary-dark: #294252;
+
+    --color-secondary: #41737c;
+    --color-secondary-dark: #345d65;
+
+    --color-aqua: #c2f2f2;
+    --color-mint: #effefb;
+
+
+    /* ================================
+     BACKGROUNDS
+  ================================= */
+
+    --color-background: #effefb;
+    --color-surface: #ffffff;
+    --color-surface-aqua: #c2f2f2;
+
+
+    /* ================================
+     TEXT
+  ================================= */
+
+    --color-text-primary: #355267;
+    --color-text-secondary: #41737c;
+    --color-text-muted: #71858b;
+    --color-text-white: #ffffff;
+
+
+    /* ================================
+     BORDERS
+  ================================= */
+
+    --color-border: #d4e6e6;
+    --color-border-dark: #41737c;
+
+
+    /* ================================
+     STATUS COLORS
+  ================================= */
+
+    --color-success: #41737c;
+    --color-success-bg: #dff7f5;
+
+    --color-warning: #a67c32;
+    --color-warning-bg: #fff4d6;
+
+    --color-danger: #b04a4a;
+    --color-danger-bg: #ffe5e5;
+
+    --color-info: #355267;
+    --color-info-bg: #c2f2f2;
+
+
+    /* ================================
+     SPACING
+  ================================= */
+
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+    --spacing-3xl: 64px;
+
+
+    /* ================================
+     BORDER RADIUS
+  ================================= */
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    --radius-full: 9999px;
+
+
+    /* ================================
+     SHADOWS
+  ================================= */
+
+    --shadow-sm: 0 2px 8px rgba(53, 82, 103, 0.08);
+
+    --shadow-md: 0 8px 24px rgba(53, 82, 103, 0.12);
+
+    --shadow-lg: 0 20px 50px rgba(53, 82, 103, 0.16);
+
+
+    /* ================================
+     TYPOGRAPHY
+  ================================= */
+
+    --font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+
+    --font-size-xs: 12px;
+    --font-size-sm: 14px;
+    --font-size-md: 16px;
+    --font-size-lg: 18px;
+    --font-size-xl: 24px;
+    --font-size-2xl: 32px;
+    --font-size-3xl: 42px;
+
+
+    /* ================================
+     TRANSITIONS
+  ================================= */
+
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+    --transition-slow: 400ms ease;
+}
