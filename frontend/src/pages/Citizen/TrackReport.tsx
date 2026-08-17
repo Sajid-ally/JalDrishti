@@ -3,7 +3,7 @@
 // Allows citizens to enter a unique Report ID, search, and view live status timeline,
 // uploaded media, location, AI analysis results, and municipal verification details.
 
-import React, { useState, useEffect, useCallback, useId } from "react";
+import React, { useState, useEffect, useCallback, useId, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -21,34 +21,44 @@ import {
   Eye,
 } from "lucide-react";
 import Badge from "../../components/common/Badge";
-import { getReportById } from "../../services/reportService";
-import type { WaterReport, WaterReportStatus } from "../../types/report";
-import { formatReportId } from "../../utils/reportId";
+import { fetchBackendReportTracking } from "../../services/reportService";
+import { toTrackedReportView, type TrackedReportView } from "../../services/reportAdapters";
+import type { BackendReportStatus } from "../../types/api";
+import { formatReportId, isValidReportId } from "../../utils/reportId";
 import { SEVERITY_STYLES } from "../../types/hazard";
 
-const STATUS_ORDER: WaterReportStatus[] = [
+const STATUS_ORDER: BackendReportStatus[] = [
   "submitted",
-  "ai_analysis",
-  "under_verification",
+  "under_review",
+  "verified",
+  "action_in_progress",
   "resolved",
 ];
 
-const STATUS_LABELS: Record<WaterReportStatus, { title: string; subtitle: string }> = {
+const STATUS_LABELS: Record<BackendReportStatus, { title: string; subtitle: string }> = {
   submitted: {
     title: "Submitted",
     subtitle: "Report logged into disaster database",
   },
-  ai_analysis: {
-    title: "AI Analysis",
-    subtitle: "Computer vision and risk scoring completed",
-  },
-  under_verification: {
-    title: "Under Verification",
+  under_review: {
+    title: "Under Review",
     subtitle: "Municipal & disaster response review in progress",
+  },
+  verified: {
+    title: "Verified",
+    subtitle: "Report verification is complete",
+  },
+  action_in_progress: {
+    title: "In Progress",
+    subtitle: "Responsible authorities are working on the issue",
   },
   resolved: {
     title: "Resolved",
     subtitle: "Issue resolved and site cleared",
+  },
+  rejected: {
+    title: "Rejected",
+    subtitle: "This report was not accepted for further action",
   },
 };
 
@@ -56,33 +66,48 @@ export default function TrackReport() {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchInputId = useId();
 
-  const [reportIdInput, setReportIdInput] = useState("");
+  const [reportIdInput, setReportIdInput] = useState(() => searchParams.get("id") ?? "");
   const [loading, setLoading] = useState(false);
-  const [report, setReport] = useState<WaterReport | null>(null);
+  const [report, setReport] = useState<TrackedReportView | null>(null);
   const [searched, setSearched] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<string | null>(null);
+  const lastSearchedId = useRef<string | null>(null);
 
   const performSearch = useCallback(async (idToSearch: string) => {
     const cleanId = formatReportId(idToSearch);
-    if (!cleanId) return;
+    const isLegacyObjectId = /^[A-F\d]{24}$/i.test(cleanId);
+
+    if (!cleanId || (!isValidReportId(cleanId) && !isLegacyObjectId)) {
+      setReport(null);
+      setSearchError("Enter a valid Report ID in the format WR-YYYY-XXXXXX.");
+      setSearched(true);
+      return;
+    }
 
     setLoading(true);
     setSearched(true);
     setCopied(false);
+    setSearchError(null);
+    lastSearchedId.current = cleanId;
 
     try {
-      const result = await getReportById(cleanId);
-      setReport(result);
+      const result = await fetchBackendReportTracking(cleanId);
       if (result) {
+        const trackedReport = toTrackedReportView(result);
+        setReport(trackedReport);
         setSearchParams({ id: cleanId }, { replace: true });
-        toast.success(`Found report ${cleanId}`);
+        toast.success(`Found report ${trackedReport.id}`);
       } else {
+        setReport(null);
+        setSearchError(`No report was found for "${cleanId}".`);
         toast.error(`No hazard report found for "${cleanId}"`);
       }
-    } catch {
-      toast.error("Failed to load report status. Please try again.");
+    } catch (error) {
       setReport(null);
+      setSearchError(error instanceof Error ? error.message : "The tracking service is currently unavailable.");
+      toast.error("Failed to load report status. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -91,8 +116,7 @@ export default function TrackReport() {
   // Auto-search if ID is provided in query param on load
   useEffect(() => {
     const queryId = searchParams.get("id");
-    if (queryId) {
-      setReportIdInput(queryId);
+    if (queryId && queryId !== lastSearchedId.current) {
       performSearch(queryId);
     }
   }, [searchParams, performSearch]);
@@ -110,11 +134,11 @@ export default function TrackReport() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const getStageIndex = (status: WaterReportStatus) => {
+  const getStageIndex = (status: BackendReportStatus) => {
     return STATUS_ORDER.indexOf(status);
   };
 
-  const formatDate = (isoString?: string) => {
+  const formatDate = (isoString?: string | null) => {
     if (!isoString) return "Pending";
     try {
       return new Date(isoString).toLocaleString("en-US", {
@@ -210,27 +234,9 @@ export default function TrackReport() {
           </div>
         </form>
 
-        {/* Quick Sample IDs for Easy Testing */}
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-(--color-medium-teal)">
-          <span className="font-semibold">Sample Report IDs:</span>
-          {[
-            { id: "WR-2026-8F4K29", label: "Urban Flooding (Under Verification)" },
-            { id: "WR-2026-7A3B12", label: "Drainage (AI Analysis)" },
-            { id: "WR-2026-9C5D44", label: "Pollution (Resolved)" },
-          ].map((sample) => (
-            <button
-              key={sample.id}
-              type="button"
-              onClick={() => {
-                setReportIdInput(sample.id);
-                performSearch(sample.id);
-              }}
-              className="rounded-full border border-[rgba(53,98,103,0.2)] bg-white px-3 py-1 font-mono font-medium text-(--color-deep-ocean) hover:border-(--color-ocean) hover:bg-(--color-pale-aqua) transition"
-            >
-              {sample.id}
-            </button>
-          ))}
-        </div>
+        <p className="mt-4 text-xs text-(--color-medium-teal)">
+          Use the public Report ID issued when your report was submitted.
+        </p>
       </div>
 
       {/* Loading State */}
@@ -313,7 +319,7 @@ export default function TrackReport() {
               </div>
 
               {/* Desktop & Tablet Horizontal Timeline */}
-              <div className="hidden md:grid grid-cols-4 gap-3 relative py-4">
+              <div className="hidden md:grid grid-cols-5 gap-3 relative py-4">
                 {STATUS_ORDER.map((stage, idx) => {
                   const currentIdx = getStageIndex(report.status);
                   const isCompleted = idx < currentIdx;
@@ -422,77 +428,36 @@ export default function TrackReport() {
           <div className="grid gap-6 lg:grid-cols-12">
             {/* Left Column: AI Analysis Section */}
             <div className="lg:col-span-5 space-y-6">
-              {/* AI Analysis Card */}
+              {/* Persisted Gemini Details Card */}
               <div className="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50/80 via-white to-sky-50/60 p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center justify-between pb-3 border-b border-indigo-100">
                   <div className="flex items-center gap-2 text-indigo-900 font-bold text-sm sm:text-base">
                     <Sparkles className="h-5 w-5 text-indigo-600" />
-                    <span>AI Analysis</span>
+                    <span>Generated Report Details</span>
                   </div>
                   <span className="text-[11px] font-semibold text-indigo-700 bg-indigo-100/80 px-2.5 py-0.5 rounded-full">
-                    Vision Prototype
+                    Gemini
                   </span>
                 </div>
 
                 <div className="mt-4 space-y-4">
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                      Detected Issue
+                      Generated Title
                     </span>
                     <p className="text-base font-bold text-slate-900 mt-0.5">
-                      {report.aiAnalysis.detectedIssue}
+                      {report.aiAnalysis?.title || report.title || "Not available"}
                     </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 bg-white/80 p-3 rounded-2xl border border-indigo-100">
-                    <div>
-                      <span className="text-[11px] font-semibold text-slate-500">
-                        Confidence
-                      </span>
-                      <p className="text-lg font-black text-indigo-600">
-                        {Math.round(report.aiAnalysis.confidence * 100)}%
-                      </p>
-                    </div>
-
-                    <div>
-                      <span className="text-[11px] font-semibold text-slate-500">
-                        Severity
-                      </span>
-                      <p
-                        className="text-sm font-bold uppercase mt-1"
-                        style={{ color: SEVERITY_STYLES[report.aiAnalysis.severity].hex }}
-                      >
-                        {report.aiAnalysis.severity}
-                      </p>
-                    </div>
                   </div>
 
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600">
-                      AI Summary
+                      Generated Description
                     </span>
                     <p className="mt-1 text-xs sm:text-sm text-slate-700 italic bg-white p-3 rounded-xl border border-indigo-100 leading-relaxed">
-                      "{report.aiAnalysis.summary}"
+                      "{report.aiAnalysis?.description || "Not available"}"
                     </p>
                   </div>
-
-                  {report.aiAnalysis.detectedObjects && (
-                    <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Visual Tags
-                      </span>
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {report.aiAnalysis.detectedObjects.map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded-lg bg-indigo-100/60 px-2 py-0.5 text-[11px] font-medium text-indigo-800"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
 
                   <div className="rounded-xl bg-amber-50 p-3 text-[11px] text-amber-800 border border-amber-200">
                     <strong>Note:</strong> Automated model predictions assist initial priority sorting. Official action is governed by on-site verification.
@@ -515,11 +480,11 @@ export default function TrackReport() {
                       Handling Agency
                     </span>
                     <p className="font-bold text-(--color-deep-ocean)">
-                      {report.verification.agency || "Puri Municipal Corporation"}
+                      {typeof report.verification.agency === "string" ? report.verification.agency : "Not assigned"}
                     </p>
                   </div>
 
-                  {report.verification.verifiedBy && (
+                  {typeof report.verification.verifiedBy === "string" && (
                     <div>
                       <span className="text-[11px] font-semibold text-(--color-medium-teal)">
                         Assigned Officer
@@ -530,7 +495,7 @@ export default function TrackReport() {
                     </div>
                   )}
 
-                  {report.verification.officerNotes && (
+                  {typeof report.verification.officerNotes === "string" && (
                     <div className="rounded-2xl bg-(--color-pale-aqua)/30 p-3 border border-[rgba(53,98,103,0.12)]">
                       <span className="text-[11px] font-bold text-(--color-ocean)">
                         Officer Notes:
@@ -611,10 +576,10 @@ export default function TrackReport() {
                     <div className="min-w-0">
                       <span className="text-[11px] font-semibold text-slate-500">Location</span>
                       <p className="text-xs font-bold text-(--color-deep-ocean) truncate">
-                        {report.location.address || report.location.placeName || "Coordinates Provided"}
+                        {[report.location.locality, report.location.city, report.location.district, report.location.state].filter(Boolean).join(", ") || "Coordinates Provided"}
                       </p>
                       <p className="text-[10px] font-mono text-slate-500 mt-0.5">
-                        {report.location.coords.lat.toFixed(4)}°N, {report.location.coords.lng.toFixed(4)}°E
+                        {report.location.latitude?.toFixed(4) ?? "—"}°N, {report.location.longitude?.toFixed(4) ?? "—"}°E
                       </p>
                     </div>
                   </div>
@@ -627,7 +592,7 @@ export default function TrackReport() {
                         {formatDate(report.createdAt)}
                       </p>
                       <p className="text-[10px] text-slate-500 mt-0.5">
-                        Location Mode: {report.location.mode === "automatic" ? "Automatic GPS" : "Manual Selection"}
+                        Location details supplied by the backend
                       </p>
                     </div>
                   </div>
@@ -667,21 +632,11 @@ export default function TrackReport() {
               Report Not Found
             </h3>
             <p className="mt-2 text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
-              We couldn't locate any record matching <span className="font-mono font-bold text-rose-700">"{reportIdInput}"</span>. Please check the spelling or format (e.g. WR-2026-8F4K29).
+              {searchError || <>We couldn't locate any record matching <span className="font-mono font-bold text-rose-700">"{reportIdInput}"</span>. Please check the spelling or format (e.g. WR-2026-8F4K29).</>}
             </p>
           </div>
 
           <div className="pt-2 flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setReportIdInput("WR-2026-8F4K29");
-                performSearch("WR-2026-8F4K29");
-              }}
-              className="rounded-2xl bg-white border border-rose-200 px-4 py-2 text-xs font-bold text-rose-700 hover:bg-rose-100/50"
-            >
-              Try Sample ID: WR-2026-8F4K29
-            </button>
             <Link
               to="/citizen/report"
               className="rounded-2xl bg-(--color-ocean) px-5 py-2 text-xs font-bold text-white hover:bg-(--color-deep-ocean)"

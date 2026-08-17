@@ -23,14 +23,19 @@ import TrackReport from "../pages/Citizen/TrackReport";
 
 import GovernmentDashboard from "../pages/Government/Dashboard";
 import ReviewReports from "../pages/Government/ReviewReports";
-import VerifyReports from "../pages/Government/VerifyReport";
+import VerifyReports from "../pages/Government/VerifyReports";
 import DepartmentTracking from "../pages/Government/DepartmentTracking";
 import EmergencyOperations from "../pages/Government/EmergencyOperations";
 import GovernmentProfile from "../pages/Government/Profile";
 import GovernmentLiveMap from "../pages/Government/LiveMap";
+
+import SocialReports from "../pages/Government/SocialReports";
+import SocialMediaVerification from "../pages/Government/SocialMediaVerification";
+
 import Notifications from "../pages/Shared/Notifications";
 import Settings from "../pages/Shared/Settings";
 import NotFound from "../pages/Shared/NotFound";
+
 
 function withLayout(page: ReactElement) {
   return (
@@ -40,89 +45,219 @@ function withLayout(page: ReactElement) {
   );
 }
 
+
 export default function AppRoutes() {
   return (
     <BrowserRouter>
-      <Toaster position="top-right" />
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
 
-        {/* Protected Citizen Routes */}
-        <Route path="/citizen" element={withLayout(<CitizenDashboard />)} />
+      <Toaster position="top-right" />
+
+      <Routes>
+
+        {/* =====================================================
+            PUBLIC ROUTES
+        ===================================================== */}
+
+        <Route path="/" element={<Landing />} />
+
+        <Route path="/login" element={<Login />} />
+
+        <Route path="/signup" element={<Signup />} />
+
+        <Route
+          path="/forgot-password"
+          element={<ForgotPassword />}
+        />
+
+
+        {/* =====================================================
+            CITIZEN ROUTES
+        ===================================================== */}
+
+        <Route
+          path="/citizen"
+          element={withLayout(<CitizenDashboard />)}
+        />
+
         <Route
           path="/citizen/dashboard"
           element={<Navigate to="/citizen" replace />}
         />
-        <Route path="/citizen/report" element={withLayout(<ReportHazard />)} />
-        <Route path="/citizen/submit-report" element={withLayout(<ReportHazard />)} />
-        <Route path="/citizen/track-report" element={withLayout(<TrackReport />)} />
-        <Route path="/citizen/live-map" element={withLayout(<CitizenLiveMap />)} />
-        <Route path="/citizen/alerts" element={withLayout(<CitizenAlerts />)} />
-        <Route path="/citizen/sos" element={withLayout(<SOS />)} />
-        <Route path="/citizen/rescue-relief" element={withLayout(<RescueRelief />)} />
-        {/* Backwards compatible redirects */}
+
+        <Route
+          path="/citizen/report"
+          element={withLayout(<ReportHazard />)}
+        />
+
+        <Route
+          path="/citizen/submit-report"
+          element={withLayout(<ReportHazard />)}
+        />
+
+        <Route
+          path="/citizen/track-report"
+          element={withLayout(<TrackReport />)}
+        />
+
+        {/* Team compatibility */}
+        <Route
+          path="/citizen/track-reports"
+          element={
+            <Navigate
+              to="/citizen/track-report"
+              replace
+            />
+          }
+        />
+
+        <Route
+          path="/citizen/live-map"
+          element={withLayout(<CitizenLiveMap />)}
+        />
+
+        <Route
+          path="/citizen/alerts"
+          element={withLayout(<CitizenAlerts />)}
+        />
+
+        <Route
+          path="/citizen/sos"
+          element={withLayout(<SOS />)}
+        />
+
+        <Route
+          path="/citizen/rescue-relief"
+          element={withLayout(<RescueRelief />)}
+        />
+
+        {/* Backwards compatible routes */}
+
         <Route
           path="/citizen/rescue"
-          element={<Navigate to="/citizen/rescue-relief?tab=request" replace />}
+          element={
+            <Navigate
+              to="/citizen/rescue-relief?tab=request"
+              replace
+            />
+          }
         />
+
         <Route
           path="/citizen/relief-tracking"
-          element={<Navigate to="/citizen/rescue-relief?tab=status" replace />}
+          element={
+            <Navigate
+              to="/citizen/rescue-relief?tab=status"
+              replace
+            />
+          }
         />
-        <Route path="/citizen/profile" element={withLayout(<CitizenProfile />)} />
-        <Route path="/citizen/reports" element={withLayout(<MyReports />)} />
+
+        <Route
+          path="/citizen/profile"
+          element={withLayout(<CitizenProfile />)}
+        />
+
+        <Route
+          path="/citizen/reports"
+          element={withLayout(<MyReports />)}
+        />
+
         <Route
           path="/citizen/reports/:id"
           element={withLayout(<ReportDetails />)}
         />
 
-        {/* Protected Government Routes */}
+
+        {/* =====================================================
+            GOVERNMENT ROUTES
+        ===================================================== */}
+
         <Route
           path="/government"
-          element={<Navigate to="/government/dashboard" replace />}
+          element={
+            <Navigate
+              to="/government/dashboard"
+              replace
+            />
+          }
         />
+
         <Route
           path="/government/dashboard"
           element={withLayout(<GovernmentDashboard />)}
         />
 
-          <Route
-            path="/government/review-reports"
-            element={withLayout(<ReviewReports />)}
-          />
-          <Route
-            path="/government/department-tracking"
-            element={withLayout(<DepartmentTracking />)}
-          />
-          <Route
-            path="/government/emergency-operations"
-            element={withLayout(<EmergencyOperations />)}
-          />
-          <Route
-            path="/government/verify"
-            element={withLayout(<VerifyReports />)}
-          />
-          <Route
-            path="/government/live-map"
-            element={withLayout(<GovernmentLiveMap />)}
-          />
-       
+        <Route
+          path="/government/review-reports"
+          element={withLayout(<ReviewReports />)}
+        />
+
+        <Route
+          path="/government/department-tracking"
+          element={withLayout(<DepartmentTracking />)}
+        />
+
+        <Route
+          path="/government/emergency-operations"
+          element={withLayout(<EmergencyOperations />)}
+        />
+
+        <Route
+          path="/government/verify"
+          element={withLayout(<VerifyReports />)}
+        />
+
+        {/* =====================================================
+            SOCIAL MEDIA / SOCIAL REPORTS
+        ===================================================== */}
+
+        <Route
+          path="/government/social-reports"
+          element={withLayout(<SocialReports />)}
+        />
+
+        <Route
+          path="/government/social-media-verification"
+          element={withLayout(<SocialMediaVerification />)}
+        />
+
+        <Route
+          path="/government/live-map"
+          element={withLayout(<GovernmentLiveMap />)}
+        />
+
         <Route
           path="/government/profile"
           element={withLayout(<GovernmentProfile />)}
         />
 
-        {/* Shared Protected Routes */}
-        <Route path="/notifications" element={withLayout(<Notifications />)} />
-        <Route path="/settings" element={withLayout(<Settings />)} />
 
-        {/* Fallback */}
-        <Route path="*" element={<NotFound />} />
+        {/* =====================================================
+            SHARED PROTECTED ROUTES
+        ===================================================== */}
+
+        <Route
+          path="/notifications"
+          element={withLayout(<Notifications />)}
+        />
+
+        <Route
+          path="/settings"
+          element={withLayout(<Settings />)}
+        />
+
+
+        {/* =====================================================
+            FALLBACK
+        ===================================================== */}
+
+        <Route
+          path="*"
+          element={<NotFound />}
+        />
+
       </Routes>
+
     </BrowserRouter>
   );
 }

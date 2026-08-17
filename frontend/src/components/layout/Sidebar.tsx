@@ -13,6 +13,7 @@ import {
   Search,
   AlertTriangle,
   ShieldCheck,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
@@ -98,6 +99,11 @@ const governmentSections: NavSection[] = [
         icon: Waves,
       },
       {
+        to: "/government/social-media-verification",
+        label: "Social Media Verification",
+        icon: ShieldCheck,
+      },
+      {
         to: "/government/live-map",
         label: "Live Map",
         icon: MapPinned,
@@ -107,6 +113,11 @@ const governmentSections: NavSection[] = [
         label: "Department Tracking",
         icon: ShieldCheck,
       },
+      {
+        to: "/government/social-reports",
+        label: "Social Media",
+        icon: MessageSquare,
+      },
     ],
   },
   {
@@ -114,7 +125,7 @@ const governmentSections: NavSection[] = [
     items: [
       {
         to: "/government/emergency-operations",
-        label: "Emergency Operations",
+        label: "Rescue Operations",
         icon: Siren,
       },
     ],
@@ -159,13 +170,20 @@ export default function Sidebar({
     return (
       <div className="flex h-full flex-col bg-white p-5">
         <div className="flex items-center justify-between pb-4 border-b border-[rgba(53,98,103,0.14)]">
-          <div>
-            <span className="text-base font-bold text-(--color-ocean)">
-              CoastalEye
-            </span>
-            <p className="text-[11px] text-(--color-medium-teal)">
-              {isCitizen ? "Citizen Command Menu" : "Gov Command Menu"}
-            </p>
+          <div className="flex items-center gap-3">
+            <img
+              src="/jaldrishti_logo.png"
+              alt="JalDrishti Logo"
+              className="h-8 w-auto object-contain shrink-0"
+            />
+            <div>
+              <span className="text-base font-bold text-(--color-ocean)">
+                JalDrishti
+              </span>
+              <p className="text-[11px] text-(--color-medium-teal)">
+                {isCitizen ? "Citizen Command Menu" : "Gov Command Menu"}
+              </p>
+            </div>
           </div>
 
           <button

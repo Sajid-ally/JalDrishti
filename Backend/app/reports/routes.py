@@ -1,14 +1,15 @@
 from datetime import datetime
+import asyncio
 
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 
 from app.utils.geocode import reverseGeocode
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.gemini.service import verifyHazard, generateReportText
-from app.ml_client import getOwnModelPrediction
+from app.ml_client import getOwnModelPrediction, sendCorrectionToML
 from app.reports.validation import checkDuplicateImage, checkNearbyReports
-import asyncio
 from app.database import database
 from app.models.report_ranker import rank_reports
+
 from app.reports.service import (
     createReport,
     getReports,
@@ -16,26 +17,37 @@ from app.reports.service import (
     getMapReports,
     getNearbyReports,
     getReportById,
-    
     updateReportStatus,
-    getReportsForRanking
+    updateReportVerification,
+    getReportTracking,
+    getAdministrativeReports,
+    getAdministrativeHotspots,
+    getHotspotDetails,
+    assignReport,
+    getGovernmentDashboard,
+    deleteReport,
 )
 
 from app.utils.fileHandler import saveImage
-from app.ml_client import sendCorrectionToML
 
 
 router = APIRouter(
     prefix="/reports",
-    tags=["Reports"]
+    tags=["Reports"],
 )
 
-MAX_FILE_SIZE = 8 * 1024 * 1024  # 8 MB
+
+# =========================================================
+# CONSTANTS
+# =========================================================
+
+MAX_FILE_SIZE = 8 * 1024 * 1024
 CONFIDENCE_THRESHOLD = 0.70
+
 ALLOWED_IMAGE_TYPES = {
     "image/jpeg",
     "image/png",
-    "image/webp"
+    "image/webp",
 }
 
 SEVERITY_MAP = {
@@ -45,15 +57,62 @@ SEVERITY_MAP = {
     "normal": 0,
 }
 
+HAZARD_CATEGORIES = {
+    "flooding",
+    "drainage_problem",
+    "pond_lake_problem",
+}
 
-HAZARD_CATEGORIES = {"flooding", "drainage_problem", "pond_lake_problem"}  # this set = real hazard, goes to gov review
+
 # =========================================================
-# ANALYZE IMAGE (ML first, Gemini fallback)
+# HELPERS
+# =========================================================
+
+def _status_update_succeeded(result):
+    """Handle both old boolean and new {success: bool} service responses."""
+    if result is None:
+        return False
+
+    if isinstance(result, bool):
+        return result
+
+    if isinstance(result, dict):
+        return result.get("success", True) is not False
+
+    return bool(result)
+
+
+def _result_error(result, default="Operation failed"):
+    if isinstance(result, dict):
+        return result.get("error") or result.get("message") or default
+    return default
+
+
+# =========================================================
+# ANALYZE IMAGE
+# ML FIRST -> GEMINI FALLBACK -> AI TEXT
 # =========================================================
 
 @router.post("/analyze")
 async def analyzeReport(image: UploadFile = File(...)):
+    imageBytes = await image.read()
+
+    if len(imageBytes) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="Image must be under 8MB",
+        )
+
+    if image.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPG, PNG and WEBP images are allowed",
+        )
+
+    await image.seek(0)
+
     imagePath = saveImage(image, "uploads/temp")
+
     print("ANALYZE ENDPOINT: calling ML model first")
 
     mlResult = await getOwnModelPrediction(imagePath)
@@ -73,7 +132,7 @@ async def analyzeReport(image: UploadFile = File(...)):
         if not verify.get("is_relevant", False):
             raise HTTPException(
                 status_code=400,
-                detail="NOT_RELEVANT_IMAGE"
+                detail="NOT_RELEVANT_IMAGE",
             )
 
         geminiGuess = verify.get("hazard_type")
@@ -84,8 +143,8 @@ async def analyzeReport(image: UploadFile = File(...)):
             and geminiConfidence is not None
             and geminiConfidence > confidence
         ):
-            category = geminiGuess
-            confidence = geminiConfidence
+            category = str(geminiGuess)
+            confidence = float(geminiConfidence)
             severity = SEVERITY_MAP.get(category, severity)
             source = "gemini"
 
@@ -98,45 +157,48 @@ async def analyzeReport(image: UploadFile = File(...)):
         "source": source,
         "title": text.get("title"),
         "description": text.get("description"),
-        "is_relevant": True
+        "is_relevant": category != "normal",
     }
 
 
 # =========================================================
 # CREATE REPORT
+# ML -> GEMINI -> VALIDATION -> LOCATION -> MONGODB
 # =========================================================
 
 @router.post("/")
 async def addReport(
     title: str = Form(...),
     description: str = Form(...),
+    username: str = Form("anonymous"),
     latitude: float = Form(...),
     longitude: float = Form(...),
     claimedHazard: str = Form(...),
-    image: UploadFile = File(...)
+    image: UploadFile = File(...),
 ):
     print("STEP 1: Report request received")
 
     # -----------------------------------------------------
-    # VALIDATE FILE SIZE
+    # STEP 1: VALIDATE IMAGE
     # -----------------------------------------------------
     imageBytes = await image.read()
 
-    # file size check
     if len(imageBytes) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=400, detail="Image must be under 8MB")
+        raise HTTPException(
+            status_code=400,
+            detail="Image must be under 8MB",
+        )
 
-    # file type check
     if image.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="Only JPG, PNG and WEBP images are allowed"
+            detail="Only JPG, PNG and WEBP images are allowed",
         )
 
     await image.seek(0)
 
     # -----------------------------------------------------
-    # SAVE IMAGE
+    # STEP 2: SAVE IMAGE
     # -----------------------------------------------------
     imagePath = saveImage(image, "uploads/reports")
     print("STEP 2: Image saved:", imagePath)
@@ -171,33 +233,41 @@ async def addReport(
             and geminiConfidence is not None
             and geminiConfidence > confidence
         ):
-            category = geminiGuess
-            confidence = geminiConfidence
+            category = str(geminiGuess)
+            confidence = float(geminiConfidence)
             severity = SEVERITY_MAP.get(category, severity)
             source = "gemini_fallback"
 
-    verifiedHazard = category
+    verifiedHazard = str(category)
 
     print(
-        f"[FINAL DECISION] category={verifiedHazard}, severity={severity}, confidence={confidence}, source={source}"
+        f"[FINAL DECISION] category={verifiedHazard}, "
+        f"severity={severity}, confidence={confidence}, source={source}"
     )
 
     # -----------------------------------------------------
-    # REJECT NON-HAZARD
+    # STEP 4B: NORMAL / NON-RELEVANT IMAGE
     # -----------------------------------------------------
-    if verifiedHazard == "normal" :
+    if verifiedHazard == "normal":
         verify = await verifyHazard(imagePath)
 
         if not verify.get("is_relevant", False):
-          raise HTTPException(
-            status_code=400,
-            detail="NOT_RELEVANT_IMAGE"
-        )
+            raise HTTPException(
+                status_code=400,
+                detail="NOT_RELEVANT_IMAGE",
+            )
 
-        verifiedHazard = str(verify.get("hazard_type", "normal"))
-        confidence = float(verify.get("confidence", confidence))
-        severity = int(SEVERITY_MAP.get(verifiedHazard, 0))
+        verifiedHazard = str(
+            verify.get("hazard_type", "normal")
+        )
+        confidence = float(
+            verify.get("confidence", confidence)
+        )
+        severity = int(
+            SEVERITY_MAP.get(verifiedHazard, 0)
+        )
         source = "gemini_fallback"
+
     # -----------------------------------------------------
     # STEP 5: PARALLEL TASKS
     # -----------------------------------------------------
@@ -206,25 +276,35 @@ async def addReport(
             0,
             result={
                 "title": title,
-                "description": description
-            }
+                "description": description,
+            },
         )
     else:
         textTask = generateReportText(imagePath)
 
     duplicateTask = checkDuplicateImage(imagePath)
-    nearbyTask = checkNearbyReports(latitude, longitude, verifiedHazard)
+    nearbyTask = checkNearbyReports(
+        latitude,
+        longitude,
+        verifiedHazard,
+    )
 
     textResult, duplicateCheck, nearbyCount = await asyncio.gather(
         textTask,
         duplicateTask,
-        nearbyTask
+        nearbyTask,
     )
 
-    if duplicateCheck["isDuplicate"]:
-        raise HTTPException(status_code=400, detail="DUPLICATE_IMAGE")
+    if duplicateCheck.get("isDuplicate", False):
+        raise HTTPException(
+            status_code=400,
+            detail="DUPLICATE_IMAGE",
+        )
 
-    imageHash = duplicateCheck["hash"]
+    imageHash = duplicateCheck.get("hash")
+    imageSimilarity = float(
+        duplicateCheck.get("maxSimilarity", 0)
+    )
 
     aiTitle = textResult.get("title")
     aiDescription = textResult.get("description")
@@ -234,93 +314,160 @@ async def addReport(
     # -----------------------------------------------------
     # STEP 6: CLAIM VERIFICATION
     # -----------------------------------------------------
-    claimVerified = claimedHazard.lower() == verifiedHazard.lower()
+    claimVerified = (
+        claimedHazard.strip().lower()
+        == verifiedHazard.strip().lower()
+    )
 
     if not claimVerified:
         print(
-            f"[CLAIM CORRECTION] User claimed '{claimedHazard}', AI verified '{verifiedHazard}'"
+            f"[CLAIM CORRECTION] User claimed '{claimedHazard}', "
+            f"AI verified '{verifiedHazard}'"
         )
 
     # -----------------------------------------------------
-    # STEP 7: LOCATION
+    # STEP 7: REVERSE GEOCODING
     # -----------------------------------------------------
-    locationInfo = await reverseGeocode(latitude, longitude)
+    print("STEP 7: Finding administrative location")
 
-# -----------------------------------------------------
-# STEP 8: SAVE TO MONGODB
-# -----------------------------------------------------
+    locationInfo = await reverseGeocode(
+        latitude,
+        longitude,
+    )
 
-# Convert ML values to native Python types
+    if locationInfo is None:
+        locationInfo = {}
+
+    print("Administrative location:", locationInfo)
+
+    # -----------------------------------------------------
+    # STEP 8: NORMALIZE TYPES
+    # -----------------------------------------------------
     verifiedHazard = str(verifiedHazard)
     confidence = float(confidence)
     severity = int(severity)
     source = str(source)
-
-    claimVerified = bool(claimedHazard.lower() == verifiedHazard.lower())
-
-    duplicateImage = bool(duplicateCheck["isDuplicate"])
-    imageSimilarity = float(duplicateCheck["maxSimilarity"])
     nearbyCount = int(nearbyCount)
+    duplicateImage = bool(
+        duplicateCheck.get("isDuplicate", False)
+    )
 
+    now = datetime.utcnow()
+
+    # -----------------------------------------------------
+    # STEP 9: REPORT DOCUMENT
+    # -----------------------------------------------------
     reportData = {
-    "title": aiTitle if aiTitle else title,
-    "description": aiDescription if aiDescription else description,
+        "username": username,
 
-    "hazardTypeClaimed": claimedHazard,
-    "hazardTypeVerified": verifiedHazard,
-    "claimVerified": claimVerified,
+        "title": aiTitle if aiTitle else title,
+        "description": (
+            aiDescription
+            if aiDescription
+            else description
+        ),
 
-    "severity": severity,
-    "priority": severity,
+        "hazardTypeClaimed": claimedHazard,
+        "hazardTypeVerified": verifiedHazard,
+        "claimVerified": claimVerified,
 
-    "city": locationInfo.get("city"),
-    "state": locationInfo.get("state"),
-
-    "location": {
-        "latitude": latitude,
-        "longitude": longitude
-    },
-
-    "imageUrl": imagePath,
-    "imageHash": imageHash,
-
-    "aiAnalysis": {
-        "title": aiTitle,
-        "description": aiDescription
-    },
-
-    "mlAnalysis": {
-        "category": verifiedHazard,
         "severity": severity,
-        "confidence": confidence,
-        "source": source
-    },
 
-    "validation": {
-        "duplicateImage": duplicateImage,
-        "imageSimilarity": imageSimilarity,
-        "nearbySimilarReports": nearbyCount,
-        "confidence": confidence,
-        "isRelevant": bool(verifiedHazard != "normal")
-    },
+        # Keep numeric priority for the ML ranker.
+        "priority": severity,
 
-    "reportStatus": "Open",
+        "governmentPriority": (
+            "high"
+            if severity >= 5
+            else "medium"
+            if severity >= 3
+            else "low"
+        ),
 
-    "createdAt": datetime.utcnow(),
-    "updatedAt": datetime.utcnow()
-}
+        "city": locationInfo.get("city"),
+        "state": locationInfo.get("state"),
+
+        "location": {
+            "latitude": latitude,
+            "longitude": longitude,
+            "state": locationInfo.get("state"),
+            "district": locationInfo.get("district"),
+            "city": locationInfo.get("city"),
+            "locality": locationInfo.get("locality"),
+        },
+
+        "imageUrl": imagePath,
+        "imageHash": imageHash,
+
+        "aiAnalysis": {
+            "title": aiTitle,
+            "description": aiDescription,
+        },
+
+        "mlAnalysis": {
+            "category": verifiedHazard,
+            "severity": severity,
+            "confidence": confidence,
+            "source": source,
+        },
+
+        "validation": {
+            "duplicateImage": duplicateImage,
+            "imageSimilarity": imageSimilarity,
+            "nearbySimilarReports": nearbyCount,
+            "confidence": confidence,
+            "isRelevant": verifiedHazard != "normal",
+        },
+
+        # Main status used by current ML workflow.
+        "reportStatus": "Open",
+
+        # Compatibility with government/admin workflow.
+        "status": "submitted",
+
+        "timeline": [
+            {
+                "status": "submitted",
+                "timestamp": now,
+            }
+        ],
+
+        "verification": {
+            "status": "Pending",
+            "verifiedBy": None,
+            "verifiedAt": None,
+        },
+
+        "assignment": {
+            "department": None,
+            "assignedTo": None,
+            "assignedBy": None,
+            "assignedAt": None,
+        },
+
+        "createdAt": now,
+        "updatedAt": now,
+    }
+
+    # -----------------------------------------------------
+    # STEP 10: SAVE
+    # -----------------------------------------------------
+    print("STEP 10: Saving report to MongoDB")
+
     insertedId = await createReport(reportData)
 
-    print("STEP 9: Report saved successfully")
+    print("STEP 11: Report saved successfully")
 
     return {
-    "message": "Report submitted successfully",
+        "message": "Report submitted successfully",
         "reportId": str(insertedId),
+        "status": reportData["reportStatus"],
+        "location": reportData["location"],
         "aiAnalysis": reportData["aiAnalysis"],
         "mlAnalysis": reportData["mlAnalysis"],
-        "validation": reportData["validation"]
+        "validation": reportData["validation"],
+        "verification": reportData["verification"],
     }
-    
 
 
 # =========================================================
@@ -330,10 +477,10 @@ async def addReport(
 @router.get("/")
 async def fetchReports():
     reports = await getReports()
-    return {"count": len(reports), "reports": reports}
-
-
-
+    return {
+        "count": len(reports),
+        "reports": reports,
+    }
 
 
 # =========================================================
@@ -343,58 +490,131 @@ async def fetchReports():
 @router.get("/hotspots")
 async def fetchHotspots(category: str = None):
     hotspots = await getHotspots(category)
-    return {"count": len(hotspots), "hotspots": hotspots}
+    return {
+        "count": len(hotspots),
+        "hotspots": hotspots,
+    }
 
 
 # =========================================================
-# GET MAP REPORTS
+# GET MAP REPORTS + HOTSPOTS
 # =========================================================
 
 @router.get("/map")
-async def fetchMapReports(category: str = None):
-    reports = await getMapReports(category)
-    return {"count": len(reports), "reports": reports}
+async def fetchMapReports(
+    state: str = None,
+    district: str = None,
+    city: str = None,
+    locality: str = None,
+    category: str = None,
+    status: str = None,
+):
+    print("FETCHING MAP DATA")
+
+    reports = await getMapReports(
+        state=state,
+        district=district,
+        city=city,
+        locality=locality,
+        category=category,
+        status=status,
+    )
+
+    hotspots = await getAdministrativeHotspots(
+        state=state,
+        district=district,
+        city=city,
+        locality=locality,
+        category=category,
+    )
+
+    return {
+        "count": len(reports),
+        "filters": {
+            "state": state,
+            "district": district,
+            "city": city,
+            "locality": locality,
+            "category": category,
+            "status": status,
+        },
+        "reportCount": len(reports),
+        "hotspotCount": len(hotspots),
+        "reports": reports,
+        "hotspots": hotspots,
+    }
 
 
 # =========================================================
-# SEARCH NEARBY REPORTS
+# NEARBY REPORTS
 # =========================================================
 
 @router.get("/nearby")
-async def fetchNearbyReports(latitude: float, longitude: float, radiusKm: float = 5):
-    reports = await getNearbyReports(latitude, longitude, radiusKm)
-    return {"count": len(reports), "radiusKm": radiusKm, "reports": reports}
+async def fetchNearbyReports(
+    latitude: float,
+    longitude: float,
+    radiusKm: float = 5,
+):
+    reports = await getNearbyReports(
+        latitude,
+        longitude,
+        radiusKm,
+    )
+
+    return {
+        "count": len(reports),
+        "radiusKm": radiusKm,
+        "reports": reports,
+    }
 
 
 # =========================================================
-# GET RANKED REPORTS
+# RANKED REPORTS
 # =========================================================
 
 @router.get("/ranked")
 async def getRankedReports():
-    docs = await database.reports.find({}).to_list(length=500)
+    docs = await database.reports.find({}).to_list(
+        length=500
+    )
 
     print("TOTAL DOCS FROM MONGODB:", len(docs))
 
     reports = []
 
     for doc in docs:
-        print("DOC:", doc.get("_id"))
-        loc = doc.get("location", {})
-        ml = doc.get("mlAnalysis", {})
+        loc = doc.get("location", {}) or {}
+        ml = doc.get("mlAnalysis", {}) or {}
 
         reports.append({
             "report_id": str(doc["_id"]),
-            "severity": ml.get("severity", doc.get("severity", 0)),
-            "affected_people": doc.get("affectedPeople", 0),
-            "hazard_type": doc.get("hazardTypeVerified") or ml.get("category"),
-            "confidence": ml.get("confidence", 0),
+            "severity": ml.get(
+                "severity",
+                doc.get("severity", 0),
+            ),
+            "affected_people": doc.get(
+                "affectedPeople",
+                0,
+            ),
+            "hazard_type": doc.get(
+                "hazardTypeVerified"
+            ) or ml.get("category"),
+            "confidence": ml.get(
+                "confidence",
+                0,
+            ),
             "time": doc.get("createdAt"),
             "location": loc,
             "latitude": loc.get("latitude"),
             "longitude": loc.get("longitude"),
-            "description": doc.get("description", ""),
-            "validation": doc.get("validation", {}),
+            "description": doc.get(
+                "description",
+                "",
+            ),
+            "validation": doc.get(
+                "validation",
+                {},
+            ),
         })
 
     print("REPORTS BEFORE RANKING:", len(reports))
@@ -405,63 +625,295 @@ async def getRankedReports():
 
     return {
         "count": len(ranked),
-        "reports": ranked
+        "reports": ranked,
     }
 
-    ranked = rank_reports(reports)
+
+# =========================================================
+# ADMINISTRATIVE REPORTS
+# =========================================================
+
+@router.get("/admin")
+async def fetchAdministrativeReports(
+    state: str = None,
+    district: str = None,
+    city: str = None,
+    locality: str = None,
+    category: str = None,
+    status: str = None,
+    priority: str = None,
+    department: str = None,
+):
+    reports = await getAdministrativeReports(
+        state=state,
+        district=district,
+        city=city,
+        locality=locality,
+        category=category,
+        status=status,
+        priority=priority,
+        department=department,
+    )
 
     return {
-        "count": len(ranked),
-        "reports": ranked
+        "count": len(reports),
+        "filters": {
+            "state": state,
+            "district": district,
+            "city": city,
+            "locality": locality,
+            "category": category,
+            "status": status,
+            "priority": priority,
+            "department": department,
+        },
+        "reports": reports,
     }
 
 
+# =========================================================
+# ADMINISTRATIVE HOTSPOTS
+# =========================================================
+
+@router.get("/admin/hotspots")
+async def fetchAdministrativeHotspots(
+    state: str = None,
+    district: str = None,
+    city: str = None,
+    locality: str = None,
+    category: str = None,
+):
+    hotspots = await getAdministrativeHotspots(
+        state=state,
+        district=district,
+        city=city,
+        locality=locality,
+        category=category,
+    )
+
+    return {
+        "count": len(hotspots),
+        "filters": {
+            "state": state,
+            "district": district,
+            "city": city,
+            "locality": locality,
+            "category": category,
+        },
+        "hotspots": hotspots,
+    }
+
 
 # =========================================================
-# UPDATE REPORT STATUS
+# GOVERNMENT DASHBOARD
 # =========================================================
 
-from fastapi import BackgroundTasks
+@router.get("/admin/dashboard")
+async def fetchGovernmentDashboard(
+    state: str = None,
+    district: str = None,
+    city: str = None,
+    locality: str = None,
+    category: str = None,
+):
+    dashboard = await getGovernmentDashboard(
+        state=state,
+        district=district,
+        city=city,
+        locality=locality,
+        category=category,
+    )
 
-RETRAIN_THRESHOLD = 30
+    return dashboard
+
+
+# =========================================================
+# HOTSPOT DETAILS
+# =========================================================
+
+@router.get("/hotspots/{hotspotId}")
+async def fetchHotspotDetails(
+    hotspotId: str,
+    state: str = None,
+    district: str = None,
+    city: str = None,
+    locality: str = None,
+    category: str = None,
+):
+    hotspot = await getHotspotDetails(
+        hotspotId=hotspotId,
+        state=state,
+        district=district,
+        city=city,
+        locality=locality,
+        category=category,
+    )
+
+    if hotspot is None:
+        return {
+            "success": False,
+            "message": "Hotspot not found",
+        }
+
+    return {
+        "success": True,
+        "hotspot": hotspot,
+    }
+
+
+# =========================================================
+# UPDATE VERIFICATION
+# =========================================================
+
+@router.put("/{reportId}/verification")
+async def changeReportVerification(
+    reportId: str,
+    status: str,
+    verifiedBy: str = None,
+):
+    updated = await updateReportVerification(
+        reportId=reportId,
+        status=status,
+        verifiedBy=verifiedBy,
+    )
+
+    if not updated:
+        return {
+            "success": False,
+            "message": "Report not found",
+        }
+
+    if isinstance(updated, dict) and updated.get("success") is False:
+        return updated
+
+    return {
+        "success": True,
+        "message": "Report verification updated successfully",
+        "reportId": reportId,
+        "status": status,
+        "verifiedBy": verifiedBy,
+    }
+
+
+# =========================================================
+# UPDATE STATUS + OPTIONAL ML CORRECTION
+# =========================================================
 
 @router.put("/{reportId}/status")
 async def changeReportStatus(
     reportId: str,
     status: str,
     background_tasks: BackgroundTasks,
-    correctedHazard: str = None
+    correctedHazard: str = None,
 ):
-    ALLOWED_STATUS = {"Open", "Accepted", "Rejected", "Resolved"}
+    allowedStatus = {
+        "Open",
+        "Accepted",
+        "Rejected",
+        "Resolved",
+    }
 
-    if status not in ALLOWED_STATUS:
-      raise HTTPException(status_code=400, detail="Invalid status")
+    if status not in allowedStatus:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid status",
+        )
+
     report = await getReportById(reportId)
 
     if report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found",
+        )
 
-    # Officer accepted and corrected ML prediction
+    # -----------------------------------------------------
+    # OFFICER CORRECTION -> ML TRAINING DATA
+    # -----------------------------------------------------
     if (
         status.lower() == "accepted"
         and correctedHazard
         and report.get("imageUrl")
     ):
+        print(
+            "[ML CORRECTION]",
+            correctedHazard,
+        )
+
         background_tasks.add_task(
             sendCorrectionToML,
             report["imageUrl"],
-            correctedHazard
+            correctedHazard,
         )
 
-    updated = await updateReportStatus(reportId, status)
+    updated = await updateReportStatus(
+        reportId,
+        status,
+    )
 
-    if not updated:
-        raise HTTPException(status_code=404, detail="Report not found")
+    if not _status_update_succeeded(updated):
+        raise HTTPException(
+            status_code=404,
+            detail=_result_error(
+                updated,
+                "Status update failed",
+            ),
+        )
 
     return {
+        "success": True,
         "message": "Report status updated successfully",
         "reportId": reportId,
-        "status": status
+        "status": status,
+    }
+
+
+# =========================================================
+# TRACK REPORT
+# =========================================================
+
+@router.get("/{reportId}/track")
+async def trackReport(reportId: str):
+    report = await getReportTracking(reportId)
+
+    if report is None:
+        return {
+            "success": False,
+            "message": "Report not found",
+        }
+
+    return {
+        "success": True,
+        "report": report,
+    }
+
+
+# =========================================================
+# ASSIGN REPORT
+# =========================================================
+
+@router.put("/{reportId}/assign")
+async def assignReportToDepartment(
+    reportId: str,
+    department: str,
+    assignedTo: str,
+    assignedBy: str = "admin",
+):
+    result = await assignReport(
+        reportId=reportId,
+        department=department,
+        assignedTo=assignedTo,
+        assignedBy=assignedBy,
+    )
+
+    if isinstance(result, dict) and result.get("success") is False:
+        return result
+
+    return {
+        "success": True,
+        "message": "Report assigned successfully",
+        "reportId": reportId,
+        "assignment": result.get("assignment") if isinstance(result, dict) else result,
     }
 
 
@@ -474,7 +926,34 @@ async def fetchReport(reportId: str):
     report = await getReportById(reportId)
 
     if report is None:
-        return {"message": "Report not found"}
+        return {
+            "message": "Report not found",
+        }
 
     return report
 
+
+# =========================================================
+# DELETE REPORT
+# =========================================================
+
+@router.delete("/{reportId}")
+async def removeReport(reportId: str):
+    result = await deleteReport(
+        reportId=reportId,
+    )
+
+    if not result.get("success", False):
+        raise HTTPException(
+            status_code=404,
+            detail=result.get(
+                "error",
+                "Report not found",
+            ),
+        )
+
+    return {
+        "success": True,
+        "message": "Report deleted successfully",
+        "reportId": reportId,
+    }

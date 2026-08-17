@@ -202,7 +202,7 @@ export default function Landing() {
                     variant="primary"
                     onClick={() => navigate("/signup")}
                 >
-                    Join CoastalEye
+                    Join JalDrishti
                     <FiArrowRight size={18} />
                 </Button>
             </section>

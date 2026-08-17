@@ -1,4 +1,5 @@
 export const APP_NAME = "CoastalEye";
+
 export const APP_TAGLINE =
   "See it. Report it. Improve it. — Real-time coastal disaster reporting and response.";
 
@@ -8,7 +9,7 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 export const ALLOWED_FILE_TYPES = [
   "image/jpeg",

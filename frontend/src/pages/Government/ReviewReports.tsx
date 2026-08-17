@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Building2, Eye, Filter, Loader2, RefreshCw } from "lucide-react";
 import Badge from "../../components/common/Badge";
 import GovernmentReportDetailDrawer from "../../components/report/GovernmentReportDetailDrawer";
-import { getAllWaterReports } from "../../services/reportService";
+import { getAdministrativeReports } from "../../services/reportService";
 import type { WaterReport, GovReportStatus } from "../../types/report";
 import type { Severity } from "../../types/hazard";
 import { SEVERITY_STYLES } from "../../types/hazard";
@@ -18,7 +18,7 @@ export default function ReviewReports() {
   const [selected, setSelected] = useState<WaterReport | null>(null);
   const [filterStatus, setFilterStatus] = useState<GovReportStatus | "all">("all");
   const [filterSeverity, setFilterSeverity] = useState<Severity | "all">("all");
-  const load = useCallback(async () => { setLoading(true); try { setReports(await getAllWaterReports()); } finally { setLoading(false); } }, []);
+  const load = useCallback(async () => { setLoading(true); try { setReports(await getAdministrativeReports()); } finally { setLoading(false); } }, []);
   useEffect(() => { load(); }, [load]);
   const filtered = reports.filter((r) => (filterStatus === "all" || (r.govStatus ?? "under_review") === filterStatus) && (filterSeverity === "all" || r.severity === filterSeverity));
 

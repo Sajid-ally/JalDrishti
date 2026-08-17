@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 
-export type CardVariant = "default" | "glass" | "stat" | "news" | "hazard";
+export type CardVariant =
+  | "default"
+  | "glass"
+  | "stat"
+  | "news"
+  | "hazard";
 
 export type CardProps = {
   children?: ReactNode;
@@ -20,7 +25,8 @@ export default function Card({
   value,
   variant = "default",
 }: CardProps) {
-  const variantClass = variant !== "default" ? `card-${variant}` : "";
+  const variantClass =
+    variant !== "default" ? `card-${variant}` : "";
 
   return (
     <div
@@ -33,11 +39,15 @@ export default function Card({
       )}
 
       {value && (
-        <h2 className="mt-4 text-4xl font-black text-[#07545c]">{value}</h2>
+        <h2 className="mt-4 text-4xl font-black text-[#07545c]">
+          {value}
+        </h2>
       )}
 
       {subtitle && (
-        <p className="mt-3 text-sm text-[#41737c]">{subtitle}</p>
+        <p className="mt-3 text-sm text-[#41737c]">
+          {subtitle}
+        </p>
       )}
 
       {children}
@@ -45,33 +55,41 @@ export default function Card({
   );
 }
 
-const cards = [
-  {
-    title: "Active alerts",
-    value: 4,
-    subtitle: "Across monitored zones",
-  },
-  {
-    title: "Open reports",
-    value: 12,
-    subtitle: "Awaiting action",
-  },
-  {
-    title: "Rescue requests",
-    value: 2,
-    subtitle: "In progress",
-  },
-];
+export function DashboardCards({
+  activeAlerts = 4,
+  openReports = 12,
+  rescueRequests = 2,
+}: {
+  activeAlerts?: number;
+  openReports?: number;
+  rescueRequests?: number;
+} = {}) {
+  const cards = [
+    {
+      title: "Active alerts",
+      value: activeAlerts,
+      subtitle: "Across monitored zones",
+    },
+    {
+      title: "Open reports",
+      value: openReports,
+      subtitle: "Awaiting action",
+    },
+    {
+      title: "Rescue requests",
+      value: rescueRequests,
+      subtitle: "In progress",
+    },
+  ];
 
-export function DashboardCards() {
   return (
     <div className="grid gap-6 md:grid-cols-3">
-      {cards.map((c) => (
+      {cards.map((card) => (
         <Card
-          key={String(c.title)}
-          title={c.title}
-          value={c.value}
-          subtitle={c.subtitle}
+          key={card.title}
+          title={card.title}
+          value={card.value}
+          subtitle={card.subtitle}
         />
       ))}
     </div>

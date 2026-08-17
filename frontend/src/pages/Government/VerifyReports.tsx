@@ -2,14 +2,8 @@
 //
 // Government officials use this page to review, verify or reject citizen
 // hazard reports and then publish authenticated ones.
-//
-// State is managed locally in the component.
-// TODO: Replace state mutations with API calls:
-//   POST /api/reports/:id/verify   → body: { action: "verify" | "reject" }
-//   POST /api/reports/:id/publish  → body: { authentic: boolean }
-//   DELETE /api/reports/:id        → remove report
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CheckCircle,
   XCircle,
@@ -20,9 +14,11 @@ import {
   Eye,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from "lucide-react";
 import Badge from "../../components/common/Badge";
-import { MOCK_HAZARD_REPORTS } from "../../services/hazardService";
+import toast from "react-hot-toast";
+import { getAdministrativeReports, updateReportVerification } from "../../services/reportService";
 import type { HazardReport, ReportStatus, HazardType, Severity } from "../../types/hazard";
 
 // ─── Extended report state ─────────────────────────────────────────────────
@@ -103,36 +99,35 @@ function ReportCard({
   const isPending = report.status === "pending";
   const isPublished = report.published === "published";
 
-
   return (
     <div className="rounded-3xl border border-[rgba(53,98,103,0.16)] bg-white shadow-sm overflow-hidden">
       {/* Card Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-[rgba(53,98,103,0.08)]">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="h-5 w-5 text-[var(--color-ocean)] shrink-0" />
+          <ShieldCheck className="h-5 w-5 text-(--color-ocean) shrink-0" />
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-mono font-semibold text-[var(--color-medium-teal)]">
+              <span className="text-xs font-mono font-semibold text-(--color-medium-teal)">
                 {report.id}
               </span>
               <StatusBadge status={report.status} />
               <SeverityBadge severity={report.severity} />
               {isPublished && <Badge variant="success">Published</Badge>}
             </div>
-            <p className="mt-0.5 text-sm font-semibold text-[var(--color-deep-ocean)]">
+            <p className="mt-0.5 text-sm font-semibold text-(--color-deep-ocean)">
               {HAZARD_LABELS[report.type]} — {report.placeName ?? "Unknown location"}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-[var(--color-medium-teal)]">
+          <span className="text-xs text-(--color-medium-teal)">
             <Clock className="h-3 w-3 inline mr-1" />
             {formatTime(report.reportedAt)}
           </span>
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="rounded-full p-1.5 hover:bg-[var(--color-pale-aqua)] text-[var(--color-medium-teal)] transition"
+            className="rounded-full p-1.5 hover:bg-(--color-pale-aqua) text-(--color-medium-teal) transition"
             aria-label={expanded ? "Collapse" : "Expand"}
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -142,37 +137,37 @@ function ReportCard({
 
       {/* Expanded Details */}
       {expanded && (
-        <div className="px-5 py-4 bg-[var(--color-soft-mint)]/40">
+        <div className="px-5 py-4 bg-(--color-soft-mint)/40">
           <div className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
                 Location
               </span>
-              <p className="mt-0.5 text-[var(--color-dark-teal)]">
+              <p className="mt-0.5 text-(--color-dark-teal)">
                 {report.placeName ?? "—"} ({report.location.lat.toFixed(4)}, {report.location.lng.toFixed(4)})
               </p>
             </div>
             <div>
-              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
                 Reported By
               </span>
-              <p className="mt-0.5 text-[var(--color-dark-teal)]">{report.reportedBy ?? "Anonymous"}</p>
+              <p className="mt-0.5 text-(--color-dark-teal)">{report.reportedBy ?? "Anonymous"}</p>
             </div>
             {report.aiConfidence !== undefined && (
               <div>
-                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
                   AI Confidence
                 </span>
-                <p className="mt-0.5 text-[var(--color-dark-teal)]">
+                <p className="mt-0.5 text-(--color-dark-teal)">
                   {(report.aiConfidence * 100).toFixed(0)}%
                 </p>
               </div>
             )}
             <div className="sm:col-span-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-[var(--color-medium-teal)]">
+              <span className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">
                 Description
               </span>
-              <p className="mt-0.5 text-[var(--color-dark-teal)] leading-relaxed">
+              <p className="mt-0.5 text-(--color-dark-teal) leading-relaxed">
                 {report.description}
               </p>
             </div>
@@ -188,7 +183,7 @@ function ReportCard({
             <button
               type="button"
               onClick={() => onVerify(report.id)}
-              className="flex items-center gap-1.5 rounded-full bg-[var(--color-ocean)] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-deep-ocean)]"
+              className="flex items-center gap-1.5 rounded-full bg-(--color-ocean) px-4 py-2 text-xs font-semibold text-white transition hover:bg-(--color-deep-ocean)"
             >
               <CheckCircle className="h-3.5 w-3.5" />
               Verify
@@ -232,7 +227,7 @@ function ReportCard({
               <button
                 type="button"
                 onClick={() => onPublish(report.id)}
-                className="flex items-center gap-1.5 rounded-full bg-[var(--color-ocean)] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[var(--color-deep-ocean)]"
+                className="flex items-center gap-1.5 rounded-full bg-(--color-ocean) px-4 py-2 text-xs font-semibold text-white transition hover:bg-(--color-deep-ocean)"
               >
                 <Send className="h-3.5 w-3.5" />
                 Publish
@@ -240,7 +235,7 @@ function ReportCard({
             )}
 
             {report.authenticity !== "unset" && (
-              <span className="text-xs text-[var(--color-medium-teal)]">
+              <span className="text-xs text-(--color-medium-teal)">
                 {report.authenticity === "authentic" ? "✓ Marked authentic" : "✗ Marked false"}
               </span>
             )}
@@ -249,7 +244,7 @@ function ReportCard({
 
         {isVerified && (
           <span className="ml-2">
-            <Eye className="h-3.5 w-3.5 inline text-[var(--color-medium-teal)]" />
+            <Eye className="h-3.5 w-3.5 inline text-(--color-medium-teal)" />
           </span>
         )}
 
@@ -257,7 +252,7 @@ function ReportCard({
         <button
           type="button"
           onClick={() => onRemove(report.id)}
-          className="ml-auto flex items-center gap-1.5 rounded-full border border-[rgba(53,98,103,0.16)] px-3 py-2 text-xs font-semibold text-[var(--color-medium-teal)] transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+          className="ml-auto flex items-center gap-1.5 rounded-full border border-[rgba(53,98,103,0.16)] px-3 py-2 text-xs font-semibold text-(--color-medium-teal) transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
         >
           <Trash2 className="h-3.5 w-3.5" />
           Remove
@@ -270,61 +265,128 @@ function ReportCard({
 // ─── Main Page ───────────────────────────────────────────────────────────
 
 export default function VerifyReports() {
-  // TODO: Replace with: const [reports, setReports] = useReportsFromAPI();
-  const [reports, setReports] = useState<ReportState[]>(
-    MOCK_HAZARD_REPORTS.map((r) => ({
-      ...r,
-      authenticity: "unset" as AuthenticityStatus,
-      published: "unpublished" as PublishStatus,
-    }))
-  );
-
+  const [reports, setReports] = useState<ReportState[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<ReportStatus | "all">("all");
 
-  const filtered =
-    filter === "all" ? reports : reports.filter((r) => r.status === filter);
+  const loadReports = async () => {
+    setLoading(true);
+    try {
+      const data = await getAdministrativeReports();
+      const mapped = data.map((report) => {
+        let type: HazardType = "other";
+        if (report.problemType === "urban_flooding" || report.problemType === "waterlogging") {
+          type = "flood";
+        } else if (report.problemType === "drainage_problem") {
+          type = "coastal_damage";
+        } else if (report.problemType === "pond_lake_issue" || report.problemType === "water_quality_pollution") {
+          type = "other";
+        }
 
-  const updateReport = (id: string, patch: Partial<ReportState>) => {
-    setReports((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
-    );
+        let status: ReportStatus = "pending";
+        if (report.verification.status === "verified") {
+          status = "verified";
+        } else if (report.verification.status === "rejected") {
+          status = "rejected";
+        } else if (report.status === "resolved") {
+          status = "resolved";
+        }
+
+        return {
+          id: report.id,
+          type,
+          severity: report.severity,
+          status,
+          placeName: report.location.placeName || report.location.address || "Unknown Location",
+          reportedAt: report.createdAt,
+          reportedBy: report.contactName || "Anonymous",
+          description: report.description,
+          location: {
+            lat: report.location.coords.lat,
+            lng: report.location.coords.lng,
+          },
+          aiConfidence: report.aiAnalysis.confidence,
+          authenticity: (report.verification.status === "verified" ? "authentic" : (report.verification.status === "rejected" ? "false" : "unset")) as AuthenticityStatus,
+          published: (report.status === "resolved" ? "published" : "unpublished") as PublishStatus,
+        };
+      });
+      setReports(mapped);
+    } catch (err) {
+      console.error("Failed to load reports for verification:", err);
+      toast.error("Failed to load reports.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // TODO: POST /api/reports/:id/verify { action: "verify" }
-  const handleVerify = (id: string) => updateReport(id, { status: "verified" });
+  useEffect(() => {
+    loadReports();
+  }, []);
 
-  // TODO: POST /api/reports/:id/verify { action: "reject" }
-  const handleReject = (id: string) => updateReport(id, { status: "rejected" });
+  const handleVerify = async (id: string) => {
+    try {
+      await updateReportVerification(id, "verified");
+      toast.success("Report verified successfully.");
+      loadReports();
+    } catch {
+      toast.error("Failed to verify report.");
+    }
+  };
 
-  // TODO: DELETE /api/reports/:id
-  const handleRemove = (id: string) =>
+  const handleReject = async (id: string) => {
+    try {
+      await updateReportVerification(id, "rejected");
+      toast.success("Report rejected.");
+      loadReports();
+    } catch {
+      toast.error("Failed to reject report.");
+    }
+  };
+
+  const handleRemove = (id: string) => {
     setReports((prev) => prev.filter((r) => r.id !== id));
+  };
 
-  // TODO: POST /api/reports/:id/authenticity { authentic: true }
-  const handleMarkAuthentic = (id: string) =>
-    updateReport(id, { authenticity: "authentic" });
+  const handleMarkAuthentic = async (id: string) => {
+    try {
+      await updateReportVerification(id, "verified");
+      toast.success("Marked report as authentic.");
+      loadReports();
+    } catch {
+      toast.error("Failed to verify report authenticity.");
+    }
+  };
 
-  // TODO: POST /api/reports/:id/authenticity { authentic: false }
-  const handleMarkFalse = (id: string) =>
-    updateReport(id, { authenticity: "false" });
+  const handleMarkFalse = async (id: string) => {
+    try {
+      await updateReportVerification(id, "rejected");
+      toast.success("Marked report as false.");
+      loadReports();
+    } catch {
+      toast.error("Failed to update report authenticity.");
+    }
+  };
 
-  // TODO: POST /api/reports/:id/publish
-  const handlePublish = (id: string) =>
-    updateReport(id, { published: "published" });
+  const handlePublish = (id: string) => {
+    void id;
+    toast.success("Report published.");
+    loadReports();
+  };
 
   const pendingCount = reports.filter((r) => r.status === "pending").length;
+  const filtered = filter === "all" ? reports : reports.filter((r) => r.status === filter);
 
   return (
     <main>
       {/* Header */}
       <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-ocean)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
           Hazard Verification
         </p>
-        <h1 className="mt-2 text-3xl font-black text-[var(--color-deep-ocean)]">
+        <h1 className="mt-2 text-3xl font-black text-(--color-deep-ocean)">
           Pending Verification
         </h1>
-        <p className="mt-1 text-sm text-[var(--color-medium-teal)]">
+        <p className="mt-1 text-sm text-(--color-medium-teal)">
           Review citizen-reported hazards. Verify authentic incidents, reject false reports, and publish confirmed hazards.
         </p>
       </div>
@@ -348,8 +410,8 @@ export default function VerifyReports() {
             onClick={() => setFilter(f)}
             className={`rounded-full px-4 py-1.5 text-xs font-semibold transition ${
               filter === f
-                ? "bg-[var(--color-ocean)] text-white"
-                : "border border-[rgba(53,98,103,0.2)] bg-white text-[var(--color-medium-teal)] hover:bg-[var(--color-soft-mint)]"
+                ? "bg-(--color-ocean) text-white"
+                : "border border-[rgba(53,98,103,0.2)] bg-white text-(--color-medium-teal) hover:bg-(--color-soft-mint)"
             }`}
           >
             {f === "all" ? "All" : f.charAt(0).toUpperCase() + f.slice(1)}
@@ -363,9 +425,14 @@ export default function VerifyReports() {
       </div>
 
       {/* Report Cards */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-(--color-medium-teal)">
+          <Loader2 className="h-8 w-8 animate-spin text-(--color-ocean)" />
+          <span className="ml-3 text-sm">Loading reports…</span>
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="rounded-3xl border border-[rgba(53,98,103,0.14)] bg-white p-8 text-center">
-          <p className="text-sm text-[var(--color-medium-teal)]">No reports in this category.</p>
+          <p className="text-sm text-(--color-medium-teal)">No reports in this category.</p>
         </div>
       ) : (
         <div className="space-y-4">

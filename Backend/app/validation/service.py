@@ -37,81 +37,6 @@ def calculateDistanceKm(
 
 
 # =========================================================
-# CREATE GOVERNMENT ALERT
-# =========================================================
-
-async def createGovernmentAlert(alertData: dict):
-
-    alertDocument = {
-
-        "title":
-            alertData["title"],
-
-        "description":
-            alertData["description"],
-
-        "category":
-            alertData["category"],
-
-        "location": {
-
-            "latitude":
-                alertData["location"]["latitude"],
-
-            "longitude":
-                alertData["location"]["longitude"]
-        },
-
-        "severity":
-            alertData["severity"],
-
-        "status":
-            "Active",
-
-        "source":
-            "Government",
-
-        "createdAt":
-            datetime.utcnow(),
-
-        "updatedAt":
-            datetime.utcnow()
-    }
-
-    result = await database.governmentAlerts.insert_one(
-        alertDocument
-    )
-
-    return result.inserted_id
-
-
-# =========================================================
-# GET GOVERNMENT ALERTS
-# =========================================================
-
-async def getGovernmentAlerts():
-
-    cursor = database.governmentAlerts.find().sort(
-        "createdAt",
-        -1
-    )
-
-    alerts = []
-
-    async for alert in cursor:
-
-        alert["id"] = str(
-            alert["_id"]
-        )
-
-        del alert["_id"]
-
-        alerts.append(alert)
-
-    return alerts
-
-
-# =========================================================
 # FIND MATCHING GOVERNMENT ALERT
 # =========================================================
 
@@ -1880,6 +1805,57 @@ async def saveIncidentConfidence(
     }
 
     # -----------------------------------------------------
+    # INSERT NEW INCIDENT
+    # -----------------------------------------------------
+
+    result = await database.incidents.insert_one(
+        incidentDocument
+    )
+
+    incidentId = str(
+        result.inserted_id
+    )
+
+    print(
+        "NEW INCIDENT CREATED:",
+        incidentId
+    )
+
+    print(
+        "REPORT COUNT:",
+        incidentDocument["reportCount"]
+    )
+
+    print(
+        "AVERAGE SCORE:",
+        incidentDocument["averageScore"]
+    )
+
+    print(
+        "INCIDENT STATUS:",
+        incidentDocument["incidentStatus"]
+    )
+
+    return {
+        "success": True,
+        "action": "created",
+        "incidentId": incidentId,
+        "category": category,
+        "location": incidentDocument["location"],
+        "radiusKm": radiusKm,
+        "reportCount": incidentDocument["reportCount"],
+        "averageScore": incidentDocument["averageScore"],
+        "highConfidenceReports": incidentDocument["highConfidenceReports"],
+        "mediumConfidenceReports": incidentDocument["mediumConfidenceReports"],
+        "lowConfidenceReports": incidentDocument["lowConfidenceReports"],
+        "incidentStatus": incidentDocument["incidentStatus"],
+        "validatedReports": validatedReports,
+        "createdAt": now.isoformat(),
+        "updatedAt": now.isoformat()
+    }
+
+
+# -----------------------------------------------------
 # SIMPLE LOCAL TEST
 # =========================================================
 
