@@ -12,6 +12,7 @@
 [![MongoDB Atlas](https://img.shields.io/badge/MongoDB_Atlas-Async_Motor-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Google Gemini](https://img.shields.io/badge/Google_Gemini-Multimodal_AI-8E75C2?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
 [![Build Status](https://img.shields.io/badge/Build-Passing%20(100%25)-brightgreen?style=for-the-badge)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](./LICENSE)
 [![Documentation](https://img.shields.io/badge/PDF_Docs-Included-red?style=for-the-badge&logo=adobe-acrobat-reader&logoColor=white)](./JalDrishti_CoastalEye_Complete_System_Documentation.pdf)
 
 <p align="center">
@@ -32,12 +33,14 @@
    - [A. Backend Setup (FastAPI & Virtual Environment)](#a-backend-setup-fastapi--virtual-environment)
    - [B. Frontend Setup (React 19 & Vite)](#b-frontend-setup-react-19--vite)
    - [C. ML Service Setup (Optional)](#c-ml-service-setup-optional)
-7. [Environment Variables Reference](#-environment-variables-reference)
-8. [Lifecycle Workflow & 24-Hour Auto-Purge Policy](#-lifecycle-workflow--24-hour-auto-purge-policy)
-9. [API Endpoints Summary](#-api-endpoints-summary)
-10. [Automated Verification & Test Suites](#-automated-verification--test-suites)
-11. [Project Directory Structure](#-project-directory-structure)
-12. [Demo Accounts & Roles](#-demo-accounts--roles)
+7. [⚠️ Python Version Compatibility & Troubleshooting](#️-python-version-compatibility--troubleshooting)
+8. [Environment Variables Reference](#-environment-variables-reference)
+9. [Lifecycle Workflow & 24-Hour Auto-Purge Policy](#-lifecycle-workflow--24-hour-auto-purge-policy)
+10. [API Endpoints Summary](#-api-endpoints-summary)
+11. [Automated Verification & Test Suites](#-automated-verification--test-suites)
+12. [Project Directory Structure](#-project-directory-structure)
+13. [Demo Accounts & Roles](#-demo-accounts--roles)
+14. [License](#-license)
 
 ---
 
@@ -235,6 +238,54 @@ uvicorn app.main:app --port 8001 --reload
 
 ---
 
+## ⚠️ Python Version Compatibility & Troubleshooting
+
+### 📌 Supported & Recommended Python Versions
+- **Recommended**: **Python 3.11.x** or **Python 3.12.x** (Provides 100% pre-compiled binary wheel support for all ML and data dependencies across Windows, macOS, and Linux).
+- **Python 3.13+ Note**: Certain scientific and machine learning libraries (such as `torch`, `torchvision`, `scipy`, `cython` dependencies) may not yet provide pre-compiled wheels for Python 3.13 on some operating systems (particularly Windows), which can lead to `pip install` errors like `error: Microsoft Visual C++ 14.0 is required` or wheel build failures.
+
+### 🛠️ Quick Resolutions for Teammates
+
+#### Option 1: Create Virtual Environment with Python 3.11 or 3.12 (Recommended)
+If you have multiple Python versions installed, specify the version when creating your virtual environment:
+- **Windows**:
+  ```powershell
+  py -3.12 -m venv .venv
+  # or
+  py -3.11 -m venv .venv
+  ```
+- **macOS / Linux**:
+  ```bash
+  python3.12 -m venv .venv
+  # or
+  python3.11 -m venv .venv
+  ```
+
+#### Option 2: Always Upgrade Build Tools First
+Before installing requirements, ensure `pip`, `setuptools`, and `wheel` are on their latest releases:
+```bash
+python -m pip install --upgrade pip setuptools wheel
+```
+
+#### Option 3: PyTorch Installation for `ml-service`
+If `pip install -r requirements.txt` hangs or fails on `torch` in `ml-service`, install the official pre-built wheel directly:
+- **CPU version (Recommended for standard dev/laptops)**:
+  ```bash
+  pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+  ```
+- **CUDA/GPU version**:
+  ```bash
+  pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+  ```
+
+#### Option 4: Force Pre-compiled Binary Wheels
+If pip tries to build a package from source C-files:
+```bash
+pip install --only-binary :all: -r requirements.txt
+```
+
+---
+
 ## 🔒 Environment Variables Reference
 
 ### Backend (`Backend/.env`)
@@ -383,7 +434,8 @@ CoastalEye/
 ---
 
 ## 📄 License
-This project is licensed under the **MIT License**.
+This project is open-source and licensed under the **[MIT License](./LICENSE)**.  
+See the [LICENSE](./LICENSE) file for full details and copyright notice.
 
 ---
 
