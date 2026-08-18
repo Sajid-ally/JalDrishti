@@ -1,26 +1,54 @@
-# Environment
+# Environment & Secret Configuration files (NEVER EXPOSE)
+.env
+*.env
+*.env.*
+**/.env
+**/.env.*
 backend/.env
+Backend/.env
+frontend/.env
+ml-service/.env
+*.local
+
+# Firebase / Cloud Service Account Keys & Secrets
+serviceAccountKey*.json
+**/serviceAccountKey*.json
+*.pem
+*.key
+credentials/
+secrets/
 
 # Virtual environments
 backend/venv/
 backend/.venv/
+Backend/venv/
+Backend/.venv/
 ml-service/venv/
 ml-service/.venv/
 
 # Ignore demo backend completely
 Backend_m/
 
-# Uploads
+# Node & Build artifacts
+node_modules/
+**/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+# Uploads & Media
 backend/uploads/
+Backend/uploads/
 ml-service/uploads/
 Coastal_social/
-# Python cache
+CoastalSocial/
+
+# Python cache & compiled files
 **/__pycache__/
 *.pyc
+*.pyo
 
-# VS Code
+# IDEs & OS
 .vscode/
-
-# OS
+.idea/
 .DS_Store
 Thumbs.db

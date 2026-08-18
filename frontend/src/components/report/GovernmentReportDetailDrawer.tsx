@@ -31,6 +31,7 @@ const STATUS_OPTIONS: { value: GovReportStatus; label: string }[] = [
   { value: "assigned", label: "Assigned" },
   { value: "in_progress", label: "In Progress" },
   { value: "resolved", label: "Resolved" },
+  { value: "rejected", label: "Rejected" },
 ];
 
 const PRIORITY_OPTIONS: { value: Severity; label: string }[] = [
@@ -49,8 +50,9 @@ function statusLabel(status?: GovReportStatus) {
 
 function statusVariant(
   status?: GovReportStatus
-): "info" | "warning" | "success" | "neutral" {
+): "info" | "warning" | "success" | "neutral" | "danger" {
   if (status === "resolved") return "success";
+  if (status === "rejected") return "danger";
   if (status === "in_progress") return "warning";
   if (status === "assigned") return "info";
   return "neutral";
@@ -73,6 +75,8 @@ interface Props {
 }
 
 /** Shared Government report detail and assignment workflow. */
+import RejectReasonModal from "./RejectReasonModal";
+
 export default function GovernmentReportDetailDrawer({
   report,
   onClose,
@@ -90,6 +94,8 @@ export default function GovernmentReportDetailDrawer({
 
   const [saving, setSaving] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   const image = report.media?.find((media) => media.type === "image");
@@ -113,14 +119,16 @@ export default function GovernmentReportDetailDrawer({
     }
   };
 
-  const save = async () => {
-    const hasChanges =
-      (department && department !== report.assignedDepartment) ||
-      status !== (report.govStatus ?? "under_review") ||
-      severity !== report.severity;
+  const handleDepartmentChange = (val: string) => {
+    setDepartment(val as Department | "");
+    if (val && (status === "under_review" || !status)) {
+      setStatus("assigned");
+    }
+  };
 
-    if (!hasChanges) {
-      toast("No changes to save.");
+  const save = async () => {
+    if (status === "rejected") {
+      setShowRejectModal(true);
       return;
     }
 
@@ -133,12 +141,17 @@ export default function GovernmentReportDetailDrawer({
       }
 
       // 2. Assign department second
-      if (department && department !== report.assignedDepartment) {
-        await assignReportDepartment(report.id, department);
+      const isDeptChanged = Boolean(department && department !== report.assignedDepartment);
+      if (isDeptChanged) {
+        await assignReportDepartment(report.id, department as Department);
       }
 
-      // 3. Update status last
-      if (status !== (report.govStatus ?? "under_review")) {
+      // 3. Update status only if changed
+      if (
+        status &&
+        status !== report.govStatus &&
+        !(isDeptChanged && status === "assigned")
+      ) {
         await updateGovStatus(report.id, status);
       }
 
@@ -149,6 +162,39 @@ export default function GovernmentReportDetailDrawer({
     } catch (error) {
       console.error("Failed to save changes:", error);
       toast.error("Failed to save changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleConfirmRejection = async (reason: string) => {
+    setRejecting(true);
+    try {
+      await updateGovStatus(report.id, "rejected", reason);
+      toast.success("Report rejected with reason and unlisted from active queue.");
+      setShowRejectModal(false);
+      onUpdated();
+      onClose();
+    } catch (error) {
+      toast.error("Failed to reject report.");
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  const handleQuickReject = () => {
+    setShowRejectModal(true);
+  };
+
+  const handleQuickResolve = async () => {
+    setSaving(true);
+    try {
+      await updateGovStatus(report.id, "resolved", "Field action completed, water hazard resolved.");
+      toast.success("Report marked as Resolved.");
+      onUpdated();
+      onClose();
+    } catch (error) {
+      toast.error("Failed to resolve report.");
     } finally {
       setSaving(false);
     }
@@ -312,18 +358,59 @@ export default function GovernmentReportDetailDrawer({
             </section>
           )}
 
+          {/* Quick Action Buttons */}
+          <section className="rounded-2xl border border-teal-200/80 bg-teal-50/60 p-4 space-y-2.5">
+            <p className="text-xs font-bold uppercase tracking-[0.15em] text-teal-900">
+              ⚡ Quick Status Actions
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setStatus("in_progress");
+                  toast.success("Selected: In Progress. Click Save Changes.");
+                }}
+                className={`py-2 px-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1 ${
+                  status === "in_progress"
+                    ? "bg-amber-600 text-white border-amber-700 shadow-sm"
+                    : "bg-white text-amber-800 border-amber-300 hover:bg-amber-100"
+                }`}
+              >
+                In Progress
+              </button>
+
+              <button
+                type="button"
+                onClick={handleQuickResolve}
+                disabled={saving}
+                className="py-2 px-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1 disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Resolve
+              </button>
+
+              <button
+                type="button"
+                onClick={handleQuickReject}
+                disabled={saving}
+                className="py-2 px-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm flex items-center justify-center gap-1 disabled:opacity-50"
+              >
+                <X className="h-3.5 w-3.5" />
+                Reject
+              </button>
+            </div>
+          </section>
+
           {/* Government Actions */}
           <section className="space-y-4 border-t border-[rgba(53,98,103,0.12)] pt-5">
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-(--color-dark-teal)">
-              Government Actions
+              Government Assignment & Priority
             </p>
 
             <SelectField
               label="Assign Department"
               value={department}
-              onChange={(value) =>
-                setDepartment(value as Department | "")
-              }
+              onChange={handleDepartmentChange}
             >
               <>
                 <option value="">— Select department —</option>
@@ -353,19 +440,23 @@ export default function GovernmentReportDetailDrawer({
             {/* Status */}
             <div>
               <p className="mb-1.5 text-xs font-semibold text-(--color-medium-teal)">
-                Update Status
+                Workflow Status
               </p>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {STATUS_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => setStatus(option.value)}
-                    className={`rounded-xl border px-3 py-2 text-xs font-semibold ${
+                    className={`rounded-xl border px-2.5 py-2 text-xs font-semibold transition ${
                       status === option.value
-                        ? "border-(--color-ocean) bg-(--color-ocean) text-white"
-                        : "border-[rgba(53,98,103,0.2)] text-(--color-dark-teal)"
+                        ? option.value === "rejected"
+                          ? "border-rose-600 bg-rose-600 text-white font-bold"
+                          : option.value === "resolved"
+                          ? "border-emerald-600 bg-emerald-600 text-white font-bold"
+                          : "border-(--color-ocean) bg-(--color-ocean) text-white font-bold"
+                        : "border-[rgba(53,98,103,0.2)] text-(--color-dark-teal) hover:bg-slate-50"
                     }`}
                   >
                     {option.label}
@@ -384,7 +475,7 @@ export default function GovernmentReportDetailDrawer({
             <button
               type="button"
               onClick={() => setShowConfirmDelete(true)}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-bold text-red-700 transition hover:bg-red-100"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-bold text-red-700 transition hover:bg-red-100 cursor-pointer"
             >
               <Trash2 className="h-4 w-4" />
               Delete Report
@@ -397,7 +488,7 @@ export default function GovernmentReportDetailDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl border border-[rgba(53,98,103,0.2)] py-2.5 text-sm font-semibold text-(--color-dark-teal)"
+            className="flex-1 rounded-xl border border-[rgba(53,98,103,0.2)] py-2.5 text-sm font-semibold text-(--color-dark-teal) hover:bg-slate-50"
           >
             Cancel
           </button>
@@ -406,7 +497,7 @@ export default function GovernmentReportDetailDrawer({
             type="button"
             onClick={save}
             disabled={saving}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-(--color-ocean) py-2.5 text-sm font-bold text-white disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-(--color-ocean) py-2.5 text-sm font-bold text-white disabled:opacity-50 hover:bg-(--color-deep-ocean) transition cursor-pointer"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -460,6 +551,16 @@ export default function GovernmentReportDetailDrawer({
           </div>
         </div>
       )}
+
+      {/* Reject with Reason Modal */}
+      <RejectReasonModal
+        isOpen={showRejectModal}
+        reportId={report.id}
+        reportTitle={report.title || report.categoryLabel}
+        isLoading={rejecting}
+        onConfirm={handleConfirmRejection}
+        onClose={() => setShowRejectModal(false)}
+      />
     </>
   );
 }

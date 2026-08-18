@@ -15,14 +15,16 @@ export type WaterReportStatus =
   | "submitted"
   | "ai_analysis"
   | "under_verification"
-  | "resolved";
+  | "resolved"
+  | "rejected";
 
 /** Extended status used by Government review workflow */
 export type GovReportStatus =
   | "under_review"
   | "assigned"
   | "in_progress"
-  | "resolved";
+  | "resolved"
+  | "rejected";
 
 export const DEPARTMENT_OPTIONS = [
   "Nagar Nigam",
@@ -115,13 +117,17 @@ export interface ReportLocation {
 }
 
 export interface AIAnalysisReportData {
+  title?: string;
   detectedIssue: string;
   confidence: number; // e.g. 0.91 -> 91%
   severity: Severity;
   summary: string;
+  source?: string;
+  sourceLabel?: string;
   analyzedAt?: string;
   detectedObjects?: string[];
   recommendedAction?: string;
+  isRelevant?: boolean;
 }
 
 export interface VerificationInfo {
@@ -144,7 +150,8 @@ export interface StatusTimelineStep {
 }
 
 export interface WaterReport {
-  id: string; // e.g. WR-2026-8F4K29
+  id: string; // e.g. JAL-2026-8F4K29
+  title?: string;
   problemType: WaterProblemType;
   categoryLabel: string;
   description: string;
@@ -166,8 +173,9 @@ export interface WaterReport {
 }
 
 export interface SubmitReportDraft {
+  title?: string;
   problemType: WaterProblemType;
-  description: string;
+  description?: string;
   location: ReportLocation;
   mediaFiles: File[];
   mediaPreviews: UploadedMediaItem[];

@@ -36,11 +36,13 @@ import type {
   SubmitReportDraft,
   UploadedMediaItem,
   ReportLocation,
+  AIAnalysisReportData,
 } from "../../types/report";
 import type { Severity } from "../../types/hazard";
 import { SEVERITY_STYLES } from "../../types/hazard";
 import { useGeolocation } from "../../hooks/useGeolocation";
 import { submitWaterReport, analyzeWaterMedia } from "../../services/reportService";
+import { CITY_LOCALITIES_MAP } from "../../data/indiaLocations";
 
 // Category icon mapper
 const CATEGORY_ICONS: Record<WaterProblemType, React.ReactNode> = {
@@ -52,37 +54,55 @@ const CATEGORY_ICONS: Record<WaterProblemType, React.ReactNode> = {
   other: <HelpCircle className="h-6 w-6 text-slate-600" />,
 };
 
-// Preset Puri coastal locations for quick manual selection
+// Preset coastal & urban locations for quick manual selection
 const PRESET_LOCATIONS = [
+  {
+    name: "Bhauti / PSIT, Kanpur",
+    lat: 26.4485,
+    lng: 80.2085,
+    locality: "Bhauti",
+    city: "Kanpur",
+    landmark: "Near PSIT Campus",
+  },
+  {
+    name: "Colonelganj, Kanpur",
+    lat: 26.4675,
+    lng: 80.3325,
+    locality: "Colonelganj",
+    city: "Kanpur",
+    landmark: "Near Main Market",
+  },
+  {
+    name: "Bakarmandi / Sisamau, Kanpur",
+    lat: 26.4635,
+    lng: 80.3295,
+    locality: "Bakarmandi",
+    city: "Kanpur",
+    landmark: "Near Sisamau Drain",
+  },
+  {
+    name: "Kidwai Nagar, Kanpur",
+    lat: 26.4410,
+    lng: 80.3420,
+    locality: "Kidwai Nagar",
+    city: "Kanpur",
+    landmark: "Near Block H Park",
+  },
+  {
+    name: "Civil Lines, Kanpur",
+    lat: 26.4760,
+    lng: 80.3465,
+    locality: "Civil Lines",
+    city: "Kanpur",
+    landmark: "Near VIP Road",
+  },
   {
     name: "VIP Road / Sea Beach, Puri",
     lat: 19.7983,
     lng: 85.8249,
+    locality: "Sea Beach",
+    city: "Puri",
     landmark: "Near Light House",
-  },
-  {
-    name: "Grand Road / Badadanda Market",
-    lat: 19.8135,
-    lng: 85.8312,
-    landmark: "Opposite Town Hall",
-  },
-  {
-    name: "Chakratirtha Road (CT Road)",
-    lat: 19.8052,
-    lng: 85.8451,
-    landmark: "Near Coastal Fishery Dock",
-  },
-  {
-    name: "Swargadwar Beach Zone",
-    lat: 19.7924,
-    lng: 85.8172,
-    landmark: "Beach Front Promenade",
-  },
-  {
-    name: "Balia / Atharanala Drainage Canal",
-    lat: 19.824,
-    lng: 85.819,
-    landmark: "Atharanala Bridge",
   },
 ];
 
@@ -97,6 +117,7 @@ export default function ReportHazard() {
   // Form states
   const [mediaFiles, setMediaFiles] = useState<File[]>([]);
   const [mediaPreviews, setMediaPreviews] = useState<UploadedMediaItem[]>([]);
+  const [title, setTitle] = useState("");
   const [problemType, setProblemType] = useState<WaterProblemType | null>(null);
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<Severity>("high");
@@ -108,15 +129,14 @@ export default function ReportHazard() {
   const [manualAddress, setManualAddress] = useState("");
   const [manualLandmark, setManualLandmark] = useState("");
   const [manualCoords, setManualCoordsState] = useState<{ lat: number; lng: number } | null>(null);
+  const [manualLocality, setManualLocality] = useState<string>("");
+  const [manualCity, setManualCity] = useState<string>("");
+  const [manualDistrict, setManualDistrict] = useState<string>("");
+  const [manualState, setManualState] = useState<string>("");
 
   // AI Assist preview state
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState<{
-    detectedIssue: string;
-    confidence: number;
-    severity: Severity;
-    summary: string;
-  } | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<AIAnalysisReportData | null>(null);
   const [aiApplied, setAiApplied] = useState(false);
 
   // Submission & Result state
@@ -139,30 +159,214 @@ export default function ReportHazard() {
     }
   }, [locationMode]);
 
+  // Live Geocoding for manual typed location
+  useEffect(() => {
+    if (locationMode !== "manual" || !manualAddress.trim() || manualAddress.length < 3) return;
+    const timer = setTimeout(async () => {
+      try {
+        const query = encodeURIComponent(manualAddress.trim() + " India");
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1&addressdetails=1`, {
+          headers: { "Accept-Language": "en" }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) {
+            const item = data[0];
+            const lat = parseFloat(item.lat);
+            const lng = parseFloat(item.lon);
+            setManualCoordsState({ lat, lng });
+            const addr = item.address || {};
+            const city = addr.city || addr.town || addr.municipality || addr.village || addr.district || "Kanpur";
+            const locality = addr.suburb || addr.neighbourhood || addr.residential || addr.road || manualAddress.trim();
+            const state = addr.state || "Uttar Pradesh";
+            const district = addr.state_district || addr.district || addr.county || city;
+            setManualLocality(locality);
+            setManualCity(city);
+            setManualDistrict(district);
+            setManualState(state);
+          }
+        }
+      } catch {
+        // preserve fallback
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [manualAddress, locationMode]);
+
+  // Reverse geocoded location details for live automatic GPS mode
+  const [geoAddress, setGeoAddress] = useState<string>("");
+  const [geoCity, setGeoCity] = useState<string>("");
+  const [geoDistrict, setGeoDistrict] = useState<string>("");
+  const [geoState, setGeoState] = useState<string>("");
+  const [geoLocality, setGeoLocality] = useState<string>("");
+  const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (autoCoords) {
+      let isMounted = true;
+      setIsGeocoding(true);
+      const fetchReverseGeocode = async () => {
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${autoCoords.lat}&lon=${autoCoords.lng}&format=json`,
+            { headers: { "Accept-Language": "en" } }
+          );
+          if (res.ok && isMounted) {
+            const data = await res.json();
+            const addr = data.address || {};
+            const state = addr.state || "";
+            const district = addr.state_district || addr.district || addr.county || "";
+            const city = addr.city || addr.town || addr.municipality || addr.village || "";
+            const locality = addr.suburb || addr.neighbourhood || addr.residential || addr.road || addr.quarter || "";
+            const parts = [locality, city, district, state].filter(Boolean);
+            const formatted = data.display_name || parts.join(", ");
+
+            setGeoAddress(formatted);
+            setGeoCity(city);
+            setGeoDistrict(district);
+            setGeoState(state);
+            setGeoLocality(locality);
+          }
+        } catch (err) {
+          console.warn("Client reverse geocoding notice:", err);
+        } finally {
+          if (isMounted) setIsGeocoding(false);
+        }
+      };
+      fetchReverseGeocode();
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [autoCoords]);
+
+  // Smart parser for manual addresses and landmarks
+  const parseManualAddressDetails = (text: string) => {
+    const t = (text || "").toLowerCase();
+    let city = "Kanpur";
+    let state = "Uttar Pradesh";
+    let district = "Kanpur Nagar";
+    let locality = text.trim();
+    let lat = 26.4730;
+    let lng = 80.3345;
+
+    if (
+      t.includes("kanpur") ||
+      t.includes("bhauti") ||
+      t.includes("psit") ||
+      t.includes("green park") ||
+      t.includes("vip road") ||
+      t.includes("hazelnut") ||
+      t.includes("civil lines") ||
+      t.includes("bakarmandi") ||
+      t.includes("sisamau") ||
+      t.includes("kidwai nagar") ||
+      t.includes("kakadeo")
+    ) {
+      city = "Kanpur";
+      state = "Uttar Pradesh";
+      district = "Kanpur Nagar";
+      if (t.includes("bhauti") || t.includes("psit")) {
+        lat = 26.4485;
+        lng = 80.2085;
+        locality = "Bhauti / PSIT";
+      } else if (t.includes("green park") || t.includes("vip road") || t.includes("hazelnut")) {
+        lat = 26.4760;
+        lng = 80.3465;
+        locality = "VIP Road / Green Park";
+      } else if (t.includes("bakarmandi") || t.includes("sisamau")) {
+        lat = 26.4635;
+        lng = 80.3295;
+        locality = "Bakarmandi / Sisamau";
+      } else if (t.includes("kidwai nagar")) {
+        lat = 26.4410;
+        lng = 80.3420;
+        locality = "Kidwai Nagar";
+      } else if (t.includes("kakadeo")) {
+        lat = 26.4735;
+        lng = 80.2930;
+        locality = "Kakadeo";
+      }
+    } else if (t.includes("puri") || t.includes("swargadwar") || t.includes("badadanda") || t.includes("sea beach")) {
+      city = "Puri";
+      state = "Odisha";
+      district = "Puri";
+      lat = 19.8135;
+      lng = 85.8312;
+    } else if (t.includes("lucknow") || t.includes("hazratganj") || t.includes("gomti")) {
+      city = "Lucknow";
+      state = "Uttar Pradesh";
+      district = "Lucknow";
+      lat = 26.8467;
+      lng = 80.9462;
+    } else if (t.includes("bhubaneswar") || t.includes("nandankanan") || t.includes("patia")) {
+      city = "Bhubaneswar";
+      state = "Odisha";
+      district = "Khordha";
+      lat = 20.2961;
+      lng = 85.8245;
+    }
+
+    return { city, state, district, locality, lat, lng };
+  };
+
   // Derived effective location
   const effectiveLocation: ReportLocation | null = useMemo(() => {
     if (locationMode === "automatic" && autoCoords) {
-      return {
+      const parts = [geoLocality, geoCity, geoDistrict, geoState].filter(Boolean);
+      const place = parts.length > 0 ? parts.join(", ") : `GPS Location (${autoCoords.lat.toFixed(4)}, ${autoCoords.lng.toFixed(4)})`;
+      const fullAddress = geoAddress || place;
+
+      const locObj: ReportLocation = {
         coords: autoCoords,
-        address: "Puri Coastal Zone (GPS Auto-Detected)",
-        placeName: "Current GPS Location",
-        landmark: "Detected via Device Sensor",
+        address: fullAddress,
+        placeName: place,
+        landmark: geoLocality ? `Near ${geoLocality}` : "Detected via Device Geolocation",
         mode: "automatic",
       };
+      (locObj as any).locality = geoLocality;
+      (locObj as any).city = geoCity;
+      (locObj as any).district = geoDistrict;
+      (locObj as any).state = geoState;
+      return locObj;
     }
 
     if (locationMode === "manual" && (manualCoords || manualAddress.trim())) {
-      return {
-        coords: manualCoords || { lat: 19.8135, lng: 85.8312 },
-        address: manualAddress.trim() || "Manual Selected Area, Puri",
-        placeName: manualAddress.trim() || "Puri District",
+      const parsed = parseManualAddressDetails(manualAddress);
+      const userLat = manualCoords?.lat ?? parsed.lat;
+      const userLng = manualCoords?.lng ?? parsed.lng;
+
+      const locObj: ReportLocation = {
+        coords: { lat: userLat, lng: userLng },
+        address: manualAddress.trim() || parsed.locality || "Manual Selected Incident Area",
+        placeName: manualAddress.trim() || parsed.locality || "Incident Location",
         landmark: manualLandmark.trim() || undefined,
         mode: "manual",
       };
+      (locObj as any).locality = manualLocality || parsed.locality;
+      (locObj as any).city = manualCity || parsed.city;
+      (locObj as any).district = manualDistrict || parsed.district;
+      (locObj as any).state = manualState || parsed.state;
+      return locObj;
     }
 
     return null;
-  }, [locationMode, autoCoords, manualCoords, manualAddress, manualLandmark]);
+  }, [
+    locationMode,
+    autoCoords,
+    manualCoords,
+    manualAddress,
+    manualLandmark,
+    manualLocality,
+    manualCity,
+    manualDistrict,
+    manualState,
+    geoAddress,
+    geoCity,
+    geoDistrict,
+    geoState,
+    geoLocality,
+  ]);
 
   // Handle media selection (File upload or camera capture)
   const handleMediaSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -208,27 +412,38 @@ export default function ReportHazard() {
     }
   };
 
+  const mapIssueToCategory = (detectedIssue: string): WaterProblemType => {
+    const raw = (detectedIssue || "").toLowerCase().replace(/[-_]/g, " ");
+    if (raw.includes("pond") || raw.includes("lake")) return "pond_lake_issue";
+    if (raw.includes("drain") || raw.includes("sewage")) return "drainage_problem";
+    if (raw.includes("flood") || raw.includes("inundat")) return "urban_flooding";
+    if (raw.includes("waterlog")) return "waterlogging";
+    if (raw.includes("pollut") || raw.includes("quality") || raw.includes("contaminat")) return "water_quality_pollution";
+    return "other";
+  };
+
   const applyAiSuggestion = () => {
     if (!aiSuggestion) return;
-    const matchedCategory = WATER_PROBLEM_CATEGORIES.find((c) =>
-      c.label.toLowerCase().includes(aiSuggestion.detectedIssue.toLowerCase())
-    );
-    if (matchedCategory) {
-      setProblemType(matchedCategory.id);
+    const catId = mapIssueToCategory(aiSuggestion.detectedIssue);
+    setProblemType(catId);
+    if (aiSuggestion.severity) {
+      setSeverity(aiSuggestion.severity);
     }
-    setSeverity(aiSuggestion.severity);
-    if (!description.trim()) {
+    if (aiSuggestion.title) {
+      setTitle(aiSuggestion.title);
+    }
+    if (aiSuggestion.summary) {
       setDescription(aiSuggestion.summary);
     }
     setAiApplied(true);
-    toast.success("AI suggestion applied to report draft!");
+    toast.success("AI Analysis applied: Problem Type, Title & Description auto-filled!");
   };
 
   // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!problemType || !description.trim() || !effectiveLocation) {
-      toast.error("Please fill in all required fields before submitting.");
+    if (!problemType || !effectiveLocation) {
+      toast.error("Please select a problem category and location before submitting.");
       return;
     }
 
@@ -236,6 +451,7 @@ export default function ReportHazard() {
 
     try {
       const draft: SubmitReportDraft = {
+        title: title.trim() || undefined,
         problemType,
         description: description.trim(),
         location: effectiveLocation,
@@ -250,11 +466,14 @@ export default function ReportHazard() {
 
       if (result.success && result.report) {
         setSubmittedReportId(result.report.id);
+        if (result.duplicate && result.duplicateMessage) {
+          toast(result.duplicateMessage, { icon: "ℹ️" });
+        }
         toast.success(`Report submitted successfully! ID: ${result.report.id}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Submission failed:", err);
-      toast.error("Failed to submit report. Please try again.");
+      toast.error(err?.message || "Failed to submit report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -572,54 +791,115 @@ export default function ReportHazard() {
               </div>
             )}
 
-            {/* AI Assistant Banner */}
+            {/* AI Assistant Banner & Quality Gate */}
             {(aiLoading || aiSuggestion) && (
-              <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-900">
-                    <Sparkles className="h-4 w-4 text-indigo-600" />
-                    <span>AI Assistant Detected Feature</span>
+              aiSuggestion && aiSuggestion.isRelevant === false ? (
+                <div className="rounded-3xl border-2 border-red-300 bg-red-50/95 p-5 space-y-3 shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-bold text-red-900">
+                      <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
+                      <span>⚠️ Non-Hazard Image Detected (Rejected)</span>
+                    </div>
+                    <span className="text-[11px] font-bold text-red-800 bg-white px-2.5 py-1 rounded-full border border-red-200 shadow-2xs">
+                      {aiSuggestion.sourceLabel || "JalDrishti Quality Gate"}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-indigo-600 font-semibold bg-white px-2 py-0.5 rounded-full border border-indigo-200">
-                    Confidence: {aiSuggestion ? `${Math.round(aiSuggestion.confidence * 100)}%` : "Scanning…"}
-                  </span>
-                </div>
 
-                {aiLoading ? (
-                  <p className="text-xs text-indigo-700 flex items-center gap-2 py-2">
-                    <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
-                    Analyzing uploaded media for flood depth and problem type…
+                  <p className="text-xs text-red-800 leading-relaxed bg-white/70 p-3 rounded-xl border border-red-200">
+                    {aiSuggestion.summary || "The uploaded image appears to be a selfie, portrait, animal, indoor photo, or non-hazard subject. No outdoor water hazard was detected."}
                   </p>
-                ) : aiSuggestion ? (
-                  <div className="space-y-2 text-xs text-indigo-950">
-                    <p>
-                      Suggested Type: <strong>{aiSuggestion.detectedIssue}</strong> (Severity:{" "}
-                      <span className="uppercase font-bold" style={{ color: SEVERITY_STYLES[aiSuggestion.severity].hex }}>
-                        {aiSuggestion.severity}
-                      </span>
-                      )
-                    </p>
-                    <p className="text-indigo-800 text-[11px] italic">"{aiSuggestion.summary}"</p>
 
-                    {!aiApplied && (
-                      <button
-                        type="button"
-                        onClick={applyAiSuggestion}
-                        className="mt-1 rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-700 transition"
-                      >
-                        Auto-Fill Problem Type &amp; Details
-                      </button>
-                    )}
+                  <div className="pt-1 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMediaFiles([]);
+                        setMediaPreviews([]);
+                        setAiSuggestion(null);
+                        fileInputRef.current?.click();
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-red-700 active:scale-95 transition shadow-sm"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                      Upload Clear Hazard Photo
+                    </button>
+                    <span className="text-[11px] text-red-700 font-semibold">
+                      Please upload a photo of flooding, waterlogging, or drainage issues.
+                    </span>
                   </div>
-                ) : null}
-              </div>
+                </div>
+              ) : (
+                <div className="rounded-3xl border border-indigo-200 bg-indigo-50/80 p-5 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-xs font-bold text-indigo-900">
+                      <Sparkles className="h-4 w-4 text-indigo-600" />
+                      <span>AI Vision Verification &amp; Enrichment</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-indigo-900 bg-white px-2.5 py-1 rounded-full border border-indigo-200 shadow-2xs">
+                        {aiSuggestion?.sourceLabel || (aiSuggestion?.source === "gemini" ? "Verified by Gemini AI" : "Detected by MobileNetV2 ML Service")}
+                      </span>
+                      <span className="text-[10px] text-indigo-700 font-semibold bg-indigo-100/80 px-2 py-1 rounded-full">
+                        {aiSuggestion ? `${Math.round(aiSuggestion.confidence * 100)}% Conf` : "Scanning…"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {aiLoading ? (
+                    <p className="text-xs text-indigo-700 flex items-center gap-2 py-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-indigo-600" />
+                      Analyzing hazard with MobileNetV2 ML &amp; Gemini AI quality check…
+                    </p>
+                  ) : aiSuggestion ? (
+                    <div className="space-y-2.5 text-xs text-indigo-950">
+                      <div>
+                        <span className="font-semibold text-indigo-800 text-[11px]">Suggested Title:</span>
+                        <p className="font-bold text-sm text-indigo-950">{aiSuggestion.title || `${aiSuggestion.detectedIssue} Incident`}</p>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-indigo-800 text-[11px]">Suggested Description:</span>
+                        <p className="text-indigo-900 text-xs italic bg-white/70 p-2.5 rounded-xl border border-indigo-100">{aiSuggestion.summary}</p>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-indigo-800">
+                        <span>Problem Type: <strong>{aiSuggestion.detectedIssue}</strong></span>
+                        <span>·</span>
+                        <span>Severity: <strong className="uppercase" style={{ color: SEVERITY_STYLES[aiSuggestion.severity as Severity]?.hex || "#0284c7" }}>{aiSuggestion.severity}</strong></span>
+                      </div>
+
+                      {!aiApplied && (
+                        <button
+                          type="button"
+                          onClick={applyAiSuggestion}
+                          className="mt-2 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 active:scale-95 transition shadow-sm"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          Use This Suggestion (Auto-Fill Title &amp; Description)
+                        </button>
+                      )}
+                      {aiApplied && (
+                        <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 pt-1">
+                          <Check className="h-3.5 w-3.5" />
+                          Suggestion applied to report draft
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              )
             )}
 
             <div className="flex justify-end pt-4">
               <button
                 type="button"
-                onClick={() => setCurrentStep(2)}
-                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-(--color-deep-ocean) active:scale-95 transition"
+                onClick={() => {
+                  if (aiSuggestion && aiSuggestion.isRelevant === false) {
+                    toast.error("Please upload a photo of a real water hazard (selfies / non-hazard photos are rejected).");
+                    return;
+                  }
+                  setCurrentStep(2);
+                }}
+                disabled={aiSuggestion?.isRelevant === false}
+                className="flex w-full sm:w-auto items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-(--color-deep-ocean) active:scale-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span>Continue to Problem Type</span>
                 <ArrowRight className="h-4 w-4" />
@@ -729,21 +1009,42 @@ export default function ReportHazard() {
               </p>
             </div>
 
-            {/* Description Textarea */}
-            <div className="space-y-2">
-              <label htmlFor="report-desc" className="block text-xs font-bold uppercase tracking-wider text-(--color-dark-teal)">
-                Incident Description <span className="text-rose-500">*</span>
-              </label>
+            {/* Report Title (Optional — AI auto-generates if empty) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="report-title" className="block text-xs font-bold uppercase tracking-wider text-(--color-dark-teal)">
+                  Report Title
+                </label>
+                <span className="text-[11px] text-slate-400 font-normal">Optional — AI auto-generates if empty</span>
+              </div>
+              <input
+                id="report-title"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Severe Waterlogging on Main Road (or leave blank for AI auto-title)"
+                className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-3.5 text-xs sm:text-sm text-(--color-deep-ocean) focus:border-(--color-ocean) focus:bg-white focus:ring-4 focus:ring-(--color-ocean)/10 focus:outline-none transition"
+              />
+            </div>
+
+            {/* Description Textarea (Optional — AI auto-generates if empty) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label htmlFor="report-desc" className="block text-xs font-bold uppercase tracking-wider text-(--color-dark-teal)">
+                  Detailed Description
+                </label>
+                <span className="text-[11px] text-slate-400 font-normal">Optional — AI auto-generates if empty</span>
+              </div>
               <textarea
                 id="report-desc"
                 rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="e.g. Water is knee-deep on the main road causing vehicle breakdown. Drainage culvert is completely clogged with debris."
-                className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-4 text-sm text-(--color-deep-ocean) focus:border-(--color-ocean) focus:bg-white focus:ring-4 focus:ring-(--color-ocean)/10 focus:outline-none transition"
+                placeholder="Describe what happened (or leave empty to let JalDrishti AI generate a concise description from your image)..."
+                className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-4 text-sm text-(--color-deep-ocean) focus:border-(--color-ocean) focus:bg-white focus:ring-4 focus:ring-(--color-ocean)/10 focus:outline-none transition resize-none"
               />
               <div className="flex justify-between text-[11px] text-(--color-medium-teal)">
-                <span>Minimum 10 characters</span>
+                <span>Optional: Leave empty for automatic AI generation</span>
                 <span>{description.trim().length} chars</span>
               </div>
             </div>
@@ -815,9 +1116,8 @@ export default function ReportHazard() {
 
               <button
                 type="button"
-                disabled={description.trim().length < 5}
                 onClick={() => setCurrentStep(4)}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-(--color-deep-ocean) disabled:opacity-50 active:scale-95 transition"
+                className="flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-8 py-3.5 text-sm font-bold text-white shadow-md hover:bg-(--color-deep-ocean) active:scale-95 transition"
               >
                 <span>Continue to Location</span>
                 <ArrowRight className="h-4 w-4" />
@@ -906,18 +1206,70 @@ export default function ReportHazard() {
                     Acquiring high-accuracy satellite coordinates…
                   </div>
                 ) : autoCoords ? (
-                  <div className="bg-white p-4 rounded-2xl border border-[rgba(53,98,103,0.12)] space-y-2">
+                  <div className="bg-white p-4 rounded-2xl border border-[rgba(53,98,103,0.12)] space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-(--color-deep-ocean)">
-                        Location Detected
+                        {geoCity ? `${geoCity}, ${geoState}` : "Current Location Detected"}
                       </span>
                       <span className="font-mono text-xs text-(--color-ocean) font-bold">
                         {autoCoords.lat.toFixed(5)}° N, {autoCoords.lng.toFixed(5)}° E
                       </span>
                     </div>
-                    <p className="text-xs text-(--color-medium-teal)">
-                      Puri Coastal Monitored Zone · GPS Confidence High (&lt;10m accuracy)
-                    </p>
+
+                    {isGeocoding ? (
+                      <p className="text-xs text-(--color-medium-teal) flex items-center gap-1.5 py-1">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-(--color-ocean)" />
+                        Detecting city, district &amp; area name…
+                      </p>
+                    ) : geoAddress ? (
+                      <p className="text-xs text-(--color-deep-ocean) font-medium leading-relaxed bg-(--color-soft-mint) p-2.5 rounded-xl border border-[rgba(53,98,103,0.1)]">
+                        📍 {geoAddress}
+                      </p>
+                    ) : null}
+
+                    <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-(--color-dark-teal)">
+                      {geoLocality && <span className="bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">Area: <strong>{geoLocality}</strong></span>}
+                      {geoCity && <span className="bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">City: <strong>{geoCity}</strong></span>}
+                      {geoDistrict && <span className="bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">District: <strong>{geoDistrict}</strong></span>}
+                      {geoState && <span className="bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">State: <strong>{geoState}</strong></span>}
+                    </div>
+
+                    {/* Area / Locality Specific Entry & Suggestions (e.g. Bakarmandi, Lakarmandi, Colonelganj, Civil Lines) */}
+                    <div className="pt-2 border-t border-[rgba(53,98,103,0.1)] space-y-2">
+                      <label className="block text-xs font-bold text-(--color-deep-ocean) uppercase tracking-wider">
+                        Specific Locality / Road Name (Optional):
+                      </label>
+                      <input
+                        type="text"
+                        value={geoLocality}
+                        onChange={(e) => setGeoLocality(e.target.value)}
+                        placeholder={`e.g. Bakarmandi, Lakarmandi, Colonelganj, Civil Lines, etc.`}
+                        className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-(--color-deep-ocean) focus:outline-none focus:border-(--color-ocean)"
+                      />
+
+                      {/* Quick Locality Chips */}
+                      {geoCity && CITY_LOCALITIES_MAP[geoCity] && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="text-[11px] font-bold text-(--color-medium-teal) mr-1">
+                            {geoCity} Localities:
+                          </span>
+                          {CITY_LOCALITIES_MAP[geoCity].slice(0, 8).map((loc) => (
+                            <button
+                              key={loc.name}
+                              type="button"
+                              onClick={() => setGeoLocality(loc.name)}
+                              className={`px-2.5 py-1 rounded-lg text-xs transition ${
+                                geoLocality === loc.name
+                                  ? "bg-(--color-ocean) text-white font-bold shadow-2xs"
+                                  : "bg-slate-50 text-slate-700 border border-slate-200 hover:bg-(--color-pale-aqua)"
+                              }`}
+                            >
+                              📍 {loc.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800 border border-amber-200">
@@ -943,7 +1295,7 @@ export default function ReportHazard() {
                 {/* Search / Preset Area Chips */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-(--color-dark-teal) mb-2">
-                    Quick Preset Coastal Areas
+                    Quick Preset Coastal & Urban Areas
                   </label>
                   <div className="flex flex-wrap gap-2">
                     {PRESET_LOCATIONS.map((preset) => (
@@ -954,6 +1306,10 @@ export default function ReportHazard() {
                           setManualAddress(preset.name);
                           setManualLandmark(preset.landmark);
                           setManualCoordsState({ lat: preset.lat, lng: preset.lng });
+                          setManualLocality(preset.locality);
+                          setManualCity(preset.city);
+                          setManualDistrict(preset.city);
+                          setManualState(preset.city === "Puri" ? "Odisha" : "Uttar Pradesh");
                         }}
                         className={`rounded-xl border px-3 py-2 text-xs text-left transition ${
                           manualAddress === preset.name
@@ -977,7 +1333,7 @@ export default function ReportHazard() {
                       type="text"
                       value={manualAddress}
                       onChange={(e) => setManualAddress(e.target.value)}
-                      placeholder="e.g. VIP Road near Lighthouse, Puri"
+                      placeholder="e.g. MG Road near Town Hall or Sector 4 Beach Promenade"
                       className="w-full rounded-2xl border border-[rgba(53,98,103,0.2)] bg-slate-50/50 p-3 text-xs sm:text-sm text-(--color-deep-ocean) focus:bg-white focus:border-(--color-ocean) focus:outline-none"
                     />
                   </div>
@@ -1061,11 +1417,11 @@ export default function ReportHazard() {
                 </button>
               </div>
 
-              {/* Description & Severity Card */}
+              {/* Title & Description Card */}
               <div className="rounded-2xl bg-(--color-soft-mint) p-4 border border-[rgba(53,98,103,0.12)] space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-(--color-medium-teal)">
-                    Description &amp; Severity
+                    Report Title &amp; Description
                   </span>
                   <button
                     type="button"
@@ -1075,10 +1431,19 @@ export default function ReportHazard() {
                     Edit
                   </button>
                 </div>
-                <p className="text-xs sm:text-sm text-(--color-deep-ocean) leading-relaxed">
-                  {description}
-                </p>
-                <div className="pt-1">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Title:</span>
+                  <p className="text-sm font-bold text-(--color-deep-ocean)">
+                    {title.trim() || <span className="italic text-indigo-700 font-normal">Will be auto-generated by JalDrishti AI</span>}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Description:</span>
+                  <p className="text-xs sm:text-sm text-(--color-deep-ocean) leading-relaxed">
+                    {description.trim() || <span className="italic text-indigo-700 font-normal">Will be auto-generated by JalDrishti AI from image evidence</span>}
+                  </p>
+                </div>
+                <div className="pt-1 flex items-center gap-2">
                   <span
                     className="rounded-full px-2.5 py-0.5 text-xs font-bold text-white uppercase"
                     style={{ background: SEVERITY_STYLES[severity].hex }}
@@ -1090,21 +1455,29 @@ export default function ReportHazard() {
 
               {/* Location Card */}
               <div className="flex items-start justify-between rounded-2xl bg-(--color-soft-mint) p-4 border border-[rgba(53,98,103,0.12)]">
-                <div>
+                <div className="space-y-1">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-(--color-medium-teal)">
                     Location Target
                   </span>
-                  <p className="text-xs sm:text-sm font-bold text-(--color-deep-ocean) mt-0.5">
+                  <p className="text-xs sm:text-sm font-bold text-(--color-deep-ocean)">
                     📍 {effectiveLocation?.address || effectiveLocation?.placeName}
                   </p>
-                  <p className="text-[10px] font-mono text-slate-500 mt-0.5">
-                    {effectiveLocation?.coords.lat.toFixed(4)}° N, {effectiveLocation?.coords.lng.toFixed(4)}° E ({effectiveLocation?.mode.toUpperCase()})
+                  {(geoCity || geoDistrict || geoState) && (
+                    <div className="flex flex-wrap gap-1.5 pt-0.5 text-[11px] text-(--color-dark-teal)">
+                      {geoLocality && <span className="bg-white px-2 py-0.5 rounded border border-slate-200">Area: <strong>{geoLocality}</strong></span>}
+                      {geoCity && <span className="bg-white px-2 py-0.5 rounded border border-slate-200">City: <strong>{geoCity}</strong></span>}
+                      {geoDistrict && <span className="bg-white px-2 py-0.5 rounded border border-slate-200">District: <strong>{geoDistrict}</strong></span>}
+                      {geoState && <span className="bg-white px-2 py-0.5 rounded border border-slate-200">State: <strong>{geoState}</strong></span>}
+                    </div>
+                  )}
+                  <p className="text-[10px] font-mono text-slate-500">
+                    GPS: {effectiveLocation?.coords.lat.toFixed(5)}° N, {effectiveLocation?.coords.lng.toFixed(5)}° E ({effectiveLocation?.mode.toUpperCase()})
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setCurrentStep(4)}
-                  className="text-xs font-bold text-(--color-ocean) underline"
+                  className="text-xs font-bold text-(--color-ocean) underline shrink-0"
                 >
                   Edit
                 </button>

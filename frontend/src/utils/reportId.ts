@@ -1,14 +1,14 @@
 // src/utils/reportId.ts
 // Utility for generating and validating human-readable, unique, searchable Report IDs
-// Example format: WR-2026-8F4K29
+// Example format: JAL-2026-8F4K29
 
-const PREFIX = "WR";
+const PREFIX = "JAL";
 const CHARSET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"; // Exclude ambiguous chars like 0, O, 1, I
 
 /**
  * Generates a unique, human-readable Report ID.
- * Format: WR-<YEAR>-<6 RANDOM ALPHANUMERIC CHARACTERS>
- * Example: WR-2026-8F4K29
+ * Format: JAL-<YEAR>-<6 RANDOM ALPHANUMERIC CHARACTERS>
+ * Example: JAL-2026-8F4K29
  */
 export function generateReportId(year: number = new Date().getFullYear()): string {
   let randomPart = "";
@@ -28,15 +28,16 @@ export function generateReportId(year: number = new Date().getFullYear()): strin
 }
 
 /**
- * Checks if a string matches the standard Report ID format (WR-YYYY-XXXXXX).
+ * Checks if a string matches any valid Report ID format (JAL-YYYY-XXXXXX, WR-YYYY-XXXXXX, etc.).
  */
 export function isValidReportId(id: string): boolean {
   if (!id || typeof id !== "string") return false;
   const clean = id.trim().toUpperCase();
-  // Support both WR-YYYY-XXXXXX and existing RPT-XXXXXX formats
+  const jalRegex = /^JAL-\d{4}-[A-Z0-9]{6}$/i;
   const wrRegex = /^WR-\d{4}-[A-Z0-9]{6}$/i;
   const rptRegex = /^RPT-[A-Z0-9]+$/i;
-  return wrRegex.test(clean) || rptRegex.test(clean);
+  const genericIdRegex = /^[A-Z0-9_-]{4,36}$/i;
+  return jalRegex.test(clean) || wrRegex.test(clean) || rptRegex.test(clean) || genericIdRegex.test(clean);
 }
 
 /**

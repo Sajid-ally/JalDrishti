@@ -20,6 +20,7 @@ import Badge from "../../components/common/Badge";
 import toast from "react-hot-toast";
 import { getAdministrativeReports, updateReportVerification } from "../../services/reportService";
 import type { HazardReport, ReportStatus, HazardType, Severity } from "../../types/hazard";
+import type { WaterReport } from "../../types/report";
 
 // ─── Extended report state ─────────────────────────────────────────────────
 
@@ -273,7 +274,7 @@ export default function VerifyReports() {
     setLoading(true);
     try {
       const data = await getAdministrativeReports();
-      const mapped = data.map((report) => {
+      const mapped = data.map((report: WaterReport) => {
         let type: HazardType = "other";
         if (report.problemType === "urban_flooding" || report.problemType === "waterlogging") {
           type = "flood";

@@ -1,7 +1,7 @@
 import os
 import httpx
+from app.config import settings
 
-ML_SERVICE_URL = "http://localhost:8001"
 
 async def getOwnModelPrediction(imagePath: str) -> dict:
     if not os.path.exists(imagePath):
@@ -9,39 +9,67 @@ async def getOwnModelPrediction(imagePath: str) -> dict:
             "hazard_type": "normal",
             "confidence": 0.0,
             "severity": 0,
+            "available": False,
+            "description": "Image file not found",
         }
 
-    with open(imagePath, "rb") as f:
-        image_bytes = f.read()
+    try:
+        with open(imagePath, "rb") as f:
+            image_bytes = f.read()
 
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        files = {
-            "file": (
-                os.path.basename(imagePath),
-                image_bytes,
-                "image/jpeg",
+        ml_url = getattr(settings, "ML_SERVICE_URL", "http://localhost:8001")
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            files = {
+                "file": (
+                    os.path.basename(imagePath),
+                    image_bytes,
+                    "image/jpeg",
+                )
+            }
+
+            response = await client.post(
+                f"{ml_url}/api/detect",
+                files=files,
             )
+
+            if response.status_code == 200:
+                data = response.json()
+                data["available"] = True
+                return data
+            else:
+                print(f"[ML CLIENT] ML service returned status {response.status_code}: {response.text}")
+                return {
+                    "hazard_type": "unknown",
+                    "confidence": 0.0,
+                    "severity": 0,
+                    "available": False,
+                    "description": f"ML error: {response.status_code}",
+                }
+    except Exception as e:
+        print(f"[ML CLIENT] Could not connect to ML service: {e}")
+        return {
+            "hazard_type": "unknown",
+            "confidence": 0.0,
+            "severity": 0,
+            "available": False,
+            "description": "ML service unavailable",
         }
-
-        response = await client.post(
-            f"{ML_SERVICE_URL}/api/detect",
-            files=files,
-        )
-
-        response.raise_for_status()
-        return response.json()
 
 
 async def sendCorrectionToML(imagePath: str, correctedHazard: str) -> dict:
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            f"{ML_SERVICE_URL}/api/corrections",
-            json={
-                "imagePath": imagePath,
-                "correctedHazard": correctedHazard,
-            },
-        )
-
-        response.raise_for_status()
-        return response.json()
-
+    try:
+        ml_url = getattr(settings, "ML_SERVICE_URL", "http://localhost:8001")
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{ml_url}/api/corrections",
+                json={
+                    "imagePath": imagePath,
+                    "correctedHazard": correctedHazard,
+                },
+            )
+            if response.status_code == 200:
+                return response.json()
+    except Exception as e:
+        print(f"[ML CLIENT] Correction submission skipped: {e}")
+    return {"status": "skipped"}

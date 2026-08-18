@@ -10,14 +10,14 @@ import {
 import type { CitizenUserProfile } from "../../types/user";
 
 export default function CitizenProfile() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const [profile, setProfile] = useState<CitizenUserProfile>({
     id: user?.id || "USR-CITIZEN-01",
-    name: user?.name || "Sajid Ally",
-    email: user?.email || "sajid@jaldrishti.org",
+    name: user?.name || "Citizen User",
+    email: user?.email || "citizen@jaldrishti.in",
     phone: "+91 98765 12345",
-    location: "Puri Coastal District, Odisha",
+    location: "Monitored Area",
     photoUrl:
       "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80",
     role: "citizen",
@@ -33,6 +33,8 @@ export default function CitizenProfile() {
 
       try {
         const data = await getCitizenProfile();
+        if (user?.name) data.name = data.name || user.name;
+        if (user?.email) data.email = data.email || user.email;
         setProfile(data);
       } catch {
         toast.error("Failed to load profile details.");
@@ -42,7 +44,7 @@ export default function CitizenProfile() {
     };
 
     fetchProfile();
-  }, []);
+  }, [user]);
 
   // Handle profile photo selection
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -71,7 +73,8 @@ export default function CitizenProfile() {
     setSaving(true);
 
     try {
-      await updateCitizenProfile(profile);
+      const updated = await updateCitizenProfile(profile);
+      updateUser({ name: updated.name, email: updated.email });
       toast.success("Citizen profile updated successfully!");
     } catch {
       toast.error("Failed to save profile changes.");

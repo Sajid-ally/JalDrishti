@@ -1,12 +1,15 @@
 from datetime import datetime
-from fastapi import APIRouter, Form, HTTPException
+from typing import Optional, List, Union
+from fastapi import APIRouter, Form, HTTPException, Request, Body
 
+from app.relief.schemas import ReliefAssignment, ReliefStatusUpdate, ReliefRequestCreate
 from app.relief.service import (
     createReliefRequest,
     getReliefRequests,
     getReliefRequestById,
     assignReliefRequest,
     updateReliefStatus,
+    deleteReliefRequest,
 )
 
 
@@ -22,16 +25,30 @@ router = APIRouter(
 # =========================================================
 
 @router.post("/")
-async def addReliefRequest(
-    disasterType: str = Form(...),
-    description: str = Form(...),
-    latitude: float = Form(...),
-    longitude: float = Form(...),
-    locationName: str = Form(None),
-    peopleAffected: int = Form(...),
-    assistanceRequired: list[str] = Form(...),
-    urgency: str = Form(...),
-):
+async def addReliefRequest(request: Request):
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        body = await request.json()
+        disasterType = body.get("disasterType") or body.get("title") or "Water Hazard"
+        description = body.get("description", "")
+        loc = body.get("location", {})
+        latitude = float(loc.get("latitude") or body.get("latitude", 20.2961))
+        longitude = float(loc.get("longitude") or body.get("longitude", 85.8245))
+        locationName = body.get("locationName") or loc.get("address") or loc.get("landmark")
+        peopleAffected = int(body.get("peopleAffected", 1))
+        assistanceRequired = body.get("assistanceRequired", ["Rescue", "Evacuation"])
+        urgency = body.get("urgency", "High")
+    else:
+        form = await request.form()
+        disasterType = form.get("disasterType") or "Water Hazard"
+        description = form.get("description", "")
+        latitude = float(form.get("latitude", 20.2961))
+        longitude = float(form.get("longitude", 85.8245))
+        locationName = form.get("locationName")
+        peopleAffected = int(form.get("peopleAffected", 1))
+        assistanceRequired = form.getlist("assistanceRequired") or ["Rescue", "Evacuation"]
+        urgency = form.get("urgency", "High")
+
     reliefData = {
         "disasterType": disasterType,
         "description": description,
@@ -63,9 +80,7 @@ async def addReliefRequest(
 
 @router.get("/")
 async def fetchReliefRequests():
-
     requests = await getReliefRequests()
-
     return {
         "success": True,
         "count": len(requests),
@@ -78,18 +93,13 @@ async def fetchReliefRequests():
 # =========================================================
 
 @router.get("/{requestId}")
-async def fetchReliefRequest(
-    requestId: str,
-):
-
+async def fetchReliefRequest(requestId: str):
     request = await getReliefRequestById(requestId)
-
     if request is None:
         raise HTTPException(
             status_code=404,
             detail="Relief request not found",
         )
-
     return {
         "success": True,
         "request": request,
@@ -102,13 +112,20 @@ async def fetchReliefRequest(
 # =========================================================
 
 @router.patch("/{requestId}/assign")
-async def assignRescueTeam(
-    requestId: str,
-    organization: str = Form(...),
-    teamName: str = Form(...),
-    resources: list[str] = Form(...),
-    governmentNote: str = Form(None),
-):
+async def assignRescueTeam(requestId: str, request: Request):
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        body = await request.json()
+        organization = body.get("organization", "Emergency Response Force")
+        teamName = body.get("teamName", "Rescue Team Alpha")
+        resources = body.get("resources", ["Rescue Boat", "Medical Kit"])
+        governmentNote = body.get("governmentNote")
+    else:
+        form = await request.form()
+        organization = form.get("organization", "Emergency Response Force")
+        teamName = form.get("teamName", "Rescue Team Alpha")
+        resources = form.getlist("resources") or ["Rescue Boat", "Medical Kit"]
+        governmentNote = form.get("governmentNote")
 
     assignmentData = {
         "organization": organization,
@@ -130,7 +147,7 @@ async def assignRescueTeam(
 
     return {
         "success": True,
-        "message": "Rescue team assigned successfully",
+        "message": f"Rescue team '{teamName}' assigned successfully",
         "request": updatedRequest,
     }
 
@@ -141,28 +158,33 @@ async def assignRescueTeam(
 # =========================================================
 
 @router.patch("/{requestId}/status")
-async def changeReliefStatus(
-    requestId: str,
-    status: str = Form(...),
-    governmentNote: str = Form(None),
-):
+async def changeReliefStatus(requestId: str, request: Request):
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        body = await request.json()
+        status = body.get("status", "Assigned")
+        governmentNote = body.get("governmentNote")
+    else:
+        form = await request.form()
+        status = form.get("status", "Assigned")
+        governmentNote = form.get("governmentNote")
 
+    status_clean = status.strip().title()
     allowed = [
         "Pending",
         "Assigned",
+        "In Progress",
         "Completed",
+        "Resolved",
         "Rejected",
     ]
 
-    if status not in allowed:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Status must be one of {allowed}",
-        )
+    if status_clean not in allowed:
+        status_clean = "Assigned"
 
     updated = await updateReliefStatus(
         requestId,
-        status,
+        status_clean,
         governmentNote,
     )
 
@@ -174,6 +196,25 @@ async def changeReliefStatus(
 
     return {
         "success": True,
-        "message": f"Request marked as {status}",
+        "message": f"Request marked as {status_clean}",
         "request": updated,
+    }
+
+
+# =========================================================
+# DELETE / REMOVE RELIEF REQUEST
+# =========================================================
+
+@router.delete("/{requestId}")
+async def removeReliefRequest(requestId: str):
+    success = await deleteReliefRequest(requestId)
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Relief request not found or delete failed",
+        )
+    return {
+        "success": True,
+        "message": "Relief request removed and deleted from database successfully",
+        "requestId": requestId,
     }

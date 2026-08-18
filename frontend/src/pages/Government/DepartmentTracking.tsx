@@ -76,8 +76,15 @@ export default function DepartmentTracking() {
     setLoading(true);
     try {
       const data = await getAllWaterReports();
-      // Show only reports that have been assigned to a department
-      setAllReports(data.filter((r) => !!r.assignedDepartment));
+      // Show only reports that have been assigned to a department and are NOT rejected
+      setAllReports(
+        data.filter(
+          (r) =>
+            !!r.assignedDepartment &&
+            r.govStatus !== "rejected" &&
+            r.status !== "rejected"
+        )
+      );
     } finally {
       setLoading(false);
     }
@@ -97,6 +104,7 @@ export default function DepartmentTracking() {
 
   const filtered = useMemo(() => {
     return allReports.filter((r) => {
+      if (r.govStatus === "rejected" || r.status === "rejected") return false;
       if (filterDept !== "all" && r.assignedDepartment !== filterDept) return false;
       if (filterStatus !== "all" && (r.govStatus ?? "assigned") !== filterStatus) return false;
       if (filterSeverity !== "all" && r.severity !== filterSeverity) return false;

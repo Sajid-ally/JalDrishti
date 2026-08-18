@@ -2,44 +2,47 @@ import type {
   CitizenUserProfile,
   GovernmentUserProfile,
 } from "../types/user";
+import { STORAGE_KEYS } from "../utils/constants";
+import { updateUserProfile } from "./authService";
 
-const MOCK_CITIZEN_PROFILE: CitizenUserProfile = {
-  id: "USR-CITIZEN-01",
-  name: "Sajid Ally",
-  email: "sajid@coastaleye.org",
-  phone: "+91 98765 12345",
-  location: "Puri Coastal District, Odisha",
-  photoUrl:
-    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80",
-  role: "citizen",
-};
-
-const MOCK_GOVT_PROFILE: GovernmentUserProfile = {
-  id: "USR-GOVT-01",
-  name: "Dr. Rajesh Sharma",
-  governmentId: "GOV-OD-8842",
-  department: "Coastal Disaster Response Authority (CDRA)",
-  designation: "Senior Incident Commander",
-  email: "r.sharma@cdra.gov.in",
-  phone: "+91 94321 00998",
-  location: "Bhubaneswar Control Headquarters",
-  photoUrl:
-    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80",
-  role: "government",
-};
+function getActiveUserFromStorage(): { id?: string; name?: string; email?: string } | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.USER);
+    if (raw) return JSON.parse(raw);
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 export async function getCitizenProfile(): Promise<CitizenUserProfile> {
-  const saved = localStorage.getItem("coastaleye_citizen_profile");
+  const activeUser = getActiveUserFromStorage();
+  const saved = localStorage.getItem("jaldrishti_citizen_profile");
+
+  let base: CitizenUserProfile = {
+    id: activeUser?.id || "USR-CITIZEN-01",
+    name: activeUser?.name || "Citizen User",
+    email: activeUser?.email || "citizen@jaldrishti.in",
+    phone: "+91 98765 12345",
+    location: "Monitored Area",
+    photoUrl:
+      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80",
+    role: "citizen",
+  };
 
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      base = { ...base, ...parsed };
+      // Always prioritize active logged-in user name/email if saved hasn't customized it
+      if (activeUser?.name) base.name = parsed.name || activeUser.name;
+      if (activeUser?.email) base.email = parsed.email || activeUser.email;
     } catch {
-      // fallback to mock profile
+      // fallback
     }
   }
 
-  return MOCK_CITIZEN_PROFILE;
+  return base;
 }
 
 export async function updateCitizenProfile(
@@ -49,25 +52,51 @@ export async function updateCitizenProfile(
   const updated = { ...current, ...profile };
 
   localStorage.setItem(
-    "coastaleye_citizen_profile",
+    "jaldrishti_citizen_profile",
     JSON.stringify(updated)
   );
+
+  // Sync with auth user and backend
+  await updateUserProfile({
+    name: updated.name,
+    phone: updated.phone,
+    location: updated.location,
+    photoUrl: updated.photoUrl,
+  });
 
   return updated;
 }
 
 export async function getGovernmentProfile(): Promise<GovernmentUserProfile> {
-  const saved = localStorage.getItem("coastaleye_govt_profile");
+  const activeUser = getActiveUserFromStorage();
+  const saved = localStorage.getItem("jaldrishti_govt_profile");
+
+  let base: GovernmentUserProfile = {
+    id: activeUser?.id || "USR-GOVT-01",
+    name: activeUser?.name || "Government Disaster Officer",
+    governmentId: "GOV-IN-8842",
+    department: "Coastal Disaster Response Authority (CDRA)",
+    designation: "Senior Incident Commander",
+    email: activeUser?.email || "official@jaldrishti.gov.in",
+    phone: "+91 94321 00998",
+    location: "Command Center Headquarters",
+    photoUrl:
+      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80",
+    role: "government",
+  };
 
   if (saved) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      base = { ...base, ...parsed };
+      if (activeUser?.name) base.name = parsed.name || activeUser.name;
+      if (activeUser?.email) base.email = parsed.email || activeUser.email;
     } catch {
-      // fallback to mock profile
+      // fallback
     }
   }
 
-  return MOCK_GOVT_PROFILE;
+  return base;
 }
 
 export async function updateGovernmentProfile(
@@ -77,9 +106,20 @@ export async function updateGovernmentProfile(
   const updated = { ...current, ...profile };
 
   localStorage.setItem(
-    "coastaleye_govt_profile",
+    "jaldrishti_govt_profile",
     JSON.stringify(updated)
   );
+
+  // Sync with auth user and backend
+  await updateUserProfile({
+    name: updated.name,
+    phone: updated.phone,
+    department: updated.department,
+    designation: updated.designation,
+    governmentId: updated.governmentId,
+    location: updated.location,
+    photoUrl: updated.photoUrl,
+  });
 
   return updated;
 }

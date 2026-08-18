@@ -1,6 +1,6 @@
 import axios, { AxiosError } from "axios";
 
-import { API_BASE_URL } from "../utils/constants";
+import { API_BASE_URL, STORAGE_KEYS } from "../utils/constants";
 import { ApiError, type ApiErrorBody } from "../types/api";
 
 const api = axios.create({
@@ -9,6 +9,18 @@ const api = axios.create({
     Accept: "application/json",
   },
 });
+
+// Attach Authorization header if token exists in localStorage
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export function toApiError(error: unknown): ApiError {
   if (axios.isAxiosError(error)) {

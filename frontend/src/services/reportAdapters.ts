@@ -29,12 +29,23 @@ export function toUiProblemType(category?: string | null): WaterProblemType {
   return (category && BACKEND_CATEGORY_TO_UI[category]) || "other";
 }
 
-export function toUiSeverity(priority?: string | null): Severity {
-  if (priority === "low" || priority === "high" || priority === "critical") {
-    return priority;
+export function toUiSeverity(priority?: string | null, severityNum?: number | null): Severity {
+  const p = priority?.toLowerCase();
+  if (severityNum === 5 || p === "critical") {
+    return "critical";
   }
-
-  // The backend's "medium" is displayed by the current UI as "moderate".
+  if (severityNum === 4 || p === "high") {
+    return "high";
+  }
+  if (severityNum === 3 || p === "medium" || p === "moderate") {
+    return "moderate";
+  }
+  if ((typeof severityNum === "number" && severityNum <= 2) || p === "low") {
+    return "low";
+  }
+  if (p === "critical" || p === "high" || p === "low") {
+    return p as Severity;
+  }
   return "moderate";
 }
 
@@ -90,8 +101,8 @@ function toMapIssueType(category?: string | null): MapIssueType {
 }
 
 export function toCitizenMapMarker(report: BackendReport): CitizenMapMarker | null {
-  const latitude = report.location?.latitude;
-  const longitude = report.location?.longitude;
+  const latitude = report.location?.latitude ?? (report as any).latitude;
+  const longitude = report.location?.longitude ?? (report as any).longitude;
 
   if (
     typeof latitude !== "number" ||
@@ -109,23 +120,24 @@ export function toCitizenMapMarker(report: BackendReport): CitizenMapMarker | nu
   const location = report.location;
   const placeName = [location?.locality, location?.city, location?.district, location?.state]
     .filter((value): value is string => Boolean(value))
-    .join(", ");
+    .join(", ") || (report as any).city || (report as any).state || "Reported Location";
+
+  const severityNum = (report as any).severity ?? (report as any).mlAnalysis?.severity;
 
   return {
-    // Keep the database ID internal to React marker identity. It is not shown to citizens.
     id: report.id,
     reportId: report.publicReportId || undefined,
     latitude,
     longitude,
     hazardType: toMapIssueType(report.category),
-    severity: toUiSeverity(report.priority),
+    severity: toUiSeverity(report.priority, severityNum),
     status: report.status || "submitted",
     placeName: placeName || undefined,
-    state: location?.state || "",
-    district: location?.district || "",
-    locality: location?.locality || "",
-    title: report.title || undefined,
-    description: report.description || undefined,
+    state: location?.state || (report as any).state || "",
+    district: location?.district || (report as any).district || "",
+    locality: location?.locality || (report as any).locality || location?.city || (report as any).city || (report as any).district || "Active Hazard Zone",
+    title: report.title || (report as any).aiAnalysis?.title || undefined,
+    description: report.description || (report as any).aiAnalysis?.description || undefined,
     imageUrl: toMediaUrl(report.imageUrl) || undefined,
     createdAt: report.createdAt,
   };
@@ -138,6 +150,10 @@ export interface TrackedReportView {
   categoryLabel: string;
   severity: Severity;
   status: BackendReportStatus;
+  assignedDepartment?: string | null;
+  assignment?: Record<string, unknown> | null;
+  concludedAt?: string | null;
+  expiresAt?: string | null;
   location: {
     latitude?: number;
     longitude?: number;
@@ -158,14 +174,18 @@ export interface TrackedReportView {
 }
 
 function toBackendStatus(status?: string | null): BackendReportStatus {
+  const s = (status || "").toLowerCase().trim();
   if (
-    status === "under_review" ||
-    status === "verified" ||
-    status === "action_in_progress" ||
-    status === "resolved" ||
-    status === "rejected"
+    s === "under_review" ||
+    s === "verified" ||
+    s === "action_in_progress" ||
+    s === "in_progress" ||
+    s === "assigned" ||
+    s === "resolved" ||
+    s === "rejected"
   ) {
-    return status;
+    if (s === "in_progress") return "action_in_progress";
+    return s as any;
   }
 
   return "submitted";
@@ -181,14 +201,25 @@ function toMediaUrl(imageUrl?: string | null): string | null {
 
 export function toTrackedReportView(report: BackendTrackingReport): TrackedReportView {
   const imageUrl = toMediaUrl(report.imageUrl);
+  const severityNum = (report as any).severity ?? (report as any).mlAnalysis?.severity;
+
+  const dept =
+    report.assignment?.department ||
+    (report.verification as any)?.assignedDepartment ||
+    (report as any).assignedDepartment ||
+    null;
 
   return {
     id: report.reportId,
     title: report.title,
     description: report.description || "No description was provided for this report.",
     categoryLabel: getCategoryLabel(report.category),
-    severity: toUiSeverity(report.priority),
-    status: toBackendStatus(report.currentStatus),
+    severity: toUiSeverity(report.priority, severityNum),
+    status: toBackendStatus(report.currentStatus || (report as any).status),
+    assignedDepartment: typeof dept === "string" ? dept : null,
+    assignment: report.assignment || null,
+    concludedAt: report.concludedAt || (report as any).concludedAt || null,
+    expiresAt: report.expiresAt || (report as any).expiresAt || null,
     location: {
       latitude: report.location?.latitude,
       longitude: report.location?.longitude,
@@ -212,31 +243,49 @@ export function toWaterReport(report: BackendReport): WaterReport {
   const problemType = toUiProblemType(report.category);
   const categoryLabel = getCategoryLabel(report.category);
   const imageUrl = toMediaUrl(report.imageUrl);
+  const severityNum = (report as any).severity ?? (report as any).mlAnalysis?.severity;
   
-  // Backend statuses: submitted, under_review, verified, action_in_progress, resolved, rejected.
-  // Frontend statuses (WaterReportStatus): submitted, ai_analysis, under_verification, resolved.
+  const rawStatus = (report.status || "").toLowerCase().trim();
+  const rawGovStatus = ((report as any).govStatus || "").toLowerCase().trim();
+
+  // Frontend statuses: submitted, under_verification, resolved, rejected.
   let frontendStatus: WaterReportStatus = "submitted";
-  if (report.status === "resolved" || report.status === "rejected") {
+  if (rawStatus === "resolved" || rawGovStatus === "resolved") {
     frontendStatus = "resolved";
-  } else if (report.status === "under_review" || report.status === "verified" || report.status === "action_in_progress") {
+  } else if (rawStatus === "rejected" || rawGovStatus === "rejected") {
+    frontendStatus = "rejected";
+  } else if (
+    rawStatus === "under_review" ||
+    rawStatus === "verified" ||
+    rawStatus === "action_in_progress" ||
+    rawStatus === "in_progress" ||
+    rawStatus === "assigned" ||
+    rawGovStatus === "assigned" ||
+    rawGovStatus === "in_progress"
+  ) {
     frontendStatus = "under_verification";
   }
 
-  // GovReportStatus: "under_review" | "assigned" | "in_progress" | "resolved"
+  // GovReportStatus: "under_review" | "assigned" | "in_progress" | "resolved" | "rejected"
   let govStatus: GovReportStatus = "under_review";
-  if (report.status === "action_in_progress") {
-    govStatus = "in_progress";
-  } else if (report.status === "resolved" || report.status === "rejected") {
+  if (rawGovStatus === "rejected" || rawStatus === "rejected") {
+    govStatus = "rejected";
+  } else if (rawGovStatus === "resolved" || rawStatus === "resolved") {
     govStatus = "resolved";
-  } else if (report.status === "verified") {
+  } else if (rawGovStatus === "in_progress" || rawStatus === "action_in_progress" || rawStatus === "in_progress") {
+    govStatus = "in_progress";
+  } else if (rawGovStatus === "assigned" || rawStatus === "assigned") {
+    govStatus = "assigned";
+  } else if (rawStatus === "verified") {
     const isAssigned = (report.verification as any)?.assignedDepartment || 
                        (report as any).assignedDepartment || 
                        (report as any).assignment?.department;
-    if (isAssigned) {
-      govStatus = "assigned";
-    } else {
-      govStatus = "under_review";
-    }
+    govStatus = isAssigned ? "assigned" : "under_review";
+  } else {
+    const hasDept = (report.verification as any)?.assignedDepartment || 
+                    (report as any).assignedDepartment || 
+                    (report as any).assignment?.department;
+    govStatus = hasDept ? "assigned" : "under_review";
   }
 
   const assignedDepartment = (
@@ -299,21 +348,21 @@ export function toWaterReport(report: BackendReport): WaterReport {
       },
       address: [report.location?.locality, report.location?.city, report.location?.district, report.location?.state]
         .filter(Boolean)
-        .join(", ") || "GPS Location",
-      placeName: report.location?.locality || report.location?.city || "Puri District",
+        .join(", ") || (report.location as any)?.formattedAddress || "GPS Coordinates Location",
+      placeName: report.location?.locality || report.location?.city || report.location?.district || report.location?.state || "Incident Site",
       mode: report.location?.locality ? "manual" : "automatic",
     },
     media: imageUrl
       ? [{ id: "evidence", name: "Evidence Image", type: "image", url: imageUrl }]
       : [],
-    severity: toUiSeverity(report.priority),
+    severity: toUiSeverity(report.priority, severityNum),
     status: frontendStatus,
     createdAt: report.createdAt || new Date().toISOString(),
     updatedAt: report.updatedAt || new Date().toISOString(),
     aiAnalysis: {
       detectedIssue: (report.aiAnalysis as any)?.title || categoryLabel,
       confidence: 0.91,
-      severity: toUiSeverity(report.priority),
+      severity: toUiSeverity(report.priority, severityNum),
       summary: (report.aiAnalysis as any)?.description || report.description || "",
     },
     verification: {

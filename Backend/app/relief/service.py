@@ -1,6 +1,6 @@
 from app.database import database
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 # =========================================================
@@ -74,6 +74,11 @@ async def createReliefRequest(reliefData: dict):
 # =========================================================
 
 async def getReliefRequests():
+    now = datetime.utcnow()
+    try:
+        await database.reliefRequests.delete_many({"expiresAt": {"$ne": None, "$lte": now}})
+    except Exception:
+        pass
 
     cursor = database.reliefRequests.find().sort(
         "createdAt",
@@ -195,16 +200,25 @@ async def updateReliefStatus(
     if not ObjectId.is_valid(requestId):
         return None
 
+    now = datetime.utcnow()
+    update_data = {
+        "status": status,
+        "governmentNote": governmentNote,
+        "updatedAt": now
+    }
+    if status.lower() in ["resolved", "completed"]:
+        update_data["concludedAt"] = now
+        update_data["expiresAt"] = now + timedelta(hours=24)
+    else:
+        update_data["concludedAt"] = None
+        update_data["expiresAt"] = None
+
     result = await database.reliefRequests.update_one(
         {
             "_id": ObjectId(requestId)
         },
         {
-            "$set": {
-                "status": status,
-                "governmentNote": governmentNote,
-                "updatedAt": datetime.utcnow()
-            }
+            "$set": update_data
         }
     )
 
@@ -214,3 +228,15 @@ async def updateReliefStatus(
     return await getReliefRequestById(
         requestId
     )
+
+
+# =========================================================
+# DELETE / REMOVE RELIEF REQUEST
+# =========================================================
+
+async def deleteReliefRequest(requestId: str) -> bool:
+    if not ObjectId.is_valid(requestId):
+        return False
+
+    res = await database.reliefRequests.delete_one({"_id": ObjectId(requestId)})
+    return res.deleted_count > 0

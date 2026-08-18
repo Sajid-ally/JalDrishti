@@ -3,7 +3,7 @@
 // Allows citizens to enter a unique Report ID, search, and view live status timeline,
 // uploaded media, location, AI analysis results, and municipal verification details.
 
-import React, { useState, useEffect, useCallback, useId, useRef } from "react";
+import React, { useState, useEffect, useCallback, useId, useRef, useMemo } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
@@ -19,6 +19,9 @@ import {
   Loader2,
   Droplets,
   Eye,
+  Building2,
+  Activity,
+  Timer,
 } from "lucide-react";
 import Badge from "../../components/common/Badge";
 import { fetchBackendReportTracking } from "../../services/reportService";
@@ -27,15 +30,15 @@ import type { BackendReportStatus } from "../../types/api";
 import { formatReportId, isValidReportId } from "../../utils/reportId";
 import { SEVERITY_STYLES } from "../../types/hazard";
 
-const STATUS_ORDER: BackendReportStatus[] = [
+const STATUS_ORDER = [
   "submitted",
   "under_review",
-  "verified",
+  "assigned",
   "action_in_progress",
   "resolved",
-];
+] as const;
 
-const STATUS_LABELS: Record<BackendReportStatus, { title: string; subtitle: string }> = {
+const STATUS_LABELS: Record<string, { title: string; subtitle: string }> = {
   submitted: {
     title: "Submitted",
     subtitle: "Report logged into disaster database",
@@ -44,13 +47,21 @@ const STATUS_LABELS: Record<BackendReportStatus, { title: string; subtitle: stri
     title: "Under Review",
     subtitle: "Municipal & disaster response review in progress",
   },
+  assigned: {
+    title: "Assigned",
+    subtitle: "Assigned to specialized response department",
+  },
   verified: {
-    title: "Verified",
-    subtitle: "Report verification is complete",
+    title: "Assigned",
+    subtitle: "Incident verified and response squad assigned",
   },
   action_in_progress: {
     title: "In Progress",
-    subtitle: "Responsible authorities are working on the issue",
+    subtitle: "Field response teams active on-ground",
+  },
+  in_progress: {
+    title: "In Progress",
+    subtitle: "Field response teams active on-ground",
   },
   resolved: {
     title: "Resolved",
@@ -58,7 +69,7 @@ const STATUS_LABELS: Record<BackendReportStatus, { title: string; subtitle: stri
   },
   rejected: {
     title: "Rejected",
-    subtitle: "This report was not accepted for further action",
+    subtitle: "Report reviewed and concluded by authorities",
   },
 };
 
@@ -81,7 +92,7 @@ export default function TrackReport() {
 
     if (!cleanId || (!isValidReportId(cleanId) && !isLegacyObjectId)) {
       setReport(null);
-      setSearchError("Enter a valid Report ID in the format WR-YYYY-XXXXXX.");
+      setSearchError("Enter a valid Report ID (e.g. JAL-2026-B72F2E).");
       setSearched(true);
       return;
     }
@@ -134,8 +145,28 @@ export default function TrackReport() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const getStageIndex = (status: BackendReportStatus) => {
-    return STATUS_ORDER.indexOf(status);
+  const getStageIndex = (status: BackendReportStatus | string) => {
+    const s = (status || "").toLowerCase().trim();
+    if (s === "submitted") return 0;
+    if (s === "under_review") return 1;
+    if (s === "assigned" || s === "verified") return 2;
+    if (s === "action_in_progress" || s === "in_progress") return 3;
+    if (s === "resolved" || s === "completed") return 4;
+    return 0;
+  };
+
+  const getRemainingDeletionTime = (concludedAt?: string | null, expiresAt?: string | null) => {
+    if (!concludedAt && !expiresAt) return null;
+    const targetExpiry = expiresAt
+      ? new Date(expiresAt).getTime()
+      : new Date(concludedAt!).getTime() + 24 * 60 * 60 * 1000;
+
+    const diffMs = targetExpiry - Date.now();
+    if (diffMs <= 0) return "Expiring shortly";
+
+    const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const totalMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${totalHours}h ${totalMinutes}m remaining`;
   };
 
   const formatDate = (isoString?: string | null) => {
@@ -153,6 +184,28 @@ export default function TrackReport() {
       return isoString;
     }
   };
+
+  const cleanTimeline = useMemo(() => {
+    if (!report?.timeline || report.timeline.length === 0) return [];
+    const list: any[] = [];
+    for (const item of report.timeline) {
+      if (list.length === 0) {
+        list.push(item);
+      } else {
+        const prev = list[list.length - 1];
+        const isSameTitle =
+          String(prev.title || "").trim().toLowerCase() ===
+          String(item.title || "").trim().toLowerCase();
+        const isSameStatus =
+          String(prev.status || "").trim().toLowerCase() ===
+          String(item.status || "").trim().toLowerCase();
+        if (!isSameTitle || !isSameStatus) {
+          list.push(item);
+        }
+      }
+    }
+    return list;
+  }, [report?.timeline]);
 
   return (
     <main className="min-h-screen space-y-6 text-(--color-dark-teal)">
@@ -195,7 +248,7 @@ export default function TrackReport() {
                 type="text"
                 value={reportIdInput}
                 onChange={(e) => setReportIdInput(e.target.value.toUpperCase())}
-                placeholder="Enter Report ID (e.g. WR-2026-8F4K29)"
+                placeholder="Enter Report ID (e.g. JAL-2026-B72F2E)"
                 className="w-full bg-transparent pl-12 pr-4 py-3 text-sm sm:text-base font-mono font-bold tracking-wider text-(--color-deep-ocean) placeholder:font-sans placeholder:font-normal placeholder:text-(--color-medium-teal)/60 focus:outline-none"
               />
               {reportIdInput && (
@@ -313,114 +366,177 @@ export default function TrackReport() {
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-(--color-ocean)">
                   Lifecycle Status Flow
                 </p>
-                <span className="text-xs font-semibold text-(--color-deep-ocean) bg-(--color-mint) px-3 py-1 rounded-full border border-(--color-ocean)/20">
-                  Current Stage: {STATUS_LABELS[report.status].title}
+                <span
+                  className={`text-xs font-semibold px-3 py-1 rounded-full border ${
+                    report.status === "rejected"
+                      ? "text-rose-700 bg-rose-50 border-rose-200"
+                      : "text-(--color-deep-ocean) bg-(--color-mint) border-(--color-ocean)/20"
+                  }`}
+                >
+                  Current Stage: {STATUS_LABELS[report.status]?.title || "Submitted"}
                 </span>
               </div>
 
-              {/* Desktop & Tablet Horizontal Timeline */}
-              <div className="hidden md:grid grid-cols-5 gap-3 relative py-4">
-                {STATUS_ORDER.map((stage, idx) => {
-                  const currentIdx = getStageIndex(report.status);
-                  const isCompleted = idx < currentIdx;
-                  const isCurrent = idx === currentIdx;
-
-                  return (
-                    <div
-                      key={stage}
-                      className={`relative flex flex-col items-center text-center p-4 rounded-2xl border transition-all ${
-                        isCurrent
-                          ? "border-(--color-ocean) bg-(--color-mint)/60 shadow-md ring-2 ring-(--color-ocean)/30 -translate-y-1"
-                          : isCompleted
-                          ? "border-emerald-200 bg-emerald-50/70 text-emerald-950"
-                          : "border-slate-200 bg-slate-50/60 opacity-60 text-slate-500"
-                      }`}
-                    >
-                      <div
-                        className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold mb-3 shadow-sm ${
-                          isCurrent
-                            ? "bg-(--color-ocean) text-white ring-4 ring-(--color-aqua)/30 animate-pulse"
-                            : isCompleted
-                            ? "bg-emerald-600 text-white"
-                            : "bg-slate-200 text-slate-500"
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <CheckCircle2 className="h-5 w-5" />
-                        ) : (
-                          <span>●</span>
-                        )}
-                      </div>
-
-                      <h4 className="text-sm font-bold text-(--color-deep-ocean)">
-                        {STATUS_LABELS[stage].title}
-                      </h4>
-                      <p className="mt-1 text-[11px] text-(--color-medium-teal) leading-snug line-clamp-2">
-                        {STATUS_LABELS[stage].subtitle}
-                      </p>
-
-                      {isCurrent && (
-                        <span className="mt-2 text-[10px] font-bold uppercase tracking-wider bg-(--color-ocean) text-white px-2 py-0.5 rounded-full">
-                          Active
-                        </span>
-                      )}
+              {report.status === "rejected" ? (
+                <div className="rounded-3xl border border-rose-200 bg-rose-50/70 p-6 space-y-3">
+                  <div className="flex items-center gap-3 text-rose-800 font-bold text-base">
+                    <AlertTriangle className="h-6 w-6 text-rose-600 shrink-0" />
+                    <span>Report Rejected by Municipal Authority</span>
+                  </div>
+                  <p className="text-sm text-rose-700 leading-relaxed">
+                    This report has been reviewed and closed by municipal disaster response officers.
+                  </p>
+                  {typeof report.verification?.officerNotes === "string" && Boolean(report.verification.officerNotes) && (
+                    <div className="mt-3 rounded-2xl bg-white/90 p-4 border border-rose-200 text-xs sm:text-sm text-rose-950 font-medium">
+                      <strong className="text-rose-800">Official Reason:</strong> {String(report.verification.officerNotes)}
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* Desktop & Tablet Horizontal Timeline */}
+                  <div className="hidden md:grid grid-cols-5 gap-3 relative py-4">
+                    {STATUS_ORDER.map((stage, idx) => {
+                      const currentIdx = getStageIndex(report.status);
+                      const isCompleted = idx < currentIdx;
+                      const isCurrent = idx === currentIdx;
 
-              {/* Mobile Vertical Flow Timeline */}
-              <div className="md:hidden space-y-3">
-                {STATUS_ORDER.map((stage, idx) => {
-                  const currentIdx = getStageIndex(report.status);
-                  const isCompleted = idx < currentIdx;
-                  const isCurrent = idx === currentIdx;
+                      return (
+                        <div
+                          key={stage}
+                          className={`relative flex flex-col items-center text-center p-4 rounded-2xl border transition-all ${
+                            isCurrent
+                              ? "border-(--color-ocean) bg-(--color-mint)/60 shadow-md ring-2 ring-(--color-ocean)/30 -translate-y-1"
+                              : isCompleted
+                              ? "border-emerald-200 bg-emerald-50/70 text-emerald-950"
+                              : "border-slate-200 bg-slate-50/60 opacity-60 text-slate-500"
+                          }`}
+                        >
+                          <div
+                            className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold mb-3 shadow-sm ${
+                              isCurrent
+                                ? "bg-(--color-ocean) text-white ring-4 ring-(--color-aqua)/30 animate-pulse"
+                                : isCompleted
+                                ? "bg-emerald-600 text-white"
+                                : "bg-slate-200 text-slate-500"
+                            }`}
+                          >
+                            {isCompleted ? (
+                              <CheckCircle2 className="h-5 w-5" />
+                            ) : (
+                              <span>●</span>
+                            )}
+                          </div>
 
-                  return (
-                    <div
-                      key={stage}
-                      className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all ${
-                        isCurrent
-                          ? "border-(--color-ocean) bg-(--color-mint)/60 shadow-sm"
-                          : isCompleted
-                          ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
-                          : "border-slate-200 bg-slate-50/60 opacity-60 text-slate-500"
-                      }`}
-                    >
-                      <div
-                        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                          isCurrent
-                            ? "bg-(--color-ocean) text-white"
-                            : isCompleted
-                            ? "bg-emerald-600 text-white"
-                            : "bg-slate-200 text-slate-500"
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <CheckCircle2 className="h-4 w-4" />
-                        ) : (
-                          <span>●</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs sm:text-sm font-bold text-(--color-deep-ocean)">
-                            {STATUS_LABELS[stage].title}
+                          <h4 className="text-sm font-bold text-(--color-deep-ocean)">
+                            {STATUS_LABELS[stage]?.title}
                           </h4>
+                          <p className="mt-1 text-[11px] text-(--color-medium-teal) leading-snug line-clamp-2">
+                            {STATUS_LABELS[stage]?.subtitle}
+                          </p>
+
                           {isCurrent && (
-                            <span className="text-[10px] font-bold text-(--color-ocean) bg-white px-2 py-0.5 rounded-full border border-(--color-ocean)/30">
+                            <span className="mt-2 text-[10px] font-bold uppercase tracking-wider bg-(--color-ocean) text-white px-2 py-0.5 rounded-full">
                               Active
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-(--color-medium-teal) mt-0.5">
-                          {STATUS_LABELS[stage].subtitle}
-                        </p>
-                      </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Mobile Vertical Flow Timeline */}
+                  <div className="md:hidden space-y-3">
+                    {STATUS_ORDER.map((stage, idx) => {
+                      const currentIdx = getStageIndex(report.status);
+                      const isCompleted = idx < currentIdx;
+                      const isCurrent = idx === currentIdx;
+
+                      return (
+                        <div
+                          key={stage}
+                          className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all ${
+                            isCurrent
+                              ? "border-(--color-ocean) bg-(--color-mint)/60 shadow-sm"
+                              : isCompleted
+                              ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
+                              : "border-slate-200 bg-slate-50/60 opacity-60 text-slate-500"
+                          }`}
+                        >
+                          <div
+                            className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                              isCurrent
+                                ? "bg-(--color-ocean) text-white"
+                                : isCompleted
+                                ? "bg-emerald-600 text-white"
+                                : "bg-slate-200 text-slate-500"
+                            }`}
+                          >
+                            {isCompleted ? (
+                              <CheckCircle2 className="h-4 w-4" />
+                            ) : (
+                              <span>●</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-xs sm:text-sm font-bold text-(--color-deep-ocean)">
+                                {STATUS_LABELS[stage]?.title}
+                              </h4>
+                              {isCurrent && (
+                                <span className="text-[10px] font-bold text-(--color-ocean) bg-white px-2 py-0.5 rounded-full border border-(--color-ocean)/30">
+                                  Active
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-(--color-medium-teal) mt-0.5">
+                              {STATUS_LABELS[stage]?.subtitle}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* 24-Hour Auto-Purge / Retention Countdown Banner */}
+              {(report.status === "resolved" || report.status === "rejected") && (
+                <div
+                  className={`mt-4 rounded-3xl border p-4 sm:p-5 flex items-start gap-3.5 shadow-sm transition ${
+                    report.status === "rejected"
+                      ? "bg-rose-50/90 border-rose-200 text-rose-950"
+                      : "bg-emerald-50/90 border-emerald-200 text-emerald-950"
+                  }`}
+                >
+                  <div
+                    className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                      report.status === "rejected" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"
+                    }`}
+                  >
+                    <Timer className="h-4 w-4 animate-pulse" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs sm:text-sm font-black">
+                        24-Hour Database Retention &amp; Auto-Purge Timer
+                      </p>
+                      <span
+                        className={`text-[11px] font-bold px-3 py-1 rounded-full border ${
+                          report.status === "rejected"
+                            ? "bg-rose-100 text-rose-800 border-rose-300"
+                            : "bg-emerald-100 text-emerald-800 border-emerald-300"
+                        }`}
+                      >
+                        {getRemainingDeletionTime(report.concludedAt || report.updatedAt, report.expiresAt) || "24h 00m remaining"}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+                    <p className="mt-1 text-xs opacity-90 leading-relaxed">
+                      As per municipal data policy, this {report.status === "rejected" ? "rejected record" : "resolved report"} is marked concluded and will automatically be permanently purged from the database after 24 hours.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -480,27 +596,60 @@ export default function TrackReport() {
                       Handling Agency
                     </span>
                     <p className="font-bold text-(--color-deep-ocean)">
-                      {typeof report.verification.agency === "string" ? report.verification.agency : "Not assigned"}
+                      {typeof report.verification.agency === "string" ? report.verification.agency : "Municipal Corporation"}
                     </p>
                   </div>
 
-                  {typeof report.verification.verifiedBy === "string" && (
+                  {report.assignedDepartment && (
+                    <div className="rounded-2xl bg-(--color-soft-mint) p-3 border border-(--color-ocean)/20">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-(--color-ocean)">
+                        Assigned Department
+                      </span>
+                      <p className="font-bold text-(--color-deep-ocean) flex items-center gap-1.5 mt-1">
+                        <Building2 className="h-4 w-4 text-(--color-ocean)" />
+                        {report.assignedDepartment}
+                      </p>
+                    </div>
+                  )}
+
+                  {report.assignment && typeof report.assignment.assignedTo === "string" && Boolean(report.assignment.assignedTo) && (
                     <div>
                       <span className="text-[11px] font-semibold text-(--color-medium-teal)">
-                        Assigned Officer
+                        Dispatched Field Squad
                       </span>
                       <p className="font-medium text-(--color-dark-teal)">
-                        {report.verification.verifiedBy}
+                        {String(report.assignment.assignedTo)}
+                      </p>
+                    </div>
+                  )}
+
+                  {typeof report.verification.verifiedBy === "string" && Boolean(report.verification.verifiedBy) && (
+                    <div>
+                      <span className="text-[11px] font-semibold text-(--color-medium-teal)">
+                        Verified / Assigned By
+                      </span>
+                      <p className="font-medium text-(--color-dark-teal)">
+                        {String(report.verification.verifiedBy)}
                       </p>
                     </div>
                   )}
 
                   {typeof report.verification.officerNotes === "string" && (
-                    <div className="rounded-2xl bg-(--color-pale-aqua)/30 p-3 border border-[rgba(53,98,103,0.12)]">
-                      <span className="text-[11px] font-bold text-(--color-ocean)">
-                        Officer Notes:
+                    <div
+                      className={`rounded-2xl p-3 border ${
+                        report.status === "rejected"
+                          ? "bg-rose-50 border-rose-200 text-rose-950"
+                          : "bg-(--color-pale-aqua)/30 border-[rgba(53,98,103,0.12)] text-(--color-deep-ocean)"
+                      }`}
+                    >
+                      <span
+                        className={`text-[11px] font-bold ${
+                          report.status === "rejected" ? "text-rose-700" : "text-(--color-ocean)"
+                        }`}
+                      >
+                        {report.status === "rejected" ? "Rejection Reason:" : "Officer Notes:"}
                       </span>
-                      <p className="mt-1 text-xs text-(--color-deep-ocean) leading-relaxed">
+                      <p className="mt-1 text-xs leading-relaxed">
                         {report.verification.officerNotes}
                       </p>
                     </div>
@@ -599,18 +748,84 @@ export default function TrackReport() {
                 </div>
               </div>
 
+              {/* Chronological Action History & Audit Log */}
+              {cleanTimeline.length > 0 && (
+                <div className="rounded-3xl border border-[rgba(53,98,103,0.16)] bg-white p-5 sm:p-6 shadow-sm space-y-4">
+                  <div className="flex items-center gap-2 pb-3 border-b border-[rgba(53,98,103,0.12)]">
+                    <Activity className="h-5 w-5 text-(--color-ocean)" />
+                    <h3 className="text-sm sm:text-base font-bold text-(--color-deep-ocean)">
+                      Official Action Log &amp; Timeline ({cleanTimeline.length} Updates)
+                    </h3>
+                  </div>
+
+                  <div className="space-y-3">
+                    {cleanTimeline.map((event: any, index: number) => {
+                      const isEventRejected = (event.status || "").toLowerCase() === "rejected";
+                      const isEventResolved = (event.status || "").toLowerCase() === "resolved";
+                      const isEventProgress = (event.status || "").toLowerCase().includes("progress");
+
+                      return (
+                        <div
+                          key={index}
+                          className={`flex items-start gap-3 p-3.5 rounded-2xl border transition ${
+                            isEventRejected
+                              ? "bg-rose-50/70 border-rose-200 text-rose-950"
+                              : isEventResolved
+                              ? "bg-emerald-50/70 border-emerald-200 text-emerald-950"
+                              : isEventProgress
+                              ? "bg-(--color-mint)/50 border-(--color-ocean)/20 text-(--color-deep-ocean)"
+                              : "bg-slate-50 border-slate-200 text-slate-800"
+                          }`}
+                        >
+                          <div
+                            className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                              isEventRejected
+                                ? "bg-rose-600 text-white"
+                                : isEventResolved
+                                ? "bg-emerald-600 text-white"
+                                : isEventProgress
+                                ? "bg-(--color-ocean) text-white"
+                                : "bg-slate-300 text-slate-700"
+                            }`}
+                          >
+                            {isEventRejected ? "✕" : isEventResolved ? "✓" : index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-xs sm:text-sm font-bold">
+                                {event.title || event.status || "Status Updated"}
+                              </p>
+                              {event.timestamp && (
+                                <span className="text-[10px] text-(--color-medium-teal) whitespace-nowrap">
+                                  {formatDate(event.timestamp)}
+                                </span>
+                              )}
+                            </div>
+                            {event.description && (
+                              <p className="text-xs leading-relaxed mt-1 opacity-90">
+                                {event.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Link
                   to="/citizen/live-map"
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-(--color-deep-ocean) hover:bg-(--color-soft-mint) transition"
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-5 py-3 text-xs sm:text-sm font-bold text-(--color-deep-ocean) hover:bg-(--color-soft-mint) transition cursor-pointer"
                 >
                   <MapPin className="h-4 w-4 text-(--color-ocean)" />
                   View On Live Map
                 </Link>
                 <Link
                   to="/citizen/report"
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-5 py-3 text-xs sm:text-sm font-bold text-white hover:bg-(--color-deep-ocean) transition"
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-2xl bg-(--color-ocean) px-5 py-3 text-xs sm:text-sm font-bold text-white hover:bg-(--color-deep-ocean) transition cursor-pointer"
                 >
                   <Droplets className="h-4 w-4" />
                   Report Another Incident

@@ -1,11 +1,11 @@
-export const APP_NAME = "CoastalEye";
+export const APP_NAME = "JalDrishti";
 
 export const APP_TAGLINE =
-  "See it. Report it. Improve it. — Real-time coastal disaster reporting and response.";
+  "See it. Report it. Improve it. — Real-time water hazard reporting and disaster response.";
 
 export const STORAGE_KEYS = {
-  USER: "coastaleye_user",
-  AUTH_TOKEN: "coastaleye_token",
+  USER: "jaldrishti_user",
+  AUTH_TOKEN: "jaldrishti_token",
 } as const;
 
 export const API_BASE_URL =
@@ -18,4 +18,4 @@ export const ALLOWED_FILE_TYPES = [
   "image/gif",
 ] as const;
 
-export const MAX_FILE_SIZE = 5 * 1024 * 1024;
+export const MAX_FILE_SIZE = 10 * 1024 * 1024;

@@ -40,6 +40,8 @@ export interface BackendReport {
   mlAnalysis?: Record<string, unknown> | null;
   verification?: Record<string, unknown> | null;
   timeline?: Array<Record<string, unknown>>;
+  concludedAt?: string | null;
+  expiresAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }
@@ -70,8 +72,10 @@ export interface BackendReportCreateResponse {
 export type BackendReportStatus =
   | "submitted"
   | "under_review"
+  | "assigned"
   | "verified"
   | "action_in_progress"
+  | "in_progress"
   | "resolved"
   | "rejected";
 
@@ -95,6 +99,8 @@ export interface BackendTrackingReport {
   assignment?: Record<string, unknown> | null;
   assignmentHistory?: Array<Record<string, unknown>>;
   timeline?: Array<Record<string, unknown>>;
+  concludedAt?: string | null;
+  expiresAt?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }

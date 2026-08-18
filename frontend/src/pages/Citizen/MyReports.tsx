@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, MapPin, ArrowRight, ShieldAlert } from "lucide-react";
 import Badge from "../../components/common/Badge";
-import { getAllWaterReports } from "../../services/reportService";
+import { getAllWaterReports, fetchMyReports } from "../../services/reportService";
 import type { WaterReport } from "../../types/report";
 
 export default function MyReports() {
@@ -17,8 +17,10 @@ export default function MyReports() {
   const loadReports = async () => {
     setLoading(true);
     try {
-      const data = await getAllWaterReports();
+      const data = await fetchMyReports().catch(() => getAllWaterReports());
       setReports(data);
+    } catch {
+      setReports([]);
     } finally {
       setLoading(false);
     }

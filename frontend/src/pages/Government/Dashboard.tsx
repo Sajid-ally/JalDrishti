@@ -1,244 +1,359 @@
-import { useEffect, useState } from "react";
+// src/pages/Government/Dashboard.tsx
+// Government Disaster Response & Operations Dashboard with City-Wise Filtering (Kanpur default),
+// Real Dynamic Statistics Calculation, and Direct Interactive Report Management
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MapPinned,
   Siren,
   Waves,
   FileCheck,
-  AlertTriangle,
   ShieldCheck,
   ExternalLink,
-  Loader2,
+  Filter,
+  RefreshCw,
+  Building2,
+  Eye,
 } from "lucide-react";
 
 import Card from "../../components/common/Card";
+import Badge from "../../components/common/Badge";
 import useAuth from "../../hooks/useAuth";
 import {
   getDashboardStats,
   getAdministrativeReports,
 } from "../../services/reportService";
-import type { WaterReport } from "../../types/report";
+import type { WaterReport, GovReportStatus } from "../../types/report";
+import GovernmentReportDetailDrawer from "../../components/report/GovernmentReportDetailDrawer";
+import {
+  ALL_INDIAN_STATES,
+  STATE_CITIES_MAP,
+  CITY_LOCALITIES_MAP,
+  normalizeCityName,
+  detectNearestJurisdiction,
+} from "../../data/indiaLocations";
+import toast from "react-hot-toast";
 
 const quickLinks = [
   {
     to: "/government/live-map",
     label: "Live Map",
-    desc: "Monitor live incidents and citizen reports across India",
+    desc: "Monitor live incidents and real-time citizen reports on GIS map",
     icon: MapPinned,
-    accent:
-      "bg-(--color-soft-mint) border-[rgba(53,98,103,0.2)] text-(--color-dark-teal)",
-    iconBg:
-      "bg-(--color-pale-aqua) text-(--color-ocean)",
+    accent: "bg-(--color-soft-mint) border-[rgba(53,98,103,0.2)] text-(--color-dark-teal)",
+    iconBg: "bg-(--color-pale-aqua) text-(--color-ocean)",
   },
   {
     to: "/government/emergency-operations",
     label: "Emergency Operations",
-    desc: "Coordinate alerts and rescue response operations",
+    desc: "Dispatch rescue teams (NDRF/SDRF) and coordinate urgent relief",
     icon: Siren,
-    accent:
-      "bg-red-50 border-red-200 text-red-700",
-    iconBg:
-      "bg-red-100 text-red-700",
+    accent: "bg-red-50 border-red-200 text-red-700",
+    iconBg: "bg-red-100 text-red-700",
   },
   {
     to: "/government/review-reports",
     label: "Review Reports",
-    desc: "Review, assign, and update citizen-submitted reports",
+    desc: "Review, assign departments, and track or reject citizen submissions",
     icon: Waves,
-    accent:
-      "bg-sky-50 border-sky-200 text-sky-700",
-    iconBg:
-      "bg-sky-100 text-sky-700",
+    accent: "bg-sky-50 border-sky-200 text-sky-700",
+    iconBg: "bg-sky-100 text-sky-700",
   },
 ];
 
-/* =========================================================
-   DASHBOARD STATS RESPONSE
-   ========================================================= */
-
-interface DashboardStatsResponse {
-  summary?: {
-    totalReports?: number;
-    submitted?: number;
-    verified?: number;
-    rejected?: number;
-  };
-}
-
-/* =========================================================
-   DASHBOARD REPORT PREVIEW
-   ========================================================= */
-
-interface DashboardReport {
-  id: string;
-  type: string;
-  placeName: string;
-  status: string;
-}
-
-/* =========================================================
-   GOVERNMENT DASHBOARD
-   ========================================================= */
+const statusVariant = (
+  status?: GovReportStatus
+): "info" | "warning" | "success" | "neutral" | "danger" => {
+  if (status === "resolved") return "success";
+  if (status === "rejected") return "danger";
+  if (status === "in_progress") return "warning";
+  if (status === "assigned") return "info";
+  return "neutral";
+};
 
 export default function GovernmentDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  // Jurisdiction filter states - Pure dynamic auto-detection with National (All India) default
+  const [selectedState, setSelectedState] = useState<string>("all");
+  const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [selectedLocality, setSelectedLocality] = useState<string>("all");
+  const [isGpsDetected, setIsGpsDetected] = useState<boolean>(false);
+  const [detectingGps, setDetectingGps] = useState<boolean>(false);
+
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
     verified: 0,
+    resolved: 0,
     rejected: 0,
   });
 
-  const [trackingPreview, setTrackingPreview] =
-    useState<DashboardReport[]>([]);
+  const [reports, setReports] = useState<WaterReport[]>([]);
+  const [selectedReport, setSelectedReport] = useState<WaterReport | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [recentReports, setRecentReports] =
-    useState<DashboardReport[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  /* =========================================================
-     LOAD DASHBOARD DATA
-     ========================================================= */
-
-  useEffect(() => {
-    const loadDashboardData = async () => {
-      setLoading(true);
-
-      try {
-        /*
-         * getDashboardStats() currently has an
-         * insufficiently typed return value.
-         *
-         * The explicit response type tells TypeScript
-         * about the backend summary object.
-         */
-        const statsData =
-          (await getDashboardStats()) as DashboardStatsResponse;
-
-        if (statsData.summary) {
-          setStats({
-            total:
-              statsData.summary.totalReports ?? 0,
-
-            pending:
-              statsData.summary.submitted ?? 0,
-
-            verified:
-              statsData.summary.verified ?? 0,
-
-            rejected:
-              statsData.summary.rejected ?? 0,
-          });
-        }
-
-        /* =====================================================
-           LOAD ADMINISTRATIVE REPORTS
-           ===================================================== */
-
-        const reports =
-          await getAdministrativeReports();
-
-        const mapped: DashboardReport[] =
-          reports.map((r: WaterReport) => ({
-            id: r.id,
-
-            type:
-              r.problemType || "Unknown",
-
-            placeName:
-              r.location.placeName ||
-              r.location.address ||
-              "Unknown location",
-
-            status:
-              r.govStatus ||
-              "under_review",
-          }));
-
-        setTrackingPreview(
-          mapped.slice(0, 4)
-        );
-
-        setRecentReports(
-          mapped.slice(0, 3)
-        );
-      } catch (err) {
-        console.error(
-          "Failed to load dashboard data:",
-          err
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void loadDashboardData();
+  // Auto-Detect Officer's Current Location / Jurisdiction via GPS
+  const handleAutoDetectLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      return;
+    }
+    setDetectingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const detected = detectNearestJurisdiction(latitude, longitude);
+        setSelectedState(detected.state);
+        setSelectedCity(detected.city);
+        setSelectedLocality("all");
+        setIsGpsDetected(true);
+        setDetectingGps(false);
+        toast.success(`📍 Auto-detected jurisdiction: ${detected.city}, ${detected.state}`);
+      },
+      () => {
+        // Stays on All-India overview if permission is not granted
+        setDetectingGps(false);
+      },
+      { timeout: 6000, enableHighAccuracy: true }
+    );
   }, []);
 
-  /* =========================================================
-     LOADING STATE
-     ========================================================= */
+  useEffect(() => {
+    handleAutoDetectLocation();
+  }, [handleAutoDetectLocation]);
 
-  if (loading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center text-(--color-medium-teal)">
-        <Loader2 className="h-8 w-8 animate-spin text-(--color-ocean)" />
+  // Load Dashboard Data with Jurisdiction Filters
+  const loadDashboardData = useCallback(async () => {
+    setLoading(true);
 
-        <span className="ml-3 text-sm font-semibold">
-          Loading dashboard…
-        </span>
-      </div>
-    );
-  }
+    try {
+      const filters: any = {};
+      if (selectedState !== "all") filters.state = selectedState;
+      if (selectedCity !== "all") filters.city = selectedCity;
+      if (selectedLocality !== "all") filters.locality = selectedLocality;
 
-  /* =========================================================
-     UI
-     ========================================================= */
+      // 1. Fetch filtered stats
+      const statsData = await getDashboardStats(filters);
+
+      // 2. Fetch filtered reports
+      const reportsList = await getAdministrativeReports(filters);
+      setReports(reportsList);
+
+      const total =
+        statsData.totalReports ?? (statsData as any).summary?.totalReports ?? reportsList.length;
+      const pending =
+        statsData.pendingReview ?? (statsData as any).summary?.submitted ?? reportsList.filter((r) => r.govStatus === "under_review" || !r.govStatus).length;
+      const verified =
+        statsData.verifiedIncidents ?? (statsData as any).summary?.verified ?? reportsList.filter((r) => r.govStatus === "assigned" || r.govStatus === "in_progress").length;
+      const resolved =
+        statsData.resolvedIncidents ?? (statsData as any).summary?.resolved ?? reportsList.filter((r) => r.govStatus === "resolved").length;
+      const rejected =
+        statsData.rejected ?? statsData.rejectedIncidents ?? (statsData as any).summary?.rejected ?? reportsList.filter((r) => r.govStatus === "rejected").length;
+
+      setStats({
+        total,
+        pending,
+        verified,
+        resolved,
+        rejected,
+      });
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedState, selectedCity, selectedLocality]);
+
+  useEffect(() => {
+    void loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Available cities for selected state
+  const availableCities = useMemo(() => {
+    if (selectedState === "all") {
+      const allCities = Object.values(STATE_CITIES_MAP).flat();
+      return Array.from(new Set(allCities)).sort();
+    }
+    return STATE_CITIES_MAP[selectedState] || [];
+  }, [selectedState]);
+
+  // Available localities for selected city
+  const availableLocalities = useMemo(() => {
+    if (selectedCity === "all") return [];
+    const normalized = normalizeCityName(selectedCity);
+    const locList = CITY_LOCALITIES_MAP[normalized] || [];
+    return locList.map((loc) => loc.name).sort();
+  }, [selectedCity]);
 
   return (
-    <main>
-      {/* =====================================================
-          HEADER
-          ===================================================== */}
+    <main className="space-y-8">
+      {/* Top Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="mb-1 flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-(--color-ocean)" />
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
+              Government Command Hub
+            </p>
+          </div>
 
-      <div className="mb-8">
-        <div className="mb-1 flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-(--color-ocean)" />
+          <h1 className="mt-1 text-3xl font-black text-(--color-deep-ocean)">
+            Disaster Response Overview
+          </h1>
 
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-(--color-ocean)">
-            Government Response Hub
+          <p className="mt-1 text-sm text-(--color-medium-teal)">
+            Welcome{user?.name ? `, ${user.name}` : ""}. Monitor verified city-level incidents, assign response departments, and dispatch rescue operations.
           </p>
         </div>
 
-        <h1 className="mt-1 text-3xl font-black text-(--color-deep-ocean)">
-          Disaster Response Overview
-        </h1>
-
-        <p className="mt-1 text-sm text-(--color-medium-teal)">
-          Welcome
-          {user?.name
-            ? `, ${user.name}`
-            : ""}
-          . Monitor verified reports,
-          coordinate rescue, and publish alerts.
-        </p>
+        <button
+          type="button"
+          onClick={loadDashboardData}
+          disabled={loading}
+          className="flex items-center gap-2 rounded-2xl border border-[rgba(53,98,103,0.2)] bg-white px-4 py-2.5 text-sm font-bold text-(--color-dark-teal) shadow-sm hover:bg-slate-50 transition cursor-pointer"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Refresh Stats
+        </button>
       </div>
 
-      {/* =====================================================
-          STATS GRID
-          ===================================================== */}
+      {/* Jurisdiction / Administrative Filter Bar */}
+      <section className="rounded-3xl border border-[rgba(53,98,103,0.16)] bg-white p-5 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-(--color-dark-teal)">
+            <Filter className="h-4 w-4 text-(--color-ocean)" />
+            <span>Officer Jurisdiction (City-Wise Filter)</span>
+          </div>
 
-      <section className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAutoDetectLocation}
+              disabled={detectingGps}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer flex items-center gap-1.5 ${
+                isGpsDetected
+                  ? "bg-teal-700 text-white border-teal-800 shadow-sm"
+                  : "bg-white text-teal-800 border-teal-300 hover:bg-teal-50"
+              }`}
+            >
+              <RefreshCw className={`h-3 w-3 ${detectingGps ? "animate-spin" : ""}`} />
+              🎯 {detectingGps ? "Detecting GPS…" : isGpsDetected ? `Auto-Detected: ${selectedCity}` : "Auto-Detect My Location"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedState("all");
+                setSelectedCity("all");
+                setSelectedLocality("all");
+                setIsGpsDetected(false);
+              }}
+              className={`px-3.5 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer ${
+                selectedState === "all" && !isGpsDetected
+                  ? "bg-teal-800 text-white border-teal-900 shadow-sm"
+                  : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+              }`}
+            >
+              🇮🇳 All India Overview
+            </button>
+          </div>
+        </div>
+
+        {/* Filters Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* State */}
+          <div>
+            <label className="block text-xs font-bold text-(--color-medium-teal) mb-1">
+              State / UT
+            </label>
+            <select
+              value={selectedState}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedState(val);
+                if (val === "all") {
+                  setSelectedCity("all");
+                  setSelectedLocality("all");
+                } else {
+                  const cities = STATE_CITIES_MAP[val] || [];
+                  setSelectedCity(cities.includes("Kanpur") ? "Kanpur" : cities[0] || "all");
+                  setSelectedLocality("all");
+                }
+              }}
+              className="w-full rounded-xl border border-[rgba(53,98,103,0.2)] bg-white px-3 py-2 text-xs font-semibold text-(--color-deep-ocean)"
+            >
+              <option value="all">All States</option>
+              {ALL_INDIAN_STATES.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* City */}
+          <div>
+            <label className="block text-xs font-bold text-(--color-medium-teal) mb-1">
+              City / District
+            </label>
+            <select
+              value={selectedCity}
+              onChange={(e) => {
+                setSelectedCity(e.target.value);
+                setSelectedLocality("all");
+              }}
+              className="w-full rounded-xl border border-[rgba(53,98,103,0.2)] bg-white px-3 py-2 text-xs font-semibold text-(--color-deep-ocean)"
+            >
+              <option value="all">All Cities</option>
+              {availableCities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Locality */}
+          <div>
+            <label className="block text-xs font-bold text-(--color-medium-teal) mb-1">
+              Locality / Ward
+            </label>
+            <select
+              value={selectedLocality}
+              onChange={(e) => setSelectedLocality(e.target.value)}
+              disabled={availableLocalities.length === 0}
+              className="w-full rounded-xl border border-[rgba(53,98,103,0.2)] bg-white px-3 py-2 text-xs font-semibold text-(--color-deep-ocean) disabled:opacity-50"
+            >
+              <option value="all">All Localities</option>
+              {availableLocalities.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="text-xs text-(--color-dark-teal) pt-2 border-t border-slate-100 font-medium flex items-center justify-between">
+          <span>
+            Displaying metrics & problems for: <strong className="text-(--color-ocean)">{selectedCity !== "all" ? selectedCity : selectedState !== "all" ? selectedState : "All India"}</strong>
+          </span>
+          <span className="text-slate-500">
+            {stats.total} total incident{stats.total === 1 ? "" : "s"} logged in this area
+          </span>
+        </div>
+      </section>
+
+      {/* Dynamic Statistics Cards */}
+      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card
           variant="stat"
           className="rounded-2xl p-5"
           title="Total Reports"
           value={stats.total}
-          subtitle="Citizen submissions"
+          subtitle={`In ${selectedCity !== "all" ? selectedCity : "scope"}`}
         />
 
         <Card
@@ -246,15 +361,15 @@ export default function GovernmentDashboard() {
           className="rounded-2xl p-5"
           title="Pending Review"
           value={stats.pending}
-          subtitle="Awaiting your action"
+          subtitle="Awaiting desk action"
         />
 
         <Card
           variant="stat"
           className="rounded-2xl p-5"
-          title="Verified"
+          title="Assigned / Active"
           value={stats.verified}
-          subtitle="Confirmed incidents"
+          subtitle="Under active response"
         />
 
         <Card
@@ -262,15 +377,12 @@ export default function GovernmentDashboard() {
           className="rounded-2xl p-5"
           title="Rejected"
           value={stats.rejected}
-          subtitle="False or duplicate"
+          subtitle="Invalid / duplicates"
         />
       </section>
 
-      {/* =====================================================
-          DEPARTMENT TRACKING PREVIEW
-          ===================================================== */}
-
-      <section className="mt-8">
+      {/* Operations & Department Tracking */}
+      <section>
         <div className="mb-4 flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-(--color-ocean)">
@@ -278,44 +390,42 @@ export default function GovernmentDashboard() {
             </p>
 
             <h2 className="mt-1 text-xl font-bold text-(--color-deep-ocean)">
-              Department Tracking
+              Department Incident Tracking ({reports.length})
             </h2>
 
             <p className="mt-1 text-sm text-(--color-medium-teal)">
-              Track the progress of reported incidents
-              and department response.
+              Track real-time progress of citizen incidents in {selectedCity !== "all" ? selectedCity : "your region"}.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={() =>
-              navigate(
-                "/government/department-tracking"
-              )
-            }
-            className="flex items-center gap-1.5 rounded-full border border-[rgba(53,98,103,0.18)] bg-white px-4 py-2 text-xs font-semibold text-(--color-ocean) transition hover:bg-(--color-pale-aqua)"
+            onClick={() => navigate("/government/review-reports")}
+            className="flex items-center gap-1.5 rounded-full border border-[rgba(53,98,103,0.18)] bg-white px-4 py-2 text-xs font-semibold text-(--color-ocean) transition hover:bg-(--color-pale-aqua) cursor-pointer"
           >
-            View all
-
+            Review all
             <ExternalLink className="h-3.5 w-3.5" />
           </button>
         </div>
 
         <div className="overflow-x-auto rounded-3xl border border-[rgba(53,98,103,0.16)] bg-white shadow-sm">
-          <table className="w-full min-w-175 text-left">
+          <table className="w-full min-w-[700px] text-left">
             <thead>
               <tr className="border-b border-[rgba(53,98,103,0.12)] bg-(--color-soft-mint)/40">
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-[0.12em] text-(--color-medium-teal)">
-                  Report
+                  Report ID
                 </th>
 
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-[0.12em] text-(--color-medium-teal)">
-                  Type
+                  Problem Type
                 </th>
 
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-[0.12em] text-(--color-medium-teal)">
                   Location
+                </th>
+
+                <th className="px-5 py-4 text-xs font-bold uppercase tracking-[0.12em] text-(--color-medium-teal)">
+                  Assigned Dept
                 </th>
 
                 <th className="px-5 py-4 text-xs font-bold uppercase tracking-[0.12em] text-(--color-medium-teal)">
@@ -329,99 +439,70 @@ export default function GovernmentDashboard() {
             </thead>
 
             <tbody>
-              {trackingPreview.map((report) => (
+              {reports.slice(0, 6).map((report) => (
                 <tr
                   key={report.id}
-                  className="border-b border-[rgba(53,98,103,0.08)] last:border-b-0 hover:bg-(--color-soft-mint)/20"
+                  className="border-b border-[rgba(53,98,103,0.08)] last:border-b-0 hover:bg-(--color-soft-mint)/20 transition"
                 >
                   {/* Report */}
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-(--color-pale-aqua)">
-                        <FileCheck className="h-4 w-4 text-(--color-ocean)" />
-                      </div>
-
-                      <div>
-                        <p className="text-sm font-bold text-(--color-deep-ocean)">
-                          {report.id}
-                        </p>
-
-                        <p className="text-xs text-(--color-medium-teal)">
-                          Citizen report
-                        </p>
-                      </div>
+                  <td className="px-5 py-4 font-mono text-xs font-bold text-(--color-ocean)">
+                    <div className="flex items-center gap-2.5">
+                      <FileCheck className="h-4 w-4 text-(--color-ocean) shrink-0" />
+                      <span>{report.id}</span>
                     </div>
                   </td>
 
                   {/* Type */}
-                  <td className="px-5 py-4">
-                    <span className="text-sm font-semibold capitalize text-(--color-dark-teal)">
-                      {report.type
-                        .replace(/_/g, " ")
-                        .replace(
-                          /\b\w/g,
-                          (c: string) =>
-                            c.toUpperCase()
-                        )}
-                    </span>
+                  <td className="px-5 py-4 text-sm font-bold text-(--color-deep-ocean)">
+                    {report.categoryLabel}
                   </td>
 
                   {/* Location */}
-                  <td className="px-5 py-4">
-                    <span className="text-sm text-(--color-dark-teal)">
-                      {report.placeName ||
-                        "Unknown location"}
-                    </span>
+                  <td className="px-5 py-4 text-xs text-(--color-dark-teal)">
+                    <p className="font-semibold">{report.location.placeName || "Incident Site"}</p>
+                    <p className="text-[11px] text-(--color-medium-teal)">{report.location.address}</p>
+                  </td>
+
+                  {/* Assigned Department */}
+                  <td className="px-5 py-4 text-xs">
+                    {report.assignedDepartment ? (
+                      <span className="inline-flex items-center gap-1 font-semibold text-teal-800 bg-teal-50 px-2 py-0.5 rounded-md border border-teal-200">
+                        <Building2 className="h-3 w-3 text-teal-600" />
+                        {report.assignedDepartment}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic">Unassigned</span>
+                    )}
                   </td>
 
                   {/* Status */}
                   <td className="px-5 py-4">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        report.status ===
-                        "pending"
-                          ? "bg-amber-100 text-amber-700"
-                          : report.status ===
-                              "verified"
-                            ? "bg-teal-100 text-teal-700"
-                            : report.status ===
-                                "rejected"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-green-100 text-green-700"
-                      }`}
-                    >
-                      {report.status
-                        .charAt(0)
-                        .toUpperCase() +
-                        report.status.slice(1)}
-                    </span>
+                    <Badge variant={statusVariant(report.govStatus)}>
+                      {report.govStatus ? report.govStatus.replace(/_/g, " ").toUpperCase() : "UNDER REVIEW"}
+                    </Badge>
                   </td>
 
                   {/* Action */}
                   <td className="px-5 py-4">
                     <button
                       type="button"
-                      onClick={() =>
-                        navigate(
-                          "/government/department-tracking"
-                        )
-                      }
-                      className="text-xs font-semibold text-(--color-ocean) hover:underline"
+                      onClick={() => setSelectedReport(report)}
+                      className="flex items-center gap-1 text-xs font-bold text-(--color-ocean) hover:underline cursor-pointer"
                     >
-                      Track
+                      <Eye className="h-3.5 w-3.5" />
+                      Review / Assign
                     </button>
                   </td>
                 </tr>
               ))}
 
-              {trackingPreview.length === 0 && (
+              {reports.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
-                    className="px-5 py-8 text-center text-sm text-(--color-medium-teal)"
+                    colSpan={6}
+                    className="px-5 py-10 text-center text-sm text-(--color-medium-teal)"
                   >
-                    No reports available for
-                    tracking.
+                    No incidents reported yet in {selectedCity !== "all" ? selectedCity : "this region"}.
                   </td>
                 </tr>
               )}
@@ -430,39 +511,7 @@ export default function GovernmentDashboard() {
         </div>
       </section>
 
-      {/* =====================================================
-          PENDING ACTION ALERT
-          ===================================================== */}
-
-      {stats.pending > 0 && (
-        <div className="mt-8 mb-6 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
-
-          <p className="text-sm font-semibold text-amber-700">
-            {stats.pending} report
-            {stats.pending > 1
-              ? "s"
-              : ""}{" "}
-            pending verification — review
-            them in Verify Reports.
-          </p>
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate("/government/verify")
-            }
-            className="ml-auto shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-200"
-          >
-            Review
-          </button>
-        </div>
-      )}
-
-      {/* =====================================================
-          QUICK NAVIGATION
-          ===================================================== */}
-
+      {/* Quick Navigation Areas */}
       <section>
         <h2 className="mb-4 text-sm font-bold uppercase tracking-[0.15em] text-(--color-dark-teal)">
           Management Areas
@@ -476,10 +525,8 @@ export default function GovernmentDashboard() {
               <button
                 key={link.to}
                 type="button"
-                onClick={() =>
-                  navigate(link.to)
-                }
-                className={`flex items-center gap-4 rounded-3xl border px-6 py-5 text-left transition hover:shadow-md ${link.accent}`}
+                onClick={() => navigate(link.to)}
+                className={`flex items-center gap-4 rounded-3xl border px-6 py-5 text-left transition hover:shadow-md cursor-pointer ${link.accent}`}
               >
                 <div
                   className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${link.iconBg}`}
@@ -488,13 +535,8 @@ export default function GovernmentDashboard() {
                 </div>
 
                 <div>
-                  <p className="font-bold">
-                    {link.label}
-                  </p>
-
-                  <p className="text-sm opacity-75">
-                    {link.desc}
-                  </p>
+                  <p className="font-bold text-base">{link.label}</p>
+                  <p className="text-xs opacity-80 mt-0.5">{link.desc}</p>
                 </div>
               </button>
             );
@@ -502,87 +544,16 @@ export default function GovernmentDashboard() {
         </div>
       </section>
 
-      {/* =====================================================
-          RECENT REPORTS
-          ===================================================== */}
-
-      <section className="mt-8">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-bold uppercase tracking-[0.15em] text-(--color-dark-teal)">
-            Recent Reports
-          </h2>
-
-          <button
-            type="button"
-            onClick={() =>
-              navigate("/government/verify")
-            }
-            className="text-xs font-semibold text-(--color-ocean) hover:underline"
-          >
-            View all →
-          </button>
-        </div>
-
-        <div className="space-y-2">
-          {recentReports.map((report) => (
-            <div
-              key={report.id}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(53,98,103,0.12)] bg-white px-4 py-3"
-            >
-              <div className="flex items-center gap-3">
-                <FileCheck className="h-4 w-4 shrink-0 text-(--color-ocean)" />
-
-                <div>
-                  <p className="text-sm font-semibold text-(--color-deep-ocean)">
-                    {report.id} —{" "}
-                    {report.type
-                      .replace(/_/g, " ")
-                      .replace(
-                        /\b\w/g,
-                        (c: string) =>
-                          c.toUpperCase()
-                      )}
-                  </p>
-
-                  <p className="text-xs text-(--color-medium-teal)">
-                    {report.placeName}
-                  </p>
-                </div>
-              </div>
-
-              <span
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  report.status ===
-                    "pending" ||
-                  report.status ===
-                    "under_review"
-                    ? "bg-amber-100 text-amber-700"
-                    : report.status ===
-                          "verified" ||
-                        report.status ===
-                          "assigned"
-                      ? "bg-teal-100 text-teal-700"
-                      : report.status ===
-                          "rejected"
-                        ? "bg-red-100 text-red-700"
-                        : "bg-green-100 text-green-700"
-                }`}
-              >
-                {report.status
-                  .charAt(0)
-                  .toUpperCase() +
-                  report.status.slice(1)}
-              </span>
-            </div>
-          ))}
-
-          {recentReports.length === 0 && (
-            <div className="rounded-2xl border border-[rgba(53,98,103,0.12)] bg-white px-4 py-6 text-center text-sm text-(--color-medium-teal)">
-              No recent reports available.
-            </div>
-          )}
-        </div>
-      </section>
+      {/* Detail & Action Drawer */}
+      {selectedReport && (
+        <GovernmentReportDetailDrawer
+          report={selectedReport}
+          onClose={() => setSelectedReport(null)}
+          onUpdated={() => {
+            void loadDashboardData();
+          }}
+        />
+      )}
     </main>
   );
 }

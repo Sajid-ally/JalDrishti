@@ -29,9 +29,6 @@ import EmergencyOperations from "../pages/Government/EmergencyOperations";
 import GovernmentProfile from "../pages/Government/Profile";
 import GovernmentLiveMap from "../pages/Government/LiveMap";
 
-import SocialReports from "../pages/Government/SocialReports";
-import SocialMediaVerification from "../pages/Government/SocialMediaVerification";
-
 import Notifications from "../pages/Shared/Notifications";
 import Settings from "../pages/Shared/Settings";
 import NotFound from "../pages/Shared/NotFound";
@@ -207,18 +204,15 @@ export default function AppRoutes() {
           element={withLayout(<VerifyReports />)}
         />
 
-        {/* =====================================================
-            SOCIAL MEDIA / SOCIAL REPORTS
-        ===================================================== */}
-
+        {/* Redirect removed social media routes */}
         <Route
           path="/government/social-reports"
-          element={withLayout(<SocialReports />)}
+          element={<Navigate to="/government/review-reports" replace />}
         />
 
         <Route
           path="/government/social-media-verification"
-          element={withLayout(<SocialMediaVerification />)}
+          element={<Navigate to="/government/review-reports" replace />}
         />
 
         <Route

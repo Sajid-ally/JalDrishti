@@ -1,1727 +1,723 @@
-from datetime import datetime
-
+import math
+import secrets
+from datetime import datetime, timezone, timedelta
+from typing import List, Dict, Any, Optional
 from bson import ObjectId
 
+from app.config import settings
 from app.database import database
+from app.utils.geoUtils import haversine_distance_km
+from app.models.hotspot_clustering import detect_hotspots
 
-from sklearn.cluster import DBSCAN
 
-import math
-from app.notifications.service import createNotification
-import re
+# =========================================================
+# HELPER: Generate Public Report ID
+# =========================================================
+
+def generate_public_report_id() -> str:
+    random_hex = secrets.token_hex(3).upper()
+    return f"JAL-{datetime.utcnow().year}-{random_hex}"
+
 
 # =========================================================
 # CREATE REPORT
 # =========================================================
 
-async def createReport(reportData: dict):
+async def createReport(reportData: dict) -> dict:
+    now = datetime.utcnow()
+    public_id = reportData.get("publicReportId") or generate_public_report_id()
+
+    loc = reportData.get("location", {})
+    lat = loc.get("latitude", 0.0)
+    lng = loc.get("longitude", 0.0)
+
+    # Determine or assign clusterId
+    cluster_id = reportData.get("clusterId")
+    if not cluster_id and lat and lng:
+        # Search nearby active reports to join existing cluster
+        nearby_cluster_report = await database.reports.find_one({
+            "location.latitude": {"$gte": lat - 0.005, "$lte": lat + 0.005},
+            "location.longitude": {"$gte": lng - 0.005, "$lte": lng + 0.005},
+            "clusterId": {"$exists": True, "$ne": None},
+        })
+        if nearby_cluster_report:
+            cluster_id = nearby_cluster_report.get("clusterId")
+        else:
+            cluster_id = f"CLUST-{secrets.token_hex(2).upper()}"
+
+    timeline = reportData.get("timeline") or [
+        {
+            "status": "submitted",
+            "title": "Report Submitted",
+            "description": "Hazard reported and logged in JalDrishti system.",
+            "timestamp": now.isoformat(),
+        }
+    ]
 
     reportDocument = {
-
-        "title": reportData["title"],
-
-        "description": reportData["description"],
-
+        "publicReportId": public_id,
+        "userId": str(reportData.get("userId") or reportData.get("username") or "anonymous"),
+        "username": reportData.get("username") or "citizen",
+        "title": reportData.get("title") or "Water Hazard Incident",
+        "description": reportData.get("description") or "",
+        "category": reportData.get("category") or reportData.get("hazardTypeVerified") or "flooding",
+        "hazardTypeClaimed": reportData.get("hazardTypeClaimed"),
+        "hazardTypeVerified": reportData.get("hazardTypeVerified") or reportData.get("category"),
+        "claimVerified": reportData.get("claimVerified", True),
+        "severity": reportData.get("severity", 3),
+        "priority": reportData.get("priority", "MEDIUM"),
+        "priorityScore": reportData.get("priorityScore", 50.0),
+        "governmentPriority": reportData.get("governmentPriority", "medium"),
+        "city": reportData.get("city") or loc.get("city", ""),
+        "district": reportData.get("district") or loc.get("district", ""),
+        "state": reportData.get("state") or loc.get("state", ""),
+        "locality": reportData.get("locality") or loc.get("locality", ""),
         "location": {
-            "latitude": reportData["location"]["latitude"],
-            "longitude": reportData["location"]["longitude"]
+            "latitude": lat,
+            "longitude": lng,
+            "state": loc.get("state", ""),
+            "district": loc.get("district", ""),
+            "city": loc.get("city", ""),
+            "locality": loc.get("locality", ""),
+            "formattedAddress": loc.get("formattedAddress", f"Coordinates: {lat:.4f}, {lng:.4f}"),
         },
-
-        "imageUrl": reportData["imageUrl"],
-
+        "imageUrl": reportData.get("imageUrl"),
         "imageHash": reportData.get("imageHash"),
-
-        "aiAnalysis": {
-            "title": reportData["aiAnalysis"]["title"],
-            "description": reportData["aiAnalysis"]["description"]
-        },
-
-        "mlAnalysis": {
-            "category": reportData["mlAnalysis"]["category"],
-            "severity": reportData["mlAnalysis"]["severity"],
-            "confidence": reportData["mlAnalysis"]["confidence"],
-            "priority": reportData["mlAnalysis"].get("priority", "normal"),
-            "source": reportData["mlAnalysis"].get("source")
-        },
-
-        # -------------------------------------------------
-        # GOVERNMENT / MANUAL VERIFICATION
-        # -------------------------------------------------
-
+        "source": reportData.get("source", "CITIZEN"),
+        "clusterId": cluster_id,
+        "aiAnalysis": reportData.get("aiAnalysis", {}),
+        "mlAnalysis": reportData.get("mlAnalysis", {}),
+        "geminiAnalysis": reportData.get("geminiAnalysis", {}),
+        "validation": reportData.get("validation", {}),
         "verification": reportData.get("verification", {
             "status": "Pending",
             "verifiedBy": None,
             "verifiedAt": None,
-            "reliabilityScore": 0,
-            "validationSources": []
+            "officerNotes": None,
+            "assignedDepartment": None,
         }),
-
-        # -------------------------------------------------
-        # AUTOMATIC VALIDATION
-        # -------------------------------------------------
-
-        "validation": reportData.get("validation", {
-
-            "status": "Pending",
-
-            "reliabilityScore": 0,
-
-            "governmentAlert": {
-                "found": False
-            },
-
-            "socialMediaEvidence": {
-                "reportCount": 0
-            },
-
-            "nearbyReportEvidence": {
-                "similarReportCount": 0
-            },
-
-            "imageSimilarity": {
-                "score": None
-            }
+        "assignment": reportData.get("assignment", {
+            "department": None,
+            "assignedTo": None,
+            "assignedBy": None,
+            "assignedAt": None,
         }),
-
-        "reportStatus": reportData.get("reportStatus", "Submitted"),
-
-        "createdAt": reportData["createdAt"],
-
-        "updatedAt": reportData["updatedAt"]
+        "status": reportData.get("status", "submitted"),
+        "reportStatus": reportData.get("reportStatus", "Open"),
+        "timeline": timeline,
+        "createdAt": now,
+        "updatedAt": now,
     }
 
-    result = await database.reports.insert_one(
-        reportDocument
-    )
+    res = await database.reports.insert_one(reportDocument)
+    reportDocument["id"] = str(res.inserted_id)
+    if "_id" in reportDocument:
+        del reportDocument["_id"]
 
-    return result.inserted_id
+    return {
+        "insertedId": str(res.inserted_id),
+        "publicReportId": public_id,
+        "report": reportDocument,
+    }
 
 
 # =========================================================
-# GET ALL REPORTS
+# GET REPORTS (With Formatting)
 # =========================================================
 
-async def getReports():
+def _format_report(doc: dict) -> dict:
+    if not doc:
+        return {}
+    doc["id"] = str(doc.get("_id", doc.get("id", "")))
+    if "_id" in doc:
+        del doc["_id"]
+    if not doc.get("publicReportId"):
+        doc["publicReportId"] = doc["id"]
+    if isinstance(doc.get("createdAt"), datetime):
+        doc["createdAt"] = doc["createdAt"].isoformat()
+    if isinstance(doc.get("updatedAt"), datetime):
+        doc["updatedAt"] = doc["updatedAt"].isoformat()
+    if isinstance(doc.get("concludedAt"), datetime):
+        doc["concludedAt"] = doc["concludedAt"].isoformat()
+    if isinstance(doc.get("expiresAt"), datetime):
+        doc["expiresAt"] = doc["expiresAt"].isoformat()
+    return doc
 
-    cursor = database.reports.find().sort(
-        "createdAt",
-        -1
-    )
 
+async def cleanup_expired_reports():
+    try:
+        now = datetime.utcnow()
+        await database.reports.delete_many({"expiresAt": {"$ne": None, "$lte": now}})
+    except Exception as e:
+        pass
+
+
+async def getReports() -> List[dict]:
+    await cleanup_expired_reports()
+    cursor = database.reports.find().sort("createdAt", -1)
     reports = []
-
     async for report in cursor:
-
-        report["id"] = str(
-            report["_id"]
-        )
-
-        del report["_id"]
-
-        reports.append(report)
-
+        reports.append(_format_report(report))
     return reports
 
 
 # =========================================================
-# GET HOTSPOTS
+# GET CITIZEN'S OWN REPORTS
 # =========================================================
 
-async def getHotspots(category=None):
-
-    print("CALCULATING HOTSPOTS")
-
-    if not category:
-
-        query = {}
-
-    else:
-
-        query = {
-            "$or": [
-
-                {
-                    "mlAnalysis.category": {
-                        "$regex": f"^{category}$",
-                        "$options": "i"
-                    }
-                },
-
-                {
-                    "category": {
-                        "$regex": f"^{category}$",
-                        "$options": "i"
-                    }
-                }
-
-            ]
-        }
-
-    print(
-        "HOTSPOT QUERY:",
-        query
-    )
-
-    cursor = database.reports.find(
-        query
-    )
-
-    reports = []
-
-    async for report in cursor:
-
-        if "location" in report:
-
-            latitude = report["location"].get(
-                "latitude"
-            )
-
-            longitude = report["location"].get(
-                "longitude"
-            )
-
-        else:
-
-            latitude = report.get(
-                "latitude"
-            )
-
-            longitude = report.get(
-                "longitude"
-            )
-
-        if (
-            latitude is None
-            or longitude is None
-        ):
-            continue
-
-        reports.append({
-            "latitude": float(latitude),
-            "longitude": float(longitude)
-        })
-
-    print(
-        "REPORTS WITH LOCATION:",
-        len(reports)
-    )
-
-    if len(reports) < 2:
-
-        print(
-            "NOT ENOUGH REPORTS FOR CLUSTERING"
-        )
-
+async def getCitizenReports(user_id: str, email: Optional[str] = None) -> List[dict]:
+    if not user_id:
         return []
 
-    meanLatitude = sum(
-        report["latitude"]
-        for report in reports
-    ) / len(reports)
+    queries = [{"userId": str(user_id)}, {"username": str(user_id)}]
+    if email:
+        queries.append({"username": email.split("@")[0]})
+        queries.append({"userId": email})
 
-    coordinates = []
-
-    for report in reports:
-
-        latitude = report["latitude"]
-
-        longitude = report["longitude"]
-
-        x = latitude * 111.0
-
-        y = (
-            longitude
-            * 111.0
-            * math.cos(
-                math.radians(meanLatitude)
-            )
-        )
-
-        coordinates.append(
-            [x, y]
-        )
-
-    clustering = DBSCAN(
-        eps=0.5,
-        min_samples=2,
-        metric="euclidean"
-    ).fit(
-        coordinates
-    )
-
-    labels = clustering.labels_
-
-    print(
-        "CLUSTER LABELS:",
-        labels
-    )
-
-    clusters = {}
-
-    for index, label in enumerate(labels):
-
-        if label == -1:
-            continue
-
-        if label not in clusters:
-
-            clusters[label] = []
-
-        clusters[label].append(
-            reports[index]
-        )
-
-    hotspots = []
-
-    for clusterReports in clusters.values():
-
-        reportCount = len(
-            clusterReports
-        )
-
-        averageLatitude = sum(
-            report["latitude"]
-            for report in clusterReports
-        ) / reportCount
-
-        averageLongitude = sum(
-            report["longitude"]
-            for report in clusterReports
-        ) / reportCount
-
-        if reportCount >= 11:
-
-            level = "high"
-
-        elif reportCount >= 4:
-
-            level = "medium"
-
-        else:
-
-            level = "low"
-
-        hotspots.append({
-
-            "latitude": averageLatitude,
-
-            "longitude": averageLongitude,
-
-            "reportCount": reportCount,
-
-            "level": level
-        })
-
-    hotspots.sort(
-        key=lambda hotspot:
-        hotspot["reportCount"],
-        reverse=True
-    )
-
-    print(
-        "HOTSPOTS FOUND:",
-        len(hotspots)
-    )
-
-    return hotspots
-
-
-# =========================================================
-# GET MAP REPORTS
-# =========================================================
-
-async def getMapReports(
-    state=None,
-    district=None,
-    city=None,
-    locality=None,
-    category=None,
-    status=None
-):
-
-    print(
-        "FETCHING MAP REPORTS"
-    )
-
-    query = {}
-
-    # -----------------------------------------------------
-    # LOCATION FILTERS
-    # -----------------------------------------------------
-
-    if state:
-        query["location.state"] = {
-            "$regex": f"^{re.escape(state)}$",
-            "$options": "i"
-        }
-
-    if district:
-        query["location.district"] = {
-            "$regex": f"^{re.escape(district)}$",
-            "$options": "i"
-        }
-
-    if city:
-        query["location.city"] = {
-            "$regex": f"^{re.escape(city)}$",
-            "$options": "i"
-        }
-
-    if locality:
-        query["location.locality"] = {
-            "$regex": f"^{re.escape(locality)}$",
-            "$options": "i"
-        }
-
-    # -----------------------------------------------------
-    # CATEGORY FILTER
-    # -----------------------------------------------------
-
-    if category:
-
-        query["$or"] = [
-
-            {
-                "mlAnalysis.category": {
-                    "$regex": f"^{re.escape(category)}$",
-                    "$options": "i"
-                }
-            },
-
-            {
-                "category": {
-                    "$regex": f"^{re.escape(category)}$",
-                    "$options": "i"
-                }
-            }
-
-        ]
-
-    # -----------------------------------------------------
-    # STATUS FILTER
-    # Your reports use reportStatus, NOT status
-    # -----------------------------------------------------
-
-    if status:
-
-        query["reportStatus"] = {
-            "$regex": f"^{re.escape(status)}$",
-            "$options": "i"
-        }
-
-    print(
-        "MAP QUERY:",
-        query
-    )
-
-    cursor = database.reports.find(
-        query
-    ).sort(
-        "createdAt",
-        -1
-    )
-
+    cursor = database.reports.find({"$or": queries}).sort("createdAt", -1)
     reports = []
-
     async for report in cursor:
-
-        report["id"] = str(
-            report["_id"]
-        )
-
-        del report["_id"]
-
-        reports.append(
-            report
-        )
-
-    print(
-        "MAP REPORTS FOUND:",
-        len(reports)
-    )
-
+        reports.append(_format_report(report))
     return reports
 
+
 # =========================================================
-# GET REPORTS NEAR A LOCATION
+# GET NEARBY REPORTS (For Citizen Live View)
 # =========================================================
 
 async def getNearbyReports(
     latitude: float,
     longitude: float,
-    radiusKm: float = 5,
-    category: str = None
-):
+    radiusKm: float = 5.0,
+    category: Optional[str] = None,
+) -> List[dict]:
+    query = {}
+    if category and category.lower() != "all":
+        query["$or"] = [
+            {"category": category},
+            {"mlAnalysis.category": category},
+            {"hazardTypeVerified": category},
+        ]
 
-    print(
-        "SEARCHING NEARBY REPORTS"
-    )
-
-    if not category:
-
-        query = {}
-
-    else:
-
-        query = {
-            "$or": [
-
-                {
-                    "mlAnalysis.category": {
-                        "$regex": f"^{category}$",
-                        "$options": "i"
-                    }
-                },
-
-                {
-                    "category": {
-                        "$regex": f"^{category}$",
-                        "$options": "i"
-                    }
-                }
-
-            ]
-        }
-
-    cursor = database.reports.find(
-        query
-    )
-
-    nearbyReports = []
+    cursor = database.reports.find(query).sort("createdAt", -1)
+    nearby = []
 
     async for report in cursor:
-
-        if "location" in report:
-
-            reportLatitude = report[
-                "location"
-            ].get("latitude")
-
-            reportLongitude = report[
-                "location"
-            ].get("longitude")
-
-        else:
-
-            reportLatitude = report.get(
-                "latitude"
-            )
-
-            reportLongitude = report.get(
-                "longitude"
-            )
-
-        if (
-            reportLatitude is None
-            or reportLongitude is None
-        ):
-            continue
-
-        reportLatitude = float(
-            reportLatitude
-        )
-
-        reportLongitude = float(
-            reportLongitude
-        )
-
-        distanceKm = calculateDistance(
-
-            latitude,
-            longitude,
-
-            reportLatitude,
-            reportLongitude
-        )
-
-        if distanceKm <= radiusKm:
-
-            report["id"] = str(
-                report["_id"]
-            )
-
-            del report["_id"]
-
-            report["distanceKm"] = round(
-                distanceKm,
-                2
-            )
-
-            nearbyReports.append(
-                report
-            )
-
-    nearbyReports.sort(
-        key=lambda report:
-        report["distanceKm"]
-    )
-
-    print(
-        "NEARBY REPORTS FOUND:",
-        len(nearbyReports)
-    )
-
-    return nearbyReports
-
-
-# =========================================================
-# DISTANCE CALCULATION
-# =========================================================
-
-def calculateDistance(
-    latitude1,
-    longitude1,
-    latitude2,
-    longitude2
-):
-
-    earthRadiusKm = 6371.0
-
-    latitudeDifference = math.radians(
-        latitude2 - latitude1
-    )
-
-    longitudeDifference = math.radians(
-        longitude2 - longitude1
-    )
-
-    a = (
-
-        math.sin(
-            latitudeDifference / 2
-        ) ** 2
-
-        +
-
-        math.cos(
-            math.radians(latitude1)
-        )
-
-        *
-
-        math.cos(
-            math.radians(latitude2)
-        )
-
-        *
-
-        math.sin(
-            longitudeDifference / 2
-        ) ** 2
-
-    )
-
-    c = 2 * math.atan2(
-
-        math.sqrt(a),
-
-        math.sqrt(1 - a)
-    )
-
-    return earthRadiusKm * c
-
-
-# =========================================================
-# GET SINGLE REPORT
-# =========================================================
-
-async def getReportById(
-    reportId: str
-):
-
-    print(
-        "FETCHING REPORT:",
-        reportId
-    )
-
-    try:
-
-        objectId = ObjectId(
-            reportId
-        )
-
-    except Exception:
-
-        return None
-
-    report = await database.reports.find_one({
-        "_id": objectId
-    })
-
-    if report is None:
-
-        return None
-
-    report["id"] = str(
-        report["_id"]
-    )
-
-    del report["_id"]
-
-    return report
-
-
-# =========================================================
-# UPDATE REPORT STATUS
-# =========================================================
-
-async def updateReportStatus(
-    reportId: str,
-    reportStatus: str
-):
-
-    print(
-        "UPDATING REPORT STATUS"
-    )
-
-    try:
-
-        objectId = ObjectId(
-            reportId
-        )
-
-    except Exception:
-
-        return False
-
-    result = await database.reports.update_one(
-
-        {
-            "_id": objectId
-        },
-
-        {
-            "$set": {
-
-                "reportStatus": reportStatus,
-
-                "updatedAt": datetime.utcnow()
-            }
-        }
-    )
-
-    if result.matched_count == 0:
-
-        return False
-
-    return True
-
-
-# =========================================================
-# UPDATE REPORT VERIFICATION
-# =========================================================
-
-async def updateReportVerification(
-    reportId: str,
-    status: str,
-    verifiedBy: str = None,
-    reliabilityScore: float = 0,
-    validationSources: list = None
-):
-
-    print(
-        "UPDATING REPORT VERIFICATION"
-    )
-
-    if validationSources is None:
-
-        validationSources = []
-
-    try:
-
-        objectId = ObjectId(
-            reportId
-        )
-
-    except Exception:
-
-        return False
-
-    result = await database.reports.update_one(
-
-        {
-            "_id": objectId
-        },
-
-        {
-            "$set": {
-
-                "verification": {
-
-                    "status": status,
-
-                    "verifiedBy": verifiedBy,
-
-                    "verifiedAt": datetime.utcnow(),
-
-                    "reliabilityScore": reliabilityScore,
-
-                    "validationSources": validationSources
-                },
-
-                "updatedAt": datetime.utcnow()
-            }
-        }
-    )
-
-    if result.matched_count == 0:
-
-        return False
-
-    return True
-
-
-# =========================================================
-# GET REPORTS FOR RANKING
-# Fetches live MongoDB reports in the shape report_ranker.py
-# expects, excluding closed/non-hazard reports.
-# =========================================================
-
-async def getReportsForRanking():
-    cursor = database.reports.find({
-        "reportStatus": {"$ne": "Closed"},
-        "mlAnalysis.category": {"$ne": "no_flood"},
-        "mlAnalysis.severity": {"$gt": 0}
-    })
-
-    reports = []
-
-    async for report in cursor:
-        ml = report.get("mlAnalysis", {})
         loc = report.get("location", {})
+        r_lat = loc.get("latitude")
+        r_lng = loc.get("longitude")
 
-        reports.append({
-            "report_id": str(report.get("_id")),
-            "hazard_type": ml.get("category"),
-            "severity": ml.get("severity", 0),
-            "affected_people": report.get("affectedPeople", 0),
-            "location": f"{loc.get('latitude')},{loc.get('longitude')}",
-            "latitude": loc.get("latitude"),
-            "longitude": loc.get("longitude"),
-            "description": report.get("description"),
-            "confidence": ml.get("confidence", 0),
-            "time": report.get("createdAt"),
-            "validation": report.get("validation", {})
-        })
+        if r_lat is not None and r_lng is not None:
+            try:
+                dist_km = haversine_distance_km(latitude, longitude, float(r_lat), float(r_lng))
+                if dist_km <= radiusKm:
+                    formatted = _format_report(report)
+                    formatted["distanceKm"] = round(dist_km, 2)
+                    formatted["distanceMeters"] = round(dist_km * 1000, 0)
+                    nearby.append(formatted)
+            except Exception:
+                pass
 
-    reports.sort(
-        key=lambda r: (
-            r["severity"],
-            r["validation"].get("nearbyReportEvidence", {}).get("similarReportCount", 0),
-            r["confidence"]
-        ),
-        reverse=True
-    )
+    nearby.sort(key=lambda r: r.get("distanceKm", 999))
+    return nearby
 
+
+# =========================================================
+# GET ADMINISTRATIVE REPORTS (Government Large Area View)
+# =========================================================
+
+async def getAdministrativeReports(
+    state: Optional[str] = None,
+    district: Optional[str] = None,
+    city: Optional[str] = None,
+    locality: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    source: Optional[str] = None,
+    department: Optional[str] = None,
+) -> List[dict]:
+    query = {}
+    conditions = []
+
+    if state and state.lower() != "all":
+        conditions.append({"$or": [
+            {"state": {"$regex": state, "$options": "i"}},
+            {"location.state": {"$regex": state, "$options": "i"}},
+            {"location.formattedAddress": {"$regex": state, "$options": "i"}},
+        ]})
+
+    target_city = city or district
+    if target_city and target_city.lower() != "all":
+        # Extract base name (e.g., 'Kanpur' from 'Kanpur Nagar')
+        base_name = target_city.split()[0]
+        conditions.append({"$or": [
+            {"district": {"$regex": base_name, "$options": "i"}},
+            {"location.district": {"$regex": base_name, "$options": "i"}},
+            {"city": {"$regex": base_name, "$options": "i"}},
+            {"location.city": {"$regex": base_name, "$options": "i"}},
+            {"location.formattedAddress": {"$regex": base_name, "$options": "i"}},
+        ]})
+
+    if locality and locality.lower() != "all":
+        conditions.append({"$or": [
+            {"locality": {"$regex": locality, "$options": "i"}},
+            {"location.locality": {"$regex": locality, "$options": "i"}},
+            {"location.formattedAddress": {"$regex": locality, "$options": "i"}},
+            {"title": {"$regex": locality, "$options": "i"}},
+            {"description": {"$regex": locality, "$options": "i"}},
+        ]})
+
+    if category and category.lower() != "all":
+        query["category"] = category
+    if status and status.lower() != "all":
+        query["status"] = status
+    if priority and priority.lower() != "all":
+        query["priority"] = {"$regex": f"^{priority}$", "$options": "i"}
+    if source and source.lower() != "all":
+        query["source"] = source.upper()
+    if department:
+        query["verification.assignedDepartment"] = department
+
+    if conditions:
+        query["$and"] = conditions
+
+    cursor = database.reports.find(query).sort("createdAt", -1)
+    reports = []
+    async for report in cursor:
+        reports.append(_format_report(report))
     return reports
+
+
 # =========================================================
-# GOVERNMENT REPORT TRACKING
+# GET SINGLE REPORT & TRACKING
 # =========================================================
 
-async def getReportTracking(reportId: str):
-
-    print("TRACKING REPORT:", reportId)
+async def getReportById(reportId: str) -> Optional[dict]:
+    if not reportId:
+        return None
 
     query = {"publicReportId": reportId}
-
     if ObjectId.is_valid(reportId):
         query = {
             "$or": [
                 {"publicReportId": reportId},
-                {"_id": ObjectId(reportId)}
+                {"_id": ObjectId(reportId)},
             ]
         }
 
     report = await database.reports.find_one(query)
-
-    if report is None:
+    if not report:
         return None
 
-    report["id"] = str(report["_id"])
-    del report["_id"]
+    return _format_report(report)
+
+
+async def getReportTracking(reportId: str) -> Optional[dict]:
+    report = await getReportById(reportId)
+    if not report:
+        return None
 
     return {
         "id": report["id"],
+        "reportId": report.get("publicReportId", report["id"]),
+        "legacyReportId": report.get("publicReportId", report["id"]),
+        "publicReportId": report.get("publicReportId", report["id"]),
         "title": report.get("title"),
         "description": report.get("description"),
-        "category": report.get(
-            "mlAnalysis", {}
-        ).get("category"),
-        "severity": report.get(
-            "mlAnalysis", {}
-        ).get("severity"),
-        "priority": report.get(
-            "mlAnalysis", {}
-        ).get(
-            "priority",
-            "normal"
-        ),
-        "reportStatus": report.get(
-            "reportStatus",
-            "Submitted"
-        ),
-        "location": report.get(
-            "location",
-            {}
-        ),
-        "verification": report.get(
-            "verification",
-            {}
-        ),
-        "timeline": report.get(
-            "timeline",
-            []
-        ),
+        "category": report.get("category") or report.get("mlAnalysis", {}).get("category"),
+        "severity": report.get("severity"),
+        "priority": report.get("priority", "MEDIUM"),
+        "status": report.get("status", "submitted"),
+        "currentStatus": report.get("status", "submitted"),
+        "reportStatus": report.get("reportStatus", "Open"),
+        "location": report.get("location", {}),
+        "imageUrl": report.get("imageUrl"),
+        "aiAnalysis": report.get("aiAnalysis", {}),
+        "mlAnalysis": report.get("mlAnalysis", {}),
+        "geminiAnalysis": report.get("geminiAnalysis", {}),
+        "verification": report.get("verification", {}),
+        "assignment": report.get("assignment", {}),
+        "timeline": report.get("timeline", []),
+        "source": report.get("source", "CITIZEN"),
+        "clusterId": report.get("clusterId"),
         "createdAt": report.get("createdAt"),
-        "updatedAt": report.get("updatedAt")
+        "updatedAt": report.get("updatedAt"),
     }
 
 
 # =========================================================
-# GOVERNMENT ADMINISTRATIVE REPORTS
+# UPDATE REPORT STATUS & VERIFICATION
 # =========================================================
 
-async def getAdministrativeReports(
-    state: str = None,
-    district: str = None,
-    city: str = None,
-    locality: str = None,
-    category: str = None,
-    status: str = None,
-    priority: str = None,
-    department: str = None
-):
+async def updateReportStatus(reportId: str, status: str, officerNotes: Optional[str] = None) -> bool:
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {"$or": [{"publicReportId": reportId}, {"_id": ObjectId(reportId)}]}
 
-    print("FETCHING ADMINISTRATIVE REPORTS")
+    existing = await database.reports.find_one(query)
+    if not existing:
+        return False
 
-    query = {}
+    now = datetime.utcnow()
+    timeline = existing.get("timeline", [])
 
-    # -----------------------------------------------------
-    # LOCATION
-    # -----------------------------------------------------
+    norm_status = status.lower().strip()
+    if norm_status in ["in_progress", "inprogress", "action_in_progress"]:
+        canonical_status = "action_in_progress"
+        gov_status = "in_progress"
+        report_status_str = "In Progress"
+    elif norm_status == "assigned":
+        canonical_status = "assigned"
+        gov_status = "assigned"
+        report_status_str = "Assigned"
+    elif norm_status in ["resolved", "completed"]:
+        canonical_status = "resolved"
+        gov_status = "resolved"
+        report_status_str = "Resolved"
+    elif norm_status in ["rejected", "invalid"]:
+        canonical_status = "rejected"
+        gov_status = "rejected"
+        report_status_str = "Rejected"
+    elif norm_status == "verified":
+        canonical_status = "verified"
+        gov_status = "under_review"
+        report_status_str = "Verified"
+    else:
+        canonical_status = "under_review"
+        gov_status = "under_review"
+        report_status_str = "Under Review"
 
-    if state:
-        query["location.state"] = {
-            "$regex": f"^{re.escape(state)}$",
-            "$options": "i"
-        }
+    if canonical_status == "rejected":
+        title_str = "Report Rejected"
+        desc_str = f"Rejection Reason: {officerNotes}" if officerNotes else "Report marked as rejected by municipal review officer."
+    else:
+        title_str = f"Status updated to {report_status_str}"
+        desc_str = officerNotes or f"Report status changed to {report_status_str} by municipal authority."
 
-    if district:
-        query["location.district"] = {
-            "$regex": f"^{re.escape(district)}$",
-            "$options": "i"
-        }
+    # Avoid duplicate consecutive timeline events
+    should_append = True
+    if timeline:
+        last_entry = timeline[-1]
+        if (
+            last_entry.get("status") == canonical_status
+            and last_entry.get("title") == title_str
+            and (not officerNotes or last_entry.get("description") == desc_str)
+        ):
+            should_append = False
 
-    if city:
-        query["location.city"] = {
-            "$regex": f"^{re.escape(city)}$",
-            "$options": "i"
-        }
+    if should_append:
+        timeline.append({
+            "status": canonical_status,
+            "title": title_str,
+            "description": desc_str,
+            "timestamp": now.isoformat(),
+        })
 
-    if locality:
-        query["location.locality"] = {
-            "$regex": f"^{re.escape(locality)}$",
-            "$options": "i"
-        }
+    update_fields = {
+        "status": canonical_status,
+        "currentStatus": canonical_status,
+        "govStatus": gov_status,
+        "reportStatus": report_status_str,
+        "timeline": timeline,
+        "updatedAt": now,
+    }
+    if canonical_status in ["resolved", "rejected"]:
+        update_fields["concludedAt"] = now
+        update_fields["expiresAt"] = now + timedelta(hours=24)
+    else:
+        update_fields["concludedAt"] = None
+        update_fields["expiresAt"] = None
 
-    # -----------------------------------------------------
-    # CATEGORY
-    # -----------------------------------------------------
+    if canonical_status == "rejected":
+        update_fields["assignedDepartment"] = None
+        verification = existing.get("verification", {})
+        verification["status"] = "Rejected"
+        verification["verifiedAt"] = now.isoformat()
+        if officerNotes:
+            verification["officerNotes"] = officerNotes
+        update_fields["verification"] = verification
 
-    if category:
+    res = await database.reports.update_one(query, {"$set": update_fields})
+    return res.matched_count > 0
 
-        query["$or"] = [
-            {
-                "mlAnalysis.category": {
-                    "$regex": f"^{re.escape(category)}$",
-                    "$options": "i"
-                }
-            },
-            {
-                "category": {
-                    "$regex": f"^{re.escape(category)}$",
-                    "$options": "i"
-                }
+
+async def updateReportVerification(
+    reportId: str,
+    status: str,
+    verifiedBy: Optional[str] = None,
+    officerNotes: Optional[str] = None,
+    assignedDepartment: Optional[str] = None,
+) -> bool:
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {"$or": [{"publicReportId": reportId}, {"_id": ObjectId(reportId)}]}
+
+    existing = await database.reports.find_one(query)
+    if not existing:
+        return False
+
+    now = datetime.utcnow()
+    norm_status = status.lower().strip()
+    is_rejected = norm_status == "rejected"
+    is_verified = norm_status == "verified"
+
+    verif_status_label = "Rejected" if is_rejected else "Verified" if is_verified else "Under Review"
+    canonical_status = "rejected" if is_rejected else "verified" if is_verified else "under_review"
+    gov_status = "rejected" if is_rejected else "assigned" if assignedDepartment else "under_review"
+
+    verification = existing.get("verification", {})
+    verification.update({
+        "status": verif_status_label,
+        "verifiedBy": verifiedBy or "Municipal Authority",
+        "verifiedAt": now.isoformat(),
+        "officerNotes": officerNotes,
+    })
+    if assignedDepartment:
+        verification["assignedDepartment"] = assignedDepartment
+
+    timeline = existing.get("timeline", [])
+    title_str = f"Incident {verif_status_label}"
+    desc_str = officerNotes or f"Report marked as {verif_status_label} by {verifiedBy or 'Municipal Authority'}."
+
+    should_append = True
+    if timeline:
+        last_entry = timeline[-1]
+        if (
+            last_entry.get("status") == canonical_status
+            and last_entry.get("title") == title_str
+            and (not officerNotes or last_entry.get("description") == desc_str)
+        ):
+            should_append = False
+
+    if should_append:
+        timeline.append({
+            "status": canonical_status,
+            "title": title_str,
+            "description": desc_str,
+            "timestamp": now.isoformat(),
+        })
+
+    update_fields = {
+        "status": canonical_status,
+        "currentStatus": canonical_status,
+        "govStatus": gov_status,
+        "reportStatus": verif_status_label,
+        "verification": verification,
+        "timeline": timeline,
+        "updatedAt": now,
+    }
+    if canonical_status in ["resolved", "rejected"]:
+        update_fields["concludedAt"] = now
+        update_fields["expiresAt"] = now + timedelta(hours=24)
+    else:
+        update_fields["concludedAt"] = None
+        update_fields["expiresAt"] = None
+
+    if assignedDepartment:
+        update_fields["assignedDepartment"] = assignedDepartment
+
+    res = await database.reports.update_one(query, {"$set": update_fields})
+    return res.matched_count > 0
+
+
+async def assignReport(reportId: str, department: str, assignedTo: Optional[str] = None, assignedBy: Optional[str] = None) -> bool:
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {"$or": [{"publicReportId": reportId}, {"_id": ObjectId(reportId)}]}
+
+    existing = await database.reports.find_one(query)
+    if not existing:
+        return False
+
+    now = datetime.utcnow()
+    assignment = {
+        "department": department,
+        "assignedTo": assignedTo or "Field Response Unit",
+        "assignedBy": assignedBy or "Command Center",
+        "assignedAt": now.isoformat(),
+    }
+
+    verification = existing.get("verification", {})
+    verification["assignedDepartment"] = department
+    verification["status"] = "Verified"
+    verification["verifiedBy"] = assignedBy or "Command Center"
+    verification["verifiedAt"] = now.isoformat()
+
+    timeline = existing.get("timeline", [])
+    title_str = f"Assigned to {department}"
+    desc_str = f"Dispatched to {department} ({assignedTo or 'Field Response Unit'}) for on-ground response."
+
+    should_append = True
+    if timeline:
+        last_entry = timeline[-1]
+        if (
+            last_entry.get("status") == "assigned"
+            and last_entry.get("title") == title_str
+        ):
+            should_append = False
+
+    if should_append:
+        timeline.append({
+            "status": "assigned",
+            "title": title_str,
+            "description": desc_str,
+            "timestamp": now.isoformat(),
+        })
+
+    res = await database.reports.update_one(
+        query,
+        {
+            "$set": {
+                "status": "assigned",
+                "currentStatus": "assigned",
+                "govStatus": "assigned",
+                "reportStatus": "Assigned",
+                "assignedDepartment": department,
+                "assignment": assignment,
+                "verification": verification,
+                "timeline": timeline,
+                "updatedAt": now,
             }
-        ]
-
-    # -----------------------------------------------------
-    # STATUS
-    # Your schema uses reportStatus
-    # -----------------------------------------------------
-
-    if status:
-
-        query["reportStatus"] = {
-            "$regex": f"^{re.escape(status)}$",
-            "$options": "i"
-        }
-
-    # -----------------------------------------------------
-    # PRIORITY
-    # Priority is primarily stored inside mlAnalysis
-    # -----------------------------------------------------
-
-    if priority:
-
-        query["mlAnalysis.priority"] = {
-            "$regex": f"^{re.escape(priority)}$",
-            "$options": "i"
-        }
-
-    # -----------------------------------------------------
-    # DEPARTMENT
-    # -----------------------------------------------------
-
-    if department:
-
-        query["assignment.department"] = {
-            "$regex": f"^{re.escape(department)}$",
-            "$options": "i"
-        }
-
-    print(
-        "ADMINISTRATIVE QUERY:",
-        query
+        },
     )
+    return res.matched_count > 0
 
-    cursor = database.reports.find(
-        query
-    ).sort(
-        "createdAt",
-        -1
-    )
 
-    reports = []
-
-    async for report in cursor:
-
-        report["id"] = str(
-            report["_id"]
-        )
-
-        del report["_id"]
-
-        reports.append(report)
-
-    print(
-        "ADMINISTRATIVE REPORTS FOUND:",
-        len(reports)
-    )
-
-    return reports
+async def deleteReport(reportId: str) -> bool:
+    query = {"publicReportId": reportId}
+    if ObjectId.is_valid(reportId):
+        query = {"$or": [{"publicReportId": reportId}, {"_id": ObjectId(reportId)}]}
+    res = await database.reports.delete_one(query)
+    return res.deleted_count > 0
 
 
 # =========================================================
-# GOVERNMENT ADMINISTRATIVE HOTSPOTS
+# HOTSPOTS & MAP AGGREGATIONS
 # =========================================================
 
-async def getAdministrativeHotspots(
-    state: str = None,
-    district: str = None,
-    city: str = None,
-    locality: str = None,
-    category: str = None
-):
-
-    print(
-        "FETCHING ADMINISTRATIVE HOTSPOTS"
-    )
-
-    query = {}
-
-    # -----------------------------------------------------
-    # LOCATION FILTERS
-    # -----------------------------------------------------
-
-    if state:
-        query["location.state"] = {
-            "$regex": f"^{re.escape(state)}$",
-            "$options": "i"
-        }
-
-    if district:
-        query["location.district"] = {
-            "$regex": f"^{re.escape(district)}$",
-            "$options": "i"
-        }
-
-    if city:
-        query["location.city"] = {
-            "$regex": f"^{re.escape(city)}$",
-            "$options": "i"
-        }
-
-    if locality:
-        query["location.locality"] = {
-            "$regex": f"^{re.escape(locality)}$",
-            "$options": "i"
-        }
-
-    # -----------------------------------------------------
-    # CATEGORY
-    # -----------------------------------------------------
-
-    if category:
-
-        query["$or"] = [
-            {
-                "mlAnalysis.category": {
-                    "$regex": f"^{re.escape(category)}$",
-                    "$options": "i"
-                }
-            },
-            {
-                "category": {
-                    "$regex": f"^{re.escape(category)}$",
-                    "$options": "i"
-                }
-            }
-        ]
+async def getHotspots(category: Optional[str] = None) -> List[dict]:
+    query = {"status": {"$in": ["submitted", "under_review", "verified", "action_in_progress", "assigned"]}}
+    if category and category.lower() != "all":
+        query["category"] = category
 
     cursor = database.reports.find(query)
-
     reports = []
-
     async for report in cursor:
+        reports.append(_format_report(report))
 
-        location = report.get(
-            "location",
-            {}
-        )
+    clusters = []
+    processed = set()
 
-        latitude = location.get(
-            "latitude"
-        )
-
-        longitude = location.get(
-            "longitude"
-        )
-
-        if latitude is None or longitude is None:
+    for i, rep in enumerate(reports):
+        if i in processed:
             continue
 
-        ml = report.get(
-            "mlAnalysis",
-            {}
-        )
-
-        reports.append({
-            "id": str(report["_id"]),
-            "latitude": float(latitude),
-            "longitude": float(longitude),
-            "title": report.get("title"),
-            "category": ml.get("category"),
-            "severity": ml.get("severity", 0),
-            "confidence": ml.get("confidence", 0),
-            "status": report.get(
-                "reportStatus",
-                "Submitted"
-            ),
-            "priority": ml.get(
-                "priority",
-                "normal"
-            ),
-            "location": location
-        })
-
-    print(
-        "REPORTS WITH LOCATION:",
-        len(reports)
-    )
-
-    if len(reports) < 2:
-        return []
-
-    # -----------------------------------------------------
-    # CONVERT LAT/LONG TO APPROX KM
-    # -----------------------------------------------------
-
-    meanLatitude = sum(
-        report["latitude"]
-        for report in reports
-    ) / len(reports)
-
-    coordinates = []
-
-    for report in reports:
-
-        latitude = report["latitude"]
-        longitude = report["longitude"]
-
-        x = latitude * 111.0
-
-        y = (
-            longitude
-            * 111.0
-            * math.cos(
-                math.radians(
-                    meanLatitude
-                )
-            )
-        )
-
-        coordinates.append([
-            x,
-            y
-        ])
-
-    # -----------------------------------------------------
-    # DBSCAN
-    # 0.5 km radius
-    # Minimum 2 reports
-    # -----------------------------------------------------
-
-    clustering = DBSCAN(
-        eps=0.5,
-        min_samples=2,
-        metric="euclidean"
-    ).fit(
-        coordinates
-    )
-
-    labels = clustering.labels_
-
-    clusters = {}
-
-    for index, label in enumerate(labels):
-
-        if label == -1:
+        lat1 = rep["location"].get("latitude")
+        lng1 = rep["location"].get("longitude")
+        if lat1 is None or lng1 is None:
             continue
 
-        clusters.setdefault(
-            label,
-            []
-        ).append(
-            reports[index]
-        )
+        cluster_members = [rep]
+        processed.add(i)
 
-    hotspots = []
+        for j, other in enumerate(reports):
+            if j in processed:
+                continue
+            lat2 = other["location"].get("latitude")
+            lng2 = other["location"].get("longitude")
+            if lat2 is None or lng2 is None:
+                continue
 
-    for clusterReports in clusters.values():
+            dist = haversine_distance_km(lat1, lng1, lat2, lng2)
+            if dist <= settings.NEARBY_REPORT_RADIUS_KM:
+                cluster_members.append(other)
+                processed.add(j)
 
-        reportCount = len(
-            clusterReports
-        )
+        if len(cluster_members) >= 2:
+            avg_lat = sum(m["location"]["latitude"] for m in cluster_members) / len(cluster_members)
+            avg_lng = sum(m["location"]["longitude"] for m in cluster_members) / len(cluster_members)
+            clusters.append({
+                "hotspotId": f"hotspot-{len(clusters)+1}",
+                "latitude": round(avg_lat, 6),
+                "longitude": round(avg_lng, 6),
+                "reportCount": len(cluster_members),
+                "category": cluster_members[0].get("category", "flood"),
+                "severity": "CRITICAL" if any(m.get("priority") == "CRITICAL" for m in cluster_members) else "HIGH",
+                "reports": cluster_members,
+            })
 
-        averageLatitude = sum(
-            report["latitude"]
-            for report in clusterReports
-        ) / reportCount
-
-        averageLongitude = sum(
-            report["longitude"]
-            for report in clusterReports
-        ) / reportCount
-
-        if reportCount >= 11:
-            level = "high"
-        elif reportCount >= 4:
-            level = "medium"
-        else:
-            level = "low"
-
-        categoryCounts = {}
-        statusCounts = {}
-
-        for report in clusterReports:
-
-            reportCategory = report.get(
-                "category"
-            )
-
-            if reportCategory:
-                categoryCounts[
-                    reportCategory
-                ] = categoryCounts.get(
-                    reportCategory,
-                    0
-                ) + 1
-
-            reportStatus = report.get(
-                "status",
-                "Submitted"
-            )
-
-            statusCounts[
-                reportStatus
-            ] = statusCounts.get(
-                reportStatus,
-                0
-            ) + 1
-
-        hotspots.append({
-
-            "hotspotId":
-                f"HS-{round(averageLatitude, 5)}-"
-                f"{round(averageLongitude, 5)}",
-
-            "latitude": averageLatitude,
-
-            "longitude": averageLongitude,
-
-            "reportCount": reportCount,
-
-            "level": level,
-
-            "reportIds": [
-                report["id"]
-                for report in clusterReports
-            ],
-
-            "categoryCounts": categoryCounts,
-
-            "statusCounts": statusCounts,
-
-            "reports": clusterReports
-        })
-
-    hotspots.sort(
-        key=lambda hotspot:
-            hotspot["reportCount"],
-        reverse=True
-    )
-
-    print(
-        "ADMINISTRATIVE HOTSPOTS FOUND:",
-        len(hotspots)
-    )
-
-    return hotspots
+    return clusters
 
 
-# =========================================================
-# HOTSPOT DETAILS
-# =========================================================
-
-async def getHotspotDetails(
-    hotspotId: str,
-    state: str = None,
-    district: str = None,
-    city: str = None,
-    locality: str = None,
-    category: str = None
-):
-
-    hotspots = await getAdministrativeHotspots(
+async def getMapReports(
+    state: Optional[str] = None,
+    district: Optional[str] = None,
+    city: Optional[str] = None,
+    locality: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+) -> dict:
+    reports = await getAdministrativeReports(
         state=state,
         district=district,
         city=city,
         locality=locality,
-        category=category
+        category=category,
+        status=status,
     )
-
-    for hotspot in hotspots:
-
-        currentHotspotId = (
-            f"HS-{round(hotspot['latitude'], 5)}-"
-            f"{round(hotspot['longitude'], 5)}"
-        )
-
-        if currentHotspotId == hotspotId:
-            return hotspot
-
-    return None
-
-
-# =========================================================
-# ASSIGN REPORT TO DEPARTMENT
-# =========================================================
-
-async def assignReport(
-    reportId: str,
-    department: str,
-    assignedTo: str,
-    assignedBy: str = "admin"
-):
-
-    print(
-        "ASSIGNING REPORT:",
-        reportId
-    )
-
-    query = {
-        "publicReportId": reportId
-    }
-
-    if ObjectId.is_valid(reportId):
-
-        query = {
-            "$or": [
-                {
-                    "publicReportId": reportId
-                },
-                {
-                    "_id": ObjectId(reportId)
-                }
-            ]
-        }
-
-    report = await database.reports.find_one(
-        query
-    )
-
-    if report is None:
-
-        return {
-            "success": False,
-            "error": "report_not_found"
-        }
-
-    objectId = report["_id"]
-
-    now = datetime.utcnow()
-
-    assignmentData = {
-
-        "department": department,
-
-        "assignedTo": assignedTo,
-
-        "assignedBy": assignedBy,
-
-        "assignedAt": now
-    }
-
-    timelineEntry = {
-
-        "status": "Assigned",
-
-        "timestamp": now,
-
-        "description":
-            f"Report assigned to {department}."
-    }
-
-    result = await database.reports.update_one(
-
-        {
-            "_id": objectId
-        },
-
-        {
-            "$set": {
-
-                "assignment": assignmentData,
-
-                "reportStatus": "Assigned",
-
-                "updatedAt": now
-            },
-
-            "$push": {
-
-                "timeline": timelineEntry
-            }
-        }
-    )
-
-    if result.matched_count == 0:
-
-        return {
-            "success": False,
-            "error": "report_not_found"
-        }
-
-    # -----------------------------------------------------
-    # NOTIFICATION
-    # -----------------------------------------------------
-
-    try:
-
-        await createNotification(
-
-            notificationType="report_assigned",
-
-            message=(
-                f"Report assigned to "
-                f"{department} ({assignedTo})."
-            ),
-
-            reportId=reportId,
-
-            department=department,
-
-            assignedTo=assignedTo,
-
-            username=report.get(
-                "username"
-            )
-        )
-
-    except Exception as e:
-
-        print(
-            "Assignment notification failed:",
-            str(e)
-        )
+    hotspots = await getHotspots(category=category)
 
     return {
-
-        "success": True,
-
-        "reportId": reportId,
-
-        "assignment": assignmentData
+        "reportCount": len(reports),
+        "hotspotCount": len(hotspots),
+        "reports": reports,
+        "hotspots": hotspots,
     }
 
-
-# =========================================================
-# GOVERNMENT DASHBOARD
-# =========================================================
 
 async def getGovernmentDashboard(
-    state: str = None,
-    district: str = None,
-    city: str = None,
-    locality: str = None,
-    category: str = None
-):
-
-    query = {}
-
-    if state:
-
-        query["location.state"] = {
-            "$regex": f"^{re.escape(state)}$",
-            "$options": "i"
-        }
-
-    if district:
-
-        query["location.district"] = {
-            "$regex": f"^{re.escape(district)}$",
-            "$options": "i"
-        }
-
-    if city:
-
-        query["location.city"] = {
-            "$regex": f"^{re.escape(city)}$",
-            "$options": "i"
-        }
-
-    if locality:
-
-        query["location.locality"] = {
-            "$regex": f"^{re.escape(locality)}$",
-            "$options": "i"
-        }
-
-    if category:
-
-        query["$or"] = [
-            {
-                "category": {
-                    "$regex": f"^{re.escape(category)}$",
-                    "$options": "i"
-                }
-            },
-            {
-                "mlAnalysis.category": {
-                    "$regex": f"^{re.escape(category)}$",
-                    "$options": "i"
-                }
-            }
-        ]
-
-    cursor = database.reports.find(
-        query
+    state: Optional[str] = None,
+    district: Optional[str] = None,
+    city: Optional[str] = None,
+    locality: Optional[str] = None,
+) -> dict:
+    reports = await getAdministrativeReports(
+        state=state,
+        district=district,
+        city=city,
+        locality=locality,
     )
+    total = len(reports)
+    pending = len([r for r in reports if r.get("status") in ["submitted", "under_review"]])
+    assigned = len([r for r in reports if r.get("status") in ["assigned", "action_in_progress"]])
+    verified = len([r for r in reports if r.get("status") in ["verified", "assigned", "action_in_progress"]])
+    resolved = len([r for r in reports if r.get("status") == "resolved"])
+    rejected = len([r for r in reports if r.get("status") == "rejected"])
+    critical = len([r for r in reports if str(r.get("priority", "")).upper() == "CRITICAL"])
+    high = len([r for r in reports if str(r.get("priority", "")).upper() == "HIGH"])
 
-    reports = []
-
-    async for report in cursor:
-        reports.append(report)
-
-    summary = {
-
-        "totalReports": len(reports),
-
-        "submitted": 0,
-
-        "underReview": 0,
-
-        "assigned": 0,
-
-        "inProgress": 0,
-
-        "resolved": 0,
-
-        "rejected": 0
-    }
-
-    priorityCounts = {
-
-        "low": 0,
-
-        "moderate": 0,
-
-        "high": 0,
-
-        "critical": 0
-    }
-
-    categoryCounts = {}
-
-    departmentCounts = {}
-
-    for report in reports:
-
-        status = report.get(
-            "reportStatus",
-            "Submitted"
-        ).lower()
-
-        if status == "submitted":
-            summary["submitted"] += 1
-
-        elif status in {
-            "under_review",
-            "under review"
-        }:
-            summary["underReview"] += 1
-
-        elif status == "assigned":
-            summary["assigned"] += 1
-
-        elif status in {
-            "in_progress",
-            "in progress",
-            "action_in_progress"
-        }:
-            summary["inProgress"] += 1
-
-        elif status == "resolved":
-            summary["resolved"] += 1
-
-        elif status == "rejected":
-            summary["rejected"] += 1
-
-        ml = report.get(
-            "mlAnalysis",
-            {}
-        )
-
-        priority = ml.get(
-            "priority",
-            "normal"
-        )
-
-        if priority in priorityCounts:
-            priorityCounts[priority] += 1
-
-        category = (
-            report.get("category")
-            or ml.get("category")
-        )
-
-        if category:
-
-            categoryCounts[
-                category
-            ] = categoryCounts.get(
-                category,
-                0
-            ) + 1
-
-        department = report.get(
-            "assignment",
-            {}
-        ).get(
-            "department"
-        )
-
-        if department:
-
-            departmentCounts[
-                department
-            ] = departmentCounts.get(
-                department,
-                0
-            ) + 1
+    hotspots = await getHotspots()
 
     return {
-
-        "success": True,
-
-        "summary": summary,
-
-        "priority": priorityCounts,
-
-        "categories": categoryCounts,
-
-        "departments": departmentCounts
-    }
-
-
-# =========================================================
-# DELETE REPORT
-# =========================================================
-
-async def deleteReport(
-    reportId: str
-):
-
-    query = {
-        "publicReportId": reportId
-    }
-
-    if ObjectId.is_valid(reportId):
-
-        query = {
-            "$or": [
-                {
-                    "publicReportId": reportId
-                },
-                {
-                    "_id": ObjectId(reportId)
-                }
-            ]
-        }
-
-    report = await database.reports.find_one(
-        query
-    )
-
-    if report is None:
-
-        return {
-            "success": False,
-            "error": "report_not_found"
-        }
-
-    objectId = report["_id"]
-
-    await database.reports.delete_one(
-        {
-            "_id": objectId
-        }
-    )
-
-    try:
-
-        await database.notifications.delete_many({
-            "$or": [
-                {
-                    "reportId": reportId
-                },
-                {
-                    "reportId": str(objectId)
-                }
-            ]
-        })
-
-    except Exception as e:
-
-        print(
-            "Notification cleanup failed:",
-            str(e)
-        )
-
-    return {
-
-        "success": True,
-
-        "reportId": reportId
+        "totalReports": total,
+        "pendingReview": pending,
+        "assigned": assigned,
+        "verifiedIncidents": verified,
+        "resolvedIncidents": resolved,
+        "rejected": rejected,
+        "rejectedIncidents": rejected,
+        "criticalPriority": critical,
+        "highPriority": high,
+        "activeHotspots": len(hotspots),
+        "recentReports": reports[:10],
+        "summary": {
+            "totalReports": total,
+            "submitted": pending,
+            "pending": pending,
+            "assigned": assigned,
+            "verified": verified,
+            "resolved": resolved,
+            "rejected": rejected,
+        },
     }

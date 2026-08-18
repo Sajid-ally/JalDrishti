@@ -442,6 +442,21 @@ export async function updateReliefStatus(
 }
 
 /* =========================================================
+   DELETE RELIEF REQUEST
+   ========================================================= */
+
+export async function deleteReliefRequest(
+  requestId: string
+): Promise<boolean> {
+  try {
+    await api.delete(`/relief/${requestId}`);
+    return true;
+  } catch (error) {
+    throw toApiError(error);
+  }
+}
+
+/* =========================================================
    LEGACY API
    ========================================================= */
 

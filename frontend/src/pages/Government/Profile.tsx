@@ -6,16 +6,16 @@ import { getGovernmentProfile, updateGovernmentProfile } from "../../services/us
 import type { GovernmentUserProfile } from "../../types/user";
 
 export default function GovernmentProfile() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [profile, setProfile] = useState<GovernmentUserProfile>({
     id: user?.id || "USR-GOVT-01",
-    name: user?.name || "Dr. Rajesh Sharma",
-    governmentId: "GOV-OD-8842",
+    name: user?.name || "Government Disaster Officer",
+    governmentId: "GOV-IN-8842",
     department: "Coastal Disaster Response Authority (CDRA)",
     designation: "Senior Incident Commander",
-    email: user?.email || "r.sharma@cdra.gov.in",
+    email: user?.email || "official@jaldrishti.gov.in",
     phone: "+91 94321 00998",
-    location: "Bhubaneswar Control Headquarters",
+    location: "Command Center Headquarters",
     photoUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80",
     role: "government",
   });
@@ -27,6 +27,12 @@ export default function GovernmentProfile() {
     setLoading(true);
     try {
       const data = await getGovernmentProfile();
+      if (user?.name) {
+        data.name = data.name || user.name;
+      }
+      if (user?.email) {
+        data.email = data.email || user.email;
+      }
       setProfile(data);
     } finally {
       setLoading(false);
@@ -35,7 +41,7 @@ export default function GovernmentProfile() {
 
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [user]);
 
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,7 +58,8 @@ export default function GovernmentProfile() {
     e.preventDefault();
     setSaving(true);
     try {
-      await updateGovernmentProfile(profile);
+      const updated = await updateGovernmentProfile(profile);
+      updateUser({ name: updated.name, email: updated.email });
       toast.success("Government official profile updated!");
     } catch {
       toast.error("Failed to update profile.");

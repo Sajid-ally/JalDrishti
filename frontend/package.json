@@ -13,6 +13,7 @@
     "@hookform/resolvers": "^5.7.1",
     "@tailwindcss/vite": "^4.3.3",
     "axios": "^1.19.0",
+    "firebase": "^12.17.1",
     "framer-motion": "^13.0.0",
     "leaflet": "^1.9.4",
     "leaflet.heat": "^0.2.0",

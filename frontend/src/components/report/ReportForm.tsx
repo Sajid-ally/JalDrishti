@@ -1,4 +1,5 @@
 import { useState } from "react";
+import api, { toApiError } from "../../services/api";
 
 interface DetectionResult {
   hazard_type: string;
@@ -21,46 +22,56 @@ export default function ReportForm() {
     setError(null);
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("image", file);
 
     try {
-      const res = await fetch("http://localhost:8001/api/detect", {
-        method: "POST",
-        body: formData,
+      const res = await api.post<{
+        success: boolean;
+        hazard_type: string;
+        severity: number;
+        confidence: number;
+        description: string;
+      }>("/reports/analyze", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
 
-      if (!res.ok) throw new Error(`Server responded ${res.status}`);
-
-      const data = await res.json();
-      setResult(data);
+      setResult(res.data);
     } catch (err: unknown) {
-      setError((err as Error).message);
+      const apiErr = toApiError(err);
+      setError(apiErr.message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div>
-      <form onSubmit={handleSubmit}>
+    <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         <input
           type="file"
           accept="image/*"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
         />
-        <button type="submit" disabled={!file || loading}>
-          {loading ? "Detecting..." : "Submit Report"}
+        <button
+          type="submit"
+          disabled={!file || loading}
+          className="px-4 py-2 bg-teal-600 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+        >
+          {loading ? "Analyzing image..." : "Run AI Detection"}
         </button>
       </form>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p className="text-xs text-red-600">{error}</p>}
 
       {result && (
-        <div>
-          <p>Hazard: {result.hazard_type}</p>
-          <p>Severity: {result.severity}</p>
-          <p>Confidence: {result.confidence}</p>
-          <p>{result.description}</p>
+        <div className="text-xs space-y-1 p-3 bg-teal-50 rounded-xl text-teal-950">
+          <p><strong>Hazard Type:</strong> {result.hazard_type}</p>
+          <p><strong>Severity:</strong> {result.severity}</p>
+          <p><strong>Confidence:</strong> {Math.round(result.confidence * 100)}%</p>
+          <p><strong>Description:</strong> {result.description}</p>
         </div>
       )}
     </div>

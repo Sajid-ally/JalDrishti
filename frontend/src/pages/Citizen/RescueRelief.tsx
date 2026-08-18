@@ -108,11 +108,10 @@ function formatAssignedTeam(team: unknown): string {
 }
 
 function getStatusIndex(status: string): number {
-  const index = STATUS_STEPS.indexOf(
-    status as (typeof STATUS_STEPS)[number]
-  );
-
-  return index === -1 ? 0 : index;
+  const s = (status || "").toLowerCase().trim();
+  if (s === "resolved" || s === "completed") return 2;
+  if (s === "assigned" || s === "in progress" || s === "in_progress") return 1;
+  return 0;
 }
 
 /* =========================================================

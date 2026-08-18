@@ -158,7 +158,100 @@ async def findGovernmentAlert(
 
     return closestAlert
 
+# =========================================================
+# CREATE GOVERNMENT ALERT
+# =========================================================
 
+async def createGovernmentAlert(alertData: dict):
+    """
+    Create a government alert in MongoDB.
+
+    Expected alertData example:
+    {
+        "title": "Heavy Rainfall Alert",
+        "category": "flood",
+        "description": "Flood warning for coastal area",
+        "location": {
+            "latitude": 19.8135,
+            "longitude": 85.8312
+        },
+        "status": "Active"
+    }
+    """
+
+    if not isinstance(alertData, dict):
+        raise ValueError("Alert data must be an object.")
+
+    # Default status if frontend doesn't provide one
+    alertData.setdefault("status", "Active")
+
+    # Store timestamps
+    now = datetime.utcnow()
+
+    alertData["createdAt"] = now
+    alertData["updatedAt"] = now
+
+    # Validate location
+    location = alertData.get("location")
+
+    if not isinstance(location, dict):
+        raise ValueError(
+            "Alert location must contain latitude and longitude."
+        )
+
+    latitude = location.get("latitude")
+    longitude = location.get("longitude")
+
+    if latitude is None or longitude is None:
+        raise ValueError(
+            "Alert location must contain latitude and longitude."
+        )
+
+    # Normalize coordinates
+    alertData["location"]["latitude"] = float(latitude)
+    alertData["location"]["longitude"] = float(longitude)
+
+    # Normalize category
+    if alertData.get("category"):
+        alertData["category"] = str(
+            alertData["category"]
+        ).strip()
+
+    print("CREATING GOVERNMENT ALERT")
+    print("CATEGORY:", alertData.get("category"))
+    print("LOCATION:", alertData.get("location"))
+    print("STATUS:", alertData.get("status"))
+
+    result = await database.governmentAlerts.insert_one(
+        alertData
+    )
+
+    print(
+        "GOVERNMENT ALERT CREATED:",
+        result.inserted_id
+    )
+
+    return result.inserted_id
+# =========================================================
+# GET ALL GOVERNMENT ALERTS
+# =========================================================
+
+async def getGovernmentAlerts():
+
+    print("FETCHING ALL GOVERNMENT ALERTS")
+
+    cursor = database.governmentAlerts.find({})
+
+    alerts = []
+
+    async for alert in cursor:
+
+        alert["id"] = str(alert["_id"])
+        del alert["_id"]
+
+        alerts.append(alert)
+
+    return alerts
 # =========================================================
 # CHECK NEARBY REPORT EVIDENCE
 # =========================================================
