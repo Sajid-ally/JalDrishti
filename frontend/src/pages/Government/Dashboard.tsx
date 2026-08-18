@@ -121,8 +121,14 @@ export default function GovernmentDashboard() {
   }, []);
 
   useEffect(() => {
-    handleAutoDetectLocation();
-  }, [handleAutoDetectLocation]);
+    if (user?.city) {
+      setSelectedCity(user.city);
+      if (user.state) setSelectedState(user.state);
+      setIsGpsDetected(true);
+    } else {
+      handleAutoDetectLocation();
+    }
+  }, [user, handleAutoDetectLocation]);
 
   // Load Dashboard Data with Jurisdiction Filters
   const loadDashboardData = useCallback(async () => {
@@ -278,7 +284,7 @@ export default function GovernmentDashboard() {
                   setSelectedLocality("all");
                 } else {
                   const cities = STATE_CITIES_MAP[val] || [];
-                  setSelectedCity(cities.includes("Kanpur") ? "Kanpur" : cities[0] || "all");
+                  setSelectedCity(cities[0] || "all");
                   setSelectedLocality("all");
                 }
               }}
@@ -351,9 +357,9 @@ export default function GovernmentDashboard() {
         <Card
           variant="stat"
           className="rounded-2xl p-5"
-          title="Total Reports"
+          title={`Total Reports in ${selectedCity !== "all" ? selectedCity : selectedState !== "all" ? selectedState : "India"}`}
           value={stats.total}
-          subtitle={`In ${selectedCity !== "all" ? selectedCity : "scope"}`}
+          subtitle={`Active in ${selectedCity !== "all" ? selectedCity : "scope"}`}
         />
 
         <Card
@@ -390,11 +396,11 @@ export default function GovernmentDashboard() {
             </p>
 
             <h2 className="mt-1 text-xl font-bold text-(--color-deep-ocean)">
-              Department Incident Tracking ({reports.length})
+              Department Incident Tracking ({reports.length}) — {selectedCity !== "all" ? selectedCity : selectedState !== "all" ? selectedState : "All India"}
             </h2>
 
             <p className="mt-1 text-sm text-(--color-medium-teal)">
-              Track real-time progress of citizen incidents in {selectedCity !== "all" ? selectedCity : "your region"}.
+              Track real-time progress of citizen incidents in {selectedCity !== "all" ? selectedCity : selectedState !== "all" ? selectedState : "your jurisdiction"}.
             </p>
           </div>
 

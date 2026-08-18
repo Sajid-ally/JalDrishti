@@ -351,9 +351,9 @@ async def getReportTracking(reportId: str) -> Optional[dict]:
 # =========================================================
 
 async def updateReportStatus(reportId: str, status: str, officerNotes: Optional[str] = None) -> bool:
-    query = {"publicReportId": reportId}
+    query = {"$or": [{"publicReportId": reportId}, {"reportId": reportId}, {"id": reportId}]}
     if ObjectId.is_valid(reportId):
-        query = {"$or": [{"publicReportId": reportId}, {"_id": ObjectId(reportId)}]}
+        query["$or"].append({"_id": ObjectId(reportId)})
 
     existing = await database.reports.find_one(query)
     if not existing:
@@ -522,9 +522,9 @@ async def updateReportVerification(
 
 
 async def assignReport(reportId: str, department: str, assignedTo: Optional[str] = None, assignedBy: Optional[str] = None) -> bool:
-    query = {"publicReportId": reportId}
+    query = {"$or": [{"publicReportId": reportId}, {"reportId": reportId}, {"id": reportId}]}
     if ObjectId.is_valid(reportId):
-        query = {"$or": [{"publicReportId": reportId}, {"_id": ObjectId(reportId)}]}
+        query["$or"].append({"_id": ObjectId(reportId)})
 
     existing = await database.reports.find_one(query)
     if not existing:

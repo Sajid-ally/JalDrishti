@@ -237,6 +237,25 @@ export default function GovernmentReportDetailDrawer({
 
         {/* Content */}
         <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
+          {/* Social Media Origin Banner */}
+          {report.source === "SOCIAL_MEDIA" && (
+            <section className="rounded-2xl border border-blue-200 bg-blue-50/80 p-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">📱</span>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-blue-900">Ingested from CoastalSocial</p>
+                  <p className="text-xs text-blue-700">Posted by <strong>@{report.socialUsername || "citizen"}</strong></p>
+                </div>
+              </div>
+              {report.originalPostText && report.originalPostText !== report.description && (
+                <div className="mt-2.5 rounded-lg bg-white/90 p-2.5 text-xs text-slate-700 border border-blue-100">
+                  <p className="font-semibold text-slate-500 text-[10px] uppercase">Original User Caption:</p>
+                  <p className="italic mt-0.5">"{report.originalPostText}"</p>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Problem */}
           <section>
             <p className="mb-1 text-xs font-semibold uppercase tracking-[0.15em] text-(--color-medium-teal)">

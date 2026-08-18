@@ -13,6 +13,7 @@ from app.validation.routes import router as validationRouter
 from app.socialMedia.routes import router as socialMediaRouter
 from app.notifications.routes import router as notificationRouter
 from app.social_reports.routes import router as socialReportsRouter
+from app.social_bridge.routes import router as socialBridgeRouter
 
 app = FastAPI(
     title="JalDrishti Backend",
@@ -88,6 +89,7 @@ app.include_router(validationRouter)
 app.include_router(socialMediaRouter)
 app.include_router(notificationRouter)
 app.include_router(socialReportsRouter)
+app.include_router(socialBridgeRouter)
 
 # =====================================================
 # HEALTH / HOME

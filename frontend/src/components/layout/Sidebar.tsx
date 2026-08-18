@@ -13,6 +13,7 @@ import {
   Search,
   AlertTriangle,
   ShieldCheck,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import useAuth from "../../hooks/useAuth";
@@ -96,6 +97,11 @@ const governmentSections: NavSection[] = [
         to: "/government/review-reports",
         label: "Review Reports",
         icon: Waves,
+      },
+      {
+        to: "/government/social-media-verification",
+        label: "Social Media Verification",
+        icon: MessageSquare,
       },
       {
         to: "/government/live-map",

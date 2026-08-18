@@ -378,5 +378,9 @@ export function toWaterReport(report: BackendReport): WaterReport {
     assignedDepartment,
     govStatus,
     assignedAt: (report as any).assignedAt || undefined,
+    source: (report as any).source || "CITIZEN",
+    socialUsername: (report as any).socialUsername || undefined,
+    socialPostId: (report as any).socialPostId || undefined,
+    originalPostText: (report as any).originalPostText || undefined,
   };
 }

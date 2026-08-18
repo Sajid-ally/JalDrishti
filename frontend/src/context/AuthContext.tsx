@@ -24,6 +24,11 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  phone?: string;
+  department?: string;
+  designation?: string;
+  city?: string;
+  state?: string;
 }
 
 interface AuthContextType {

@@ -170,6 +170,11 @@ export interface WaterReport {
   assignedDepartment?: Department;
   govStatus?: GovReportStatus;
   assignedAt?: string; // ISO
+  /** Social media origin fields */
+  source?: "CITIZEN" | "SOCIAL_MEDIA" | string;
+  socialUsername?: string;
+  socialPostId?: string;
+  originalPostText?: string;
 }
 
 export interface SubmitReportDraft {

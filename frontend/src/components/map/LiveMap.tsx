@@ -42,6 +42,8 @@ export interface HazardLocation {
   description?: string;
   imageUrl?: string;
   createdAt?: string | null;
+  source?: string;
+  socialUsername?: string;
 }
 
 interface LiveMapProps {
@@ -272,20 +274,35 @@ export default function LiveMap({
                         {hazard.title || HAZARD_LABELS[hazard.hazardType] || "Water Hazard"}
                       </p>
 
-                      {/* Public report ID */}
-                      {hazard.reportId && (
-                        <p
-                          style={{
-                            fontFamily: "monospace",
-                            fontWeight: 700,
-                            fontSize: "0.75rem",
-                            color: "#0f766e",
-                            marginBottom: "0.25rem",
-                          }}
-                        >
-                          ID: {hazard.reportId}
-                        </p>
-                      )}
+                      {/* Public report ID & Origin */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "0.25rem" }}>
+                        {hazard.reportId && (
+                          <span
+                            style={{
+                              fontFamily: "monospace",
+                              fontWeight: 700,
+                              fontSize: "0.75rem",
+                              color: "#0f766e",
+                            }}
+                          >
+                            ID: {hazard.reportId}
+                          </span>
+                        )}
+                        {hazard.source === "SOCIAL_MEDIA" && (
+                          <span
+                            style={{
+                              fontSize: "0.65rem",
+                              fontWeight: 700,
+                              background: "#dbeafe",
+                              color: "#1d4ed8",
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            📱 CoastalSocial {hazard.socialUsername ? `@${hazard.socialUsername}` : ""}
+                          </span>
+                        )}
+                      </div>
 
                       {/* Locality & Place */}
                       {(hazard.placeName || hazard.locality) && (
