@@ -3,7 +3,6 @@ import io
 import hashlib
 from typing import Optional, Dict, Any, Tuple
 from PIL import Image
-import imagehash
 from app.config import settings
 from app.database import database
 
@@ -18,24 +17,38 @@ WATER_HAZARD_CATEGORIES = [
 ]
 
 def compute_perceptual_hash(image_bytes: bytes) -> str:
-    """Computes perceptual difference hash (dhash) to identify duplicate or reused images."""
+    """Computes perceptual difference hash (dhash) using Pillow."""
     try:
         image = Image.open(io.BytesIO(image_bytes))
-        # Convert to RGB if necessary
-        if image.mode != "RGB":
-            image = image.convert("RGB")
-        hash_val = imagehash.dhash(image)
-        return str(hash_val)
-    except Exception as e:
-        # Fallback to MD5 if perceptual hash fails
+        img = image.convert("L").resize((9, 8), Image.Resampling.LANCZOS)
+        pixels = list(img.getdata())
+        diff = []
+        for row in range(8):
+            for col in range(8):
+                diff.append(pixels[row * 9 + col] > pixels[row * 9 + col + 1])
+        decimal_val = 0
+        hex_str = []
+        for idx, val in enumerate(diff):
+            if val:
+                decimal_val += 2 ** (idx % 4)
+            if (idx % 4) == 3:
+                hex_str.append(hex(decimal_val)[2:])
+                decimal_val = 0
+        return "".join(hex_str)
+    except Exception:
         return hashlib.md5(image_bytes).hexdigest()
 
 def is_duplicate_hash(hash1: str, hash2: str, threshold: int = 6) -> bool:
     """Checks if two image hashes are duplicates within Hamming distance threshold."""
+    if not hash1 or not hash2:
+        return False
+    if hash1 == hash2:
+        return True
     try:
-        h1 = imagehash.hex_to_hash(hash1)
-        h2 = imagehash.hex_to_hash(hash2)
-        return (h1 - h2) <= threshold
+        h1_bin = bin(int(hash1, 16))[2:].zfill(len(hash1) * 4)
+        h2_bin = bin(int(hash2, 16))[2:].zfill(len(hash2) * 4)
+        diff_bits = sum(b1 != b2 for b1, b2 in zip(h1_bin, h2_bin))
+        return diff_bits <= threshold
     except Exception:
         return hash1 == hash2
 

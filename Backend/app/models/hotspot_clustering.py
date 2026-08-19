@@ -1,39 +1,45 @@
-import numpy as np
-from sklearn.cluster import DBSCAN
+import math
 
-def extract_coordinates(reports):
-    coordinates = []
-
-    for report in reports:
-        latitude = report["latitude"]
-        longitude = report["longitude"]
-
-        coordinates.append([latitude, longitude])
-
-    return np.array(coordinates)
-
+def haversine_dist_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculates the great-circle distance between two points in km."""
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    return 2 * R * math.asin(math.sqrt(max(0.0, min(1.0, a))))
 
 def cluster_reports(reports, eps_km=1.0, min_samples=3):
     if not reports:
         return []
+    n = len(reports)
+    labels = [-1] * n
+    cluster_id = 0
 
-    coordinates = extract_coordinates(reports)
+    for i in range(n):
+        if labels[i] != -1:
+            continue
+        
+        lat1, lon1 = reports[i]["latitude"], reports[i]["longitude"]
+        neighbors = [j for j in range(n) if haversine_dist_km(lat1, lon1, reports[j]["latitude"], reports[j]["longitude"]) <= eps_km]
 
-    coordinates_radians = np.radians(coordinates)
+        if len(neighbors) < min_samples:
+            continue
 
-    earth_radius_km = 6371.0
+        labels[i] = cluster_id
+        queue = list(neighbors)
+        for nb in queue:
+            if labels[nb] == -1:
+                labels[nb] = cluster_id
+                lat_nb, lon_nb = reports[nb]["latitude"], reports[nb]["longitude"]
+                nb_neighbors = [k for k in range(n) if haversine_dist_km(lat_nb, lon_nb, reports[k]["latitude"], reports[k]["longitude"]) <= eps_km]
+                if len(nb_neighbors) >= min_samples:
+                    for k in nb_neighbors:
+                        if k not in queue:
+                            queue.append(k)
+        cluster_id += 1
 
-    eps = eps_km / earth_radius_km
+    return labels
 
-    dbscan = DBSCAN(
-        eps=eps,
-        min_samples=min_samples,
-        metric="haversine"
-    )
-
-    labels = dbscan.fit_predict(coordinates_radians)
-
-    return labels.tolist()
 
 
 def get_hotspot_level(report_count):
