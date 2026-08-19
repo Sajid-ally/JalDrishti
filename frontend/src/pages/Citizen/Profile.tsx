@@ -46,23 +46,42 @@ export default function CitizenProfile() {
     fetchProfile();
   }, [user]);
 
-  // Handle profile photo selection
+  // Handle profile photo selection with auto-resizing canvas compression
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     const reader = new FileReader();
-
-    reader.onloadend = () => {
-      setProfile((prev) => ({
-        ...prev,
-        photoUrl: reader.result as string,
-      }));
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const maxSize = 256;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          }
+        } else {
+          if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+        const compressedBase64 = canvas.toDataURL("image/jpeg", 0.85);
+        setProfile((prev) => ({
+          ...prev,
+          photoUrl: compressedBase64,
+        }));
+      };
+      img.src = event.target?.result as string;
     };
-
     reader.readAsDataURL(file);
   };
 

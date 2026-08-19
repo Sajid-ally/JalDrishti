@@ -51,18 +51,26 @@ export async function updateCitizenProfile(
   const current = await getCitizenProfile();
   const updated = { ...current, ...profile };
 
-  localStorage.setItem(
-    "jaldrishti_citizen_profile",
-    JSON.stringify(updated)
-  );
+  try {
+    localStorage.setItem(
+      "jaldrishti_citizen_profile",
+      JSON.stringify(updated)
+    );
+  } catch (err) {
+    console.warn("[USER SERVICE] Storage quota notice:", err);
+  }
 
   // Sync with auth user and backend
-  await updateUserProfile({
-    name: updated.name,
-    phone: updated.phone,
-    location: updated.location,
-    photoUrl: updated.photoUrl,
-  });
+  try {
+    await updateUserProfile({
+      name: updated.name,
+      phone: updated.phone,
+      location: updated.location,
+      photoUrl: updated.photoUrl,
+    });
+  } catch (syncErr) {
+    console.warn("[USER SERVICE] Remote sync notice:", syncErr);
+  }
 
   return updated;
 }
@@ -105,21 +113,29 @@ export async function updateGovernmentProfile(
   const current = await getGovernmentProfile();
   const updated = { ...current, ...profile };
 
-  localStorage.setItem(
-    "jaldrishti_govt_profile",
-    JSON.stringify(updated)
-  );
+  try {
+    localStorage.setItem(
+      "jaldrishti_govt_profile",
+      JSON.stringify(updated)
+    );
+  } catch (err) {
+    console.warn("[USER SERVICE] Storage quota notice:", err);
+  }
 
   // Sync with auth user and backend
-  await updateUserProfile({
-    name: updated.name,
-    phone: updated.phone,
-    department: updated.department,
-    designation: updated.designation,
-    governmentId: updated.governmentId,
-    location: updated.location,
-    photoUrl: updated.photoUrl,
-  });
+  try {
+    await updateUserProfile({
+      name: updated.name,
+      phone: updated.phone,
+      department: updated.department,
+      designation: updated.designation,
+      governmentId: updated.governmentId,
+      location: updated.location,
+      photoUrl: updated.photoUrl,
+    });
+  } catch (syncErr) {
+    console.warn("[USER SERVICE] Remote sync notice:", syncErr);
+  }
 
   return updated;
 }
