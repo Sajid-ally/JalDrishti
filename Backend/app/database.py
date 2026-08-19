@@ -1,25 +1,18 @@
-#from motor.motor_asyncio import AsyncIOMotorClient
-#from app.config import settings
-
-# Create MongoDB client
-#client = AsyncIOMotorClient(settings.MONGO_URI)
-
-# Select database
-#database = client[settings.DATABASE_NAME]
-
 import os
 import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
-from dotenv import load_dotenv
+from app.config import settings
 
-load_dotenv()
-MONGO_URI = os.getenv("MONGO_URI")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "coastal_eye")
+mongo_uri = getattr(settings, "MONGO_URI", None) or os.getenv("MONGO_URI") or "mongodb://localhost:27017"
+database_name = getattr(settings, "DATABASE_NAME", None) or os.getenv("DATABASE_NAME") or "coastal_eye"
 
-client = AsyncIOMotorClient(
-    MONGO_URI,
-    tls=True,
-    tlsCAFile=certifi.where()
-)
+if mongo_uri.startswith("mongodb+srv://") or "mongodb.net" in mongo_uri:
+    client = AsyncIOMotorClient(
+        mongo_uri,
+        tlsCAFile=certifi.where()
+    )
+else:
+    client = AsyncIOMotorClient(mongo_uri)
 
-database = client[DATABASE_NAME]
+database = client[database_name]
+
