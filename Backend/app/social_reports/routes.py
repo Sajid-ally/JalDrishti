@@ -24,6 +24,7 @@ router = APIRouter(
 # CREATE SOCIAL MEDIA CANDIDATE
 # =========================================================
 
+@router.post("")
 @router.post("/")
 async def create(
     data: SocialReportCreate
@@ -38,6 +39,7 @@ async def create(
 # GET SOCIAL MEDIA REPORTS
 # =========================================================
 
+@router.get("")
 @router.get("/")
 async def getAll(
 

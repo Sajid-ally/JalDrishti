@@ -31,7 +31,7 @@ export async function getSocialReports(status?: string, platform?: string): Prom
     if (status) params.status = status;
     if (platform) params.platform = platform;
 
-    const response = await api.get<any>("/social-reports/", { params });
+    const response = await api.get<any>("/social-reports", { params });
     const rawList = Array.isArray(response.data) ? response.data : (response.data?.reports || []);
     
     return rawList.map((r: any) => ({
