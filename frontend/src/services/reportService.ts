@@ -52,7 +52,7 @@ export interface DashboardStats {
 
 export async function fetchBackendReports(): Promise<BackendReport[]> {
   try {
-    const response = await api.get<BackendReportsResponse>("/reports/");
+    const response = await api.get<BackendReportsResponse>("/reports");
     return response.data.reports;
   } catch (error) {
     throw toApiError(error);
@@ -347,7 +347,7 @@ export async function submitWaterReport(
     }
 
     const response = await api.post<BackendReportCreateResponse & { duplicate?: boolean; duplicateMessage?: string; existingReportId?: string; report?: any }>(
-      "/reports/",
+      "/reports",
       formData,
       {
         headers: {

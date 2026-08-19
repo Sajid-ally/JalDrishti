@@ -160,6 +160,7 @@ async def analyzeReportMedia(
 # 2. CREATE REPORT (COMPLETE PIPELINE)
 # =========================================================
 
+@router.post("")
 @router.post("/")
 async def addReport(
     image: UploadFile = File(...),
