@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/auth/:match*",
+      "destination": "http://16.16.184.54:8000/auth/:match*"
+    },
+    {
       "source": "/api/:match*",
       "destination": "http://16.16.184.54:8000/api/:match*"
     },
@@ -17,6 +21,10 @@
       "destination": "http://16.16.184.54:8000/relief/:match*"
     },
     {
+      "source": "/validation/:match*",
+      "destination": "http://16.16.184.54:8000/validation/:match*"
+    },
+    {
       "source": "/notifications/:match*",
       "destination": "http://16.16.184.54:8000/notifications/:match*"
     },
@@ -25,8 +33,20 @@
       "destination": "http://16.16.184.54:8000/social-reports/:match*"
     },
     {
+      "source": "/social-bridge/:match*",
+      "destination": "http://16.16.184.54:8000/social-bridge/:match*"
+    },
+    {
+      "source": "/social/:match*",
+      "destination": "http://16.16.184.54:8000/social/:match*"
+    },
+    {
       "source": "/uploads/:match*",
       "destination": "http://16.16.184.54:8000/uploads/:match*"
+    },
+    {
+      "source": "/health",
+      "destination": "http://16.16.184.54:8000/health"
     },
     {
       "source": "/(.*)",
