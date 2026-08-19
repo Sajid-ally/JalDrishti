@@ -24,6 +24,7 @@ router = APIRouter(
 # Citizen
 # =========================================================
 
+@router.post("")
 @router.post("/")
 async def addReliefRequest(request: Request):
     content_type = request.headers.get("content-type", "")
@@ -78,6 +79,7 @@ async def addReliefRequest(request: Request):
 # GET ALL RELIEF REQUESTS
 # =========================================================
 
+@router.get("")
 @router.get("/")
 async def fetchReliefRequests():
     requests = await getReliefRequests()

@@ -564,7 +564,7 @@ export default function RescueRequests() {
 
     try {
       const response = await api.get<ReliefListResponse>(
-        "/relief/"
+        "/relief"
       );
 
       setRequests(response.data.requests || []);

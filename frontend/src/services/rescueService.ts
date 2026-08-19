@@ -280,7 +280,7 @@ export async function createReliefRequest(
 
     const response =
       await api.post<ReliefCreateResponse>(
-        "/relief/",
+        "/relief",
         formData
       );
 
@@ -311,7 +311,7 @@ export async function getReliefRequests(): Promise<
   try {
     const response =
       await api.get<ReliefListResponse>(
-        "/relief/"
+        "/relief"
       );
 
     return (
