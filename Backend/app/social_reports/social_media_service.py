@@ -1,192 +1,163 @@
 import os
 from datetime import datetime
 from bson import ObjectId
-from motor.motor_asyncio import AsyncIOMotorClient
+import httpx
 
-# Load integration configuration
-INTEGRATION_MODE = os.getenv("SOCIAL_MEDIA_INTEGRATION_MODE", "mock").lower()
-DB_URI = os.getenv("SOCIAL_MEDIA_DB_URI", "mongodb://localhost:27017")
-DB_NAME = os.getenv("SOCIAL_MEDIA_DB_NAME", "oceanshield")
-DB_COLLECTION = os.getenv("SOCIAL_MEDIA_DB_COLLECTION", "socialMediaPosts")
+# External CoastalSocial Service Configuration
+COASTAL_SOCIAL_API_URL = os.getenv(
+    "COASTAL_SOCIAL_BACKEND_URL",
+    "https://coastalsocial-oeff.onrender.com"
+).rstrip("/")
 
-MOCK_SOCIAL_POSTS = [
-    {
-        "_id": "tweet-109283749",
-        "platform": "twitter",
-        "sourcePostId": "tweet-109283749",
-        "username": "floodwatcher_orissa",
-        "title": "Severe road waterlogging near sector 3",
-        "description": "Unbelievable water logging on Puri-Bhubaneswar highway near Sector 3. Traffic completely halted, water level is rising up to car tires.",
-        "imageUrl": "uploads/reports/test_flooding.png",
-        "location": {
-            "latitude": 20.296,
-            "longitude": 85.818,
-            "locality": "Sector 3 Highway",
-            "city": "Bhubaneswar",
-            "district": "Khordha",
-            "state": "Odisha"
-        },
-        "category": "urban_flooding",
-        "mlConfidence": 0.94,
-        "postedAt": datetime.utcnow().isoformat(),
-        "classification": {
-            "isWaterRelated": True,
-            "category": "urban_flooding",
-            "confidence": 0.94
-        }
-    },
-    {
-        "_id": "insta-882736192",
-        "platform": "instagram",
-        "sourcePostId": "insta-882736192",
-        "username": "puri_beach_life",
-        "title": "High waves crashing over embankment",
-        "description": "High tide waves and storm surge crashing over the concrete embankment at Puri golden beach. Locals are advised to avoid beachside roads.",
-        "imageUrl": "uploads/reports/test_wave.png",
-        "location": {
-            "latitude": 19.798,
-            "longitude": 85.825,
-            "locality": "Golden Beach",
-            "city": "Puri",
-            "district": "Puri",
-            "state": "Odisha"
-        },
-        "category": "storm_surge",
-        "mlConfidence": 0.89,
-        "postedAt": datetime.utcnow().isoformat(),
-        "classification": {
-            "isWaterRelated": True,
-            "category": "storm_surge",
-            "confidence": 0.89
-        }
-    },
-    {
-        "_id": "fb-post-773829102",
-        "platform": "facebook",
-        "sourcePostId": "fb-post-773829102",
-        "username": "bhadrak_news",
-        "title": "Baitarani river crossing danger mark",
-        "description": "Baitarani river levels crossing danger mark in Bhandaripokhari. Low lying agricultural fields completely inundated.",
-        "imageUrl": None,
-        "location": {
-            "latitude": 20.912,
-            "longitude": 86.415,
-            "locality": "Bhandaripokhari",
-            "city": "Bhadrak",
-            "district": "Bhadrak",
-            "state": "Odisha"
-        },
-        "category": "river_flooding",
-        "mlConfidence": 0.78,
-        "postedAt": datetime.utcnow().isoformat(),
-        "classification": {
-            "isWaterRelated": True,
-            "category": "river_flooding",
-            "confidence": 0.78
-        }
-    }
+INTEGRATION_MODE = "live"
+
+WATER_HAZARD_KEYWORDS = [
+    "flood", "water", "drain", "drainage", "overflow", "rain", 
+    "waterlog", "waterlogged", "waterlogging", "landslide", 
+    "cyclone", "sea", "tsunami", "inundat", "dam", "leak", "river"
 ]
 
-def normalize_social_post(post: dict) -> dict:
-    """Normalizes an external social media post to JalDrishti format."""
-    post_id = str(post.get("_id", post.get("id", "")))
-    
-    classification = post.get("classification", {})
-    is_water_related = classification.get(
-        "isWaterRelated", 
-        post.get("isWaterRelated", post.get("category") is not None)
-    )
-    category = classification.get("category", post.get("category", "water_hazard"))
-    confidence = classification.get("confidence", post.get("mlConfidence", 0.85))
-    
-    location = post.get("location", {})
-    normalized_location = {
-        "latitude": float(location.get("latitude", 0.0)),
-        "longitude": float(location.get("longitude", 0.0)),
-        "state": location.get("state"),
-        "district": location.get("district"),
-        "city": location.get("city"),
-        "locality": location.get("locality"),
-        "address": location.get("address")
-    }
+def is_water_related_content(category: str, text: str) -> bool:
+    """Classifies whether a social media post describes a water hazard."""
+    cat_lower = (category or "").lower().strip()
+    text_lower = (text or "").lower().strip()
 
-    posted_at = post.get("postedAt") or post.get("createdAt")
+    if cat_lower in ["flood", "floods", "drainage", "water-related", "water_hazard", "landslide", "cyclone"]:
+        return True
+
+    for kw in WATER_HAZARD_KEYWORDS:
+        if kw in cat_lower or kw in text_lower:
+            return True
+
+    return False
+
+def normalize_social_post(post: dict) -> dict:
+    """Normalizes a live CoastalSocial post to JalDrishti format."""
+    post_id = str(post.get("id") or post.get("_id", ""))
+    
+    raw_img = post.get("imageUrl")
+    image_url = None
+    if raw_img:
+        if raw_img.startswith("http://") or raw_img.startswith("https://"):
+            image_url = raw_img
+        else:
+            image_url = f"{COASTAL_SOCIAL_API_URL}/{raw_img.lstrip('/')}"
+
+    # If no image uploaded, mark category as General / Non-hazard
+    if not image_url or image_url.strip() == "":
+        category = "General"
+        is_water = False
+    else:
+        category = post.get("category", "Water-related")
+        content = post.get("content") or post.get("description") or post.get("caption") or ""
+        is_water = is_water_related_content(category, content)
+
+    # Extract or infer location
+    raw_loc = post.get("location")
+    if isinstance(raw_loc, dict):
+        latitude = float(raw_loc.get("latitude") or 26.4499)
+        longitude = float(raw_loc.get("longitude") or 80.3319)
+        city = raw_loc.get("city") or "Kanpur"
+        state = raw_loc.get("state") or "Uttar Pradesh"
+        locality = raw_loc.get("locality") or "Urban Sector"
+    else:
+        latitude = 26.4499
+        longitude = 80.3319
+        city = "Kanpur"
+        state = "Uttar Pradesh"
+        locality = "Urban Sector"
+
+    posted_at = post.get("createdAt") or post.get("postedAt")
     if isinstance(posted_at, datetime):
         posted_at = posted_at.isoformat()
 
+    content_str = post.get("content") or post.get("description") or post.get("caption") or ""
+
     return {
-        "platform": post.get("platform", "twitter"),
-        "sourcePostId": post.get("sourcePostId", post_id),
-        "username": post.get("username", "anonymous"),
-        "title": post.get("title", "Water Incident Report"),
-        "description": post.get("description", post.get("caption", post.get("content", ""))),
-        "imageUrl": post.get("imageUrl"),
-        "location": normalized_location,
-        "category": category,
-        "mlConfidence": confidence,
+        "platform": "coastal_social",
+        "sourcePostId": post_id,
+        "socialReportId": post_id,
+        "username": post.get("username", "citizen"),
+        "title": f"Reported {category.replace('_', ' ').title()}",
+        "description": content_str,
+        "originalPostText": content_str,
+        "imageUrl": image_url,
+        "location": {
+            "latitude": latitude,
+            "longitude": longitude,
+            "city": city,
+            "district": city,
+            "state": state,
+            "locality": locality
+        },
+        "category": category.lower().replace("-", "_").replace(" ", "_"),
+        "mlConfidence": 0.92 if is_water else 0.40,
         "postedAt": posted_at,
-        "classification": {
-            "isWaterRelated": is_water_related,
-            "category": category,
-            "confidence": confidence
-        }
+        "isWaterHazard": is_water,
+        "status": "pending_verification"
     }
 
 async def fetchClassifiedWaterRelatedPosts() -> list:
-    """Fetches classified water-related posts from the separate database."""
-    if INTEGRATION_MODE == "mock":
-        print("[SocialMediaService] Integration mode: MOCK. Loading sample posts.")
-        return [normalize_social_post(post) for post in MOCK_SOCIAL_POSTS]
-        
-    print(f"[SocialMediaService] Integration mode: REAL. Querying separate database: {DB_NAME}")
-    try:
-        client = AsyncIOMotorClient(DB_URI)
-        db = client[DB_NAME]
-        collection = db[DB_COLLECTION]
-        
-        cursor = collection.find({
-            "$or": [
-                {"classification.isWaterRelated": True},
-                {"isWaterRelated": True}
-            ]
-        })
-        
-        posts = []
-        async for post in cursor:
-            posts.append(normalize_social_post(post))
-        return posts
-    except Exception as e:
-        print(f"[SocialMediaService] Error fetching from separate database: {e}")
-        return []
+    """Fetches real classified water-related posts from the live CoastalSocial backend."""
+    urls_to_try = [
+        f"{COASTAL_SOCIAL_API_URL}/api/posts/",
+        "http://127.0.0.1:8000/api/posts/",
+        "http://127.0.0.1:8001/api/posts/"
+    ]
+
+    for url in urls_to_try:
+        try:
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    raw_posts = data.get("posts", []) if isinstance(data, dict) else data
+                    
+                    water_posts = []
+                    for post in raw_posts:
+                        normalized = normalize_social_post(post)
+                        if normalized["isWaterHazard"]:
+                            water_posts.append(normalized)
+                    
+                    print(f"[SocialMediaService] Synced {len(water_posts)} live water hazard posts with images from {url}")
+                    return water_posts
+        except Exception as e:
+            continue
+
+    return []
 
 async def getSocialMediaPost(externalPostId: str) -> dict:
-    """Fetches a specific social media post from the external database."""
-    if INTEGRATION_MODE == "mock":
-        for post in MOCK_SOCIAL_POSTS:
-            if post["sourcePostId"] == externalPostId:
-                return normalize_social_post(post)
-        return None
-        
-    print(f"[SocialMediaService] Querying separate database for post: {externalPostId}")
+    """Fetches a specific social media post from the live CoastalSocial backend."""
+    url = f"{COASTAL_SOCIAL_API_URL}/api/posts/{externalPostId}"
     try:
-        client = AsyncIOMotorClient(DB_URI)
-        db = client[DB_NAME]
-        collection = db[DB_COLLECTION]
-        
-        # Try string query first, then ObjectId query if valid
-        query = {"sourcePostId": externalPostId}
-        post = await collection.find_one(query)
-        
-        if not post and ObjectId.is_valid(externalPostId):
-            post = await collection.find_one({"_id": ObjectId(externalPostId)})
-            
-        if post:
-            return normalize_social_post(post)
-        return None
-    except Exception as e:
-        print(f"[SocialMediaService] Error querying post from separate database: {e}")
-        return None
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                return normalize_social_post(resp.json())
+    except Exception:
+        pass
 
-async def updateVerificationStatus(externalPostId: str, status: str):
-    """Callback hook conceptually updating source system of verification status."""
-    print(f"[SocialMediaService] Callback: updating external status for post {externalPostId} to {status}.")
+    # Fallback to fetching all and filtering by ID
+    all_posts = await fetchClassifiedWaterRelatedPosts()
+    for p in all_posts:
+        if p["sourcePostId"] == externalPostId or p["socialReportId"] == externalPostId:
+            return p
+
+    return None
+
+async def updateVerificationStatus(externalPostId: str, status: str, comment: str = None):
+    """Posts official municipal comment back to CoastalSocial when reviewed."""
+    print(f"[SocialMediaService] Updating CoastalSocial post {externalPostId} with status: {status}")
+    if not comment:
+        return
+
+    try:
+        comment_url = f"{COASTAL_SOCIAL_API_URL}/api/posts/{externalPostId}/comments"
+        async with httpx.AsyncClient(timeout=4.0) as client:
+            resp = await client.post(comment_url, params={
+                "username": "🏛️ JalDrishti Disaster Desk",
+                "text": comment
+            })
+            print(f"[SocialMediaService] Automated comment response code: {resp.status_code}")
+    except Exception as e:
+        print(f"[SocialMediaService] Could not post comment to CoastalSocial: {e}")

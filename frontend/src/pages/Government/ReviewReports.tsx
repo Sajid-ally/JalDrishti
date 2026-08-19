@@ -441,7 +441,18 @@ export default function ReviewReports() {
 
                       {/* Problem */}
                       <td className="px-5 py-4 text-sm font-bold text-(--color-deep-ocean)">
-                        {r.categoryLabel}
+                        <div>{r.categoryLabel}</div>
+                        {r.source === "SOCIAL_MEDIA" ? (
+                          <div className="mt-1">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                              📱 @{r.socialUsername || "citizen"}
+                            </span>
+                          </div>
+                        ) : r.contactName ? (
+                          <div className="mt-1 text-[11px] font-medium text-slate-500">
+                            👤 {r.contactName}
+                          </div>
+                        ) : null}
                       </td>
 
                       {/* Location */}
@@ -552,6 +563,15 @@ export default function ReviewReports() {
                       <p className="mt-0.5 text-base font-bold text-(--color-deep-ocean)">
                         {r.categoryLabel}
                       </p>
+                      {r.source === "SOCIAL_MEDIA" ? (
+                        <p className="text-[11px] font-semibold text-blue-700">
+                          📱 @{r.socialUsername || "citizen"}
+                        </p>
+                      ) : r.contactName ? (
+                        <p className="text-[11px] font-medium text-slate-500">
+                          👤 {r.contactName}
+                        </p>
+                      ) : null}
                       <p className="mt-0.5 text-xs text-(--color-medium-teal)">
                         {r.location.placeName ?? r.location.address ?? "Unknown site"}
                       </p>

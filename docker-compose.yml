@@ -1,0 +1,36 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: jaldrishti_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - DATABASE_NAME=${DATABASE_NAME:-coastal_eye}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-flash-lite-latest}
+      - SECRET_KEY=${SECRET_KEY:-jaldrishti_super_secret_jwt_key_2026}
+      - ML_SERVICE_URL=http://ml-service:8001
+      - FRONTEND_URL=${FRONTEND_URL}
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      - ml-service
+
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: jaldrishti_ml_service
+    restart: always
+    ports:
+      - "8001:8001"
+
+volumes:
+  backend_uploads:
+
