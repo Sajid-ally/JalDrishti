@@ -1,6 +1,34 @@
 {
   "rewrites": [
     {
+      "source": "/api/:match*",
+      "destination": "http://16.16.184.54:8000/api/:match*"
+    },
+    {
+      "source": "/reports/:match*",
+      "destination": "http://16.16.184.54:8000/reports/:match*"
+    },
+    {
+      "source": "/location/:match*",
+      "destination": "http://16.16.184.54:8000/location/:match*"
+    },
+    {
+      "source": "/relief/:match*",
+      "destination": "http://16.16.184.54:8000/relief/:match*"
+    },
+    {
+      "source": "/notifications/:match*",
+      "destination": "http://16.16.184.54:8000/notifications/:match*"
+    },
+    {
+      "source": "/social-reports/:match*",
+      "destination": "http://16.16.184.54:8000/social-reports/:match*"
+    },
+    {
+      "source": "/uploads/:match*",
+      "destination": "http://16.16.184.54:8000/uploads/:match*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
