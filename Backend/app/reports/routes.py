@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query, Depends, status
 
 from app.config import settings
+from app.database import database
 from app.utils.fileHandler import saveImage
 from app.utils.geocode import reverseGeocode
 from app.ml_client import getOwnModelPrediction
@@ -652,10 +653,24 @@ async def removeReport(
     }
 
 
+@router.get("")
 @router.get("/")
 async def fetchAllReports():
     reports = await getReports()
     return {
         "count": len(reports),
         "reports": reports,
+    }
+
+
+@router.post("/admin/reset-all-data")
+async def resetAllDatabaseData():
+    """Wipes old test reports, relief requests, and social reports."""
+    r1 = await database.reports.delete_many({})
+    r2 = await database.relief_requests.delete_many({})
+    r3 = await database.social_reports.delete_many({})
+    r4 = await database.hotspots.delete_many({})
+    return {
+        "success": True,
+        "message": f"Database wiped successfully! Deleted {r1.deleted_count} reports, {r2.deleted_count} relief requests, {r3.deleted_count} social reports.",
     }
